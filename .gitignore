@@ -23,6 +23,11 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+.cache
+
+# test data
+data*uc*
+simetuc/test/test_setup/backup_simple_lattices
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -34,6 +39,8 @@ var/
 pip-log.txt
 pip-delete-this-directory.txt
 
+simetuc/logs/*.txt*
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -44,6 +51,7 @@ nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
+cov_html/
 
 # Translations
 *.mo
@@ -83,6 +91,7 @@ ENV/
 
 # Spyder project settings
 .spyderproject
+.spyproject
 
 # Rope project settings
 .ropeproject
@@ -137,3 +146,4 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+simetuc/minimize_results.npz
