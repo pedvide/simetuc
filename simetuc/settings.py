@@ -14,6 +14,8 @@ import logging
 # nice debug printing of settings
 import pprint
 import warnings
+import os
+import pkg_resources
 
 import numpy as np
 
@@ -634,7 +636,9 @@ def _parse_simulation_params(user_settings):
     '''Parse the optional simulation parameters
         If some are not given, the default values are used
     '''
-    default_settings = _load_yaml_file('config/settings.cfg')
+    path = pkg_resources.get_distribution('simetuc').location
+    full_path = os.path.join(path, 'simetuc', 'config', 'settings.cfg')
+    default_settings = _load_yaml_file(full_path)
     default_settings = default_settings['simulation_params']
 
     optional_keys = ['rtol', 'atol',

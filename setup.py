@@ -23,7 +23,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.2',
+    version='0.7',
 
     description='Simulating Energy Transfer and Upconversion',
     long_description=long_description,
@@ -79,7 +79,6 @@ setup(
     install_requires=['ase>=3.9',
                       'matplotlib >=1.5',
                       'numpy >=1.11',
-                      'pytest >=3.0',
                       'scipy >=0.18',
                       'tqdm >=4.8',
                       'PyYAML >=3.12'],
@@ -88,15 +87,17 @@ setup(
     # dependencies). You can install these using the following syntax,
     # for example:
     # $ pip install -e .[dev,test]
-#    extras_require={
-#        'test': ['coverage'],
-#    },
+    extras_require={
+        'test': ['pytest >=3.0'],
+    },
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
     package_data={
-        'simetuc': ['config_file.txt'],
+        'simetuc': ['config_file.txt',
+                    './config/log_config.cfg',
+                    './config/settings.cfg'],
     },
 
     # Although 'package_data' is the preferred approach, in some case you may

@@ -15,7 +15,7 @@ import scipy.optimize as optimize
 
 import tqdm
 
-import simulations as simulations
+import simetuc.simulations as simulations
 
 #import numdifftools as numdiff
 
@@ -37,6 +37,8 @@ def optimize_dynamics(cte):
     ''' Minimize the error between experimental data and simulation for the settings in cte
     '''
     logger = logging.getLogger(__name__)
+
+    cte['no_plot'] = True
 
     # load decay experimental data
     list_exp_data = simulations.load_decay_data(cte)
@@ -94,7 +96,7 @@ def optimize_dynamics(cte):
 
     bounds = ((0, 1e10),)*len(x0)
 
-    method = 'COBYLA'
+    method = 'SLSQP'
 
     if method == 'COBYLA':
         # minimize error. The starting point is preconditioned to be 1
@@ -102,21 +104,21 @@ def optimize_dynamics(cte):
 
     if method == 'L-BFGS-B': # fails?
         pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
-        logger.info('ET parameters. Error.')
+        logger.info('ET parameters. RMSD.')
         res = optimize.minimize(fun_optim, np.ones_like(x0), bounds=bounds,
                                 method=method, tol=tol, callback=callback_fun)
         pbar.close()
 
     if method == 'TNC': # fails?
         pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
-        logger.info('ET parameters. Error.')
+        logger.info('ET parameters. RMSD.')
         res = optimize.minimize(fun_optim, np.ones_like(x0), bounds=bounds,
                                 method=method, tol=tol, callback=callback_fun)
         pbar.close()
 
     if method == 'SLSQP':
         pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
-        logger.info('ET parameters. Error.')
+        logger.info('ET parameters. RMSD.')
         res = optimize.minimize(fun_optim, np.ones_like(x0), bounds=bounds,
                                 method=method, tol=tol, callback=callback_fun)
         pbar.close()
@@ -128,7 +130,7 @@ def optimize_dynamics(cte):
             return np.alltrue(x_new > 0)
 
         pbar = tqdm.tqdm(desc='Optimizing', unit=' points', disable=cte['no_console'])
-        logger.info('ET parameters. Error.')
+        logger.info('ET parameters. RMSD.')
         res = optimize.basinhopping(fun_optim, np.ones_like(x0), minimizer_kwargs=minimizer_kwargs,
                                     niter=10, stepsize=5, T=1e-2, callback=callback_fun)
         pbar.close()
@@ -167,7 +169,7 @@ if __name__ == "__main__":
 
     logger.debug('Called from cmd.')
 
-    import settings as settings
+    import simetuc.settings as settings
     cte = settings.load('config_file.txt')
 
     cte['no_console'] = False

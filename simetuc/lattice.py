@@ -394,7 +394,7 @@ if __name__ == "__main__": # pragma: no cover
 
    logger.debug('Called from main.')
 
-   import settings as settings
+   import simetuc.settings as settings
    cte = settings.load('config_file.txt')
    cte['no_console'] = False
    cte['no_plot'] = False

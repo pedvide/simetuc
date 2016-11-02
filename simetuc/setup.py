@@ -14,7 +14,7 @@ import numpy as np
 import scipy.sparse
 from scipy.sparse import csc_matrix
 
-import lattice as lattice
+import simetuc.lattice as lattice
 
 def _load_lattice(filename):
     '''Loads the filename and returns it along with its associanted lattice_info
@@ -577,7 +577,7 @@ if __name__ == "__main__": # pragma: no cover
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
     logger.debug('Called from main.')
 
-    import settings as settings
+    import simetuc.settings as settings
     cte = settings.load('test/test_settings/test_standard_config.txt')
     cte['no_console'] = False
     cte['no_plot'] = False

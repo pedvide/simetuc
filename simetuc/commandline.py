@@ -15,15 +15,17 @@ import argparse
 # nice debug printing of settings
 import pprint
 import time
+import os
+import pkg_resources
 
 import numpy as np
 import matplotlib.pyplot as plt
 import yaml
 
-import lattice as lattice
-import simulations as simulations
-import settings as settings
-import optimize as optimize
+import simetuc.lattice as lattice
+import simetuc.simulations as simulations
+import simetuc.settings as settings
+import simetuc.optimize as optimize
 
 
 def _change_console_logger(level):
@@ -82,18 +84,21 @@ def main():
         no_plot = True
 
     # read logging settings from file
+    path = pkg_resources.get_distribution('simetuc').location
     try:
-        with open('config/log_config.cfg') as file:
+        full_path = os.path.join(path, 'simetuc', 'config', 'log_config.cfg')
+        with open(full_path) as file:
             log_settings = yaml.safe_load(file)
             # modify logging to console that the user wants
             log_settings['handlers']['console']['level'] = console_level
     except OSError as err:
-        print('ERROR! Logging settings file not found at config/log_config.cfg!')
+        print('ERROR! Logging settings file not found at {}!'.format(full_path))
         print('Logging won\'t be available!!')
         log_settings = {'version': 1} # minimum settings without errors
 
     # load settings and rollover any rotating file handlers
     # so each execution of this program is logged to a fresh file
+    os.makedirs('logs', exist_ok=True)
     logging.config.dictConfig(log_settings)
     logger = logging.getLogger('simetuc')
     for handler in logging.getLogger().handlers:
@@ -142,7 +147,6 @@ def main():
 
     if args.optimize: # optimize
         logger.info('Optimizing ET parameters...')
-        cte['no_plot'] = True
 
         _change_console_logger(logging.WARNING)
 
@@ -159,7 +163,7 @@ def main():
 
     # show all plots
     # the user needs to close the window to exit the program
-    if not no_plot:
+    if not cte['no_plot']:
         if not args.config:
             logger.info('Close the plot window to exit.')
             plt.show()

@@ -25,9 +25,9 @@ from scipy.integrate import ode
 import scipy.interpolate as interpolate
 
 # nice progress bar
-import tqdm
+from tqdm import tqdm
 
-import setup as setup
+import simetuc.setup as setup
 
 #import psutil
 #from memory_profiler import memory_usage
@@ -319,8 +319,8 @@ def _solve_ode(t_arr, fun, fargs, jfun, jargs, initial_population,
     # console bar enabled for INFO
     # this doesn't work, as there are two handlers with different levels
     cmd_bar_disable = quiet
-    pbar_cmd = tqdm.tqdm(total=N_steps, unit='step', smoothing=0.1,
-                         disable=cmd_bar_disable, desc='ODE progress')
+    pbar_cmd = tqdm(total=N_steps, unit='step', smoothing=0.1,
+                    disable=cmd_bar_disable, desc='ODE progress')
 
     # catch numpy warnings and log them
     # DVODE (the internal routine used by the integrator 'vode') will throw a warning
@@ -634,9 +634,9 @@ def simulate_power_dependence(cte, power_dens_list):
     num_power_steps = len(power_dens_list)
     power_dependence = np.zeros((num_power_steps, num_states), dtype=np.float64)
 
-    for num, power_dens in tqdm.tqdm(enumerate(power_dens_list), unit='points',
-                                     total=num_power_steps, disable=cte['no_console'],
-                                     desc='Total progress'):
+    for num, power_dens in tqdm(enumerate(power_dens_list), unit='points',
+                                total=num_power_steps, disable=cte['no_console'],
+                                desc='Total progress'):
         # update power density
         for excitation in cte['excitations'].keys():
             cte['excitations'][excitation]['power_dens'] = power_dens
@@ -683,9 +683,9 @@ def simulate_concentration_dependence(cte, concentration_list):
     num_conc_steps = len(concentration_list)
     conc_dependence = []
 
-    for concs in tqdm.tqdm(concentration_list, unit='points',
-                                total=num_conc_steps, disable=cte['no_console'],
-                                desc='Total progress'):
+    for concs in tqdm(concentration_list, unit='points',
+                      total=num_conc_steps, disable=cte['no_console'],
+                      desc='Total progress'):
         # update concentrations
         cte['lattice']['S_conc'] = concs[0]
         cte['lattice']['A_conc'] = concs[1]
@@ -716,18 +716,18 @@ if __name__ == "__main__":
 
     logger.info('Called from cmd.')
 
-    import settings as settings
+    import simetuc.settings as settings
     cte = settings.load('config_file.txt')
 
     cte['no_console'] = False
     cte['no_plot'] = False
 
-    simulate_steady_state(cte)
+#    simulate_steady_state(cte)
 
 #    power_dens_list = np.logspace(1, 8, 8-1+1)
 #    power_dependence = simulate_power_dependence(cte, power_dens_list)
 
-#    plot_dynamics_and_exp_data(cte)
+    plot_dynamics_and_exp_data(cte)
 
 
 #    conc_list = [(0, 0.1), (0, 0.3)]
