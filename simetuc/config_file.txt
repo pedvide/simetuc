@@ -7,7 +7,7 @@ version: 1 # mandatory, only 1 is supported at the moment
 lattice:
 # all fields here are mandatory
     name: bNaYF4
-    N_uc: 60
+    N_uc: 30
     # concentration
     S_conc: 0.0
     A_conc: 0.3

@@ -24,6 +24,7 @@ import yaml
 
 import simetuc.lattice as lattice
 import simetuc.simulations as simulations
+#from simetuc.simulations import Simulations
 import simetuc.settings as settings
 import simetuc.optimize as optimize
 
@@ -84,6 +85,7 @@ def main():
         no_plot = True
 
     # read logging settings from file
+    # use the file located where the package is installed
     path = pkg_resources.get_distribution('simetuc').location
     try:
         full_path = os.path.join(path, 'simetuc', 'config', 'log_config.cfg')
@@ -127,7 +129,9 @@ def main():
 
     elif args.steady_state: # simulate steady state
         logger.info('Simulating steady state...')
-        simulations.simulate_steady_state(cte)
+        sim = simulations.Simulations(cte)
+        steady_sol = sim.simulate_steady_state()
+        sim.plot_solution(steady_sol)
 
     elif args.power_dependence: # simulate power dependence
         logger.info('Simulating power dependence...')
@@ -136,14 +140,18 @@ def main():
         # change the logging level of the console handler
         # so it only prints warnings to screen while calculating all steady states
         _change_console_logger(logging.WARNING)
-        simulations.simulate_power_dependence(cte, power_dens_list)
+        sim = simulations.Simulations(cte)
+        sim.simulate_power_dependence(power_dens_list)
         # restore old level value
         _change_console_logger(console_level)
         print('')
 
     elif args.dynamics: # simulate dynamics
         logger.info('Simulating dynamics...')
-        simulations.plot_dynamics_and_exp_data(cte)
+        sim = simulations.Simulations(cte)
+        dynamics_sol = sim.simulate_dynamics()
+        dynamics_sol.log_errors()
+        sim.plot_solution(dynamics_sol)
 
     if args.optimize: # optimize
         logger.info('Optimizing ET parameters...')

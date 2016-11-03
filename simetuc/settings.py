@@ -636,6 +636,7 @@ def _parse_simulation_params(user_settings):
     '''Parse the optional simulation parameters
         If some are not given, the default values are used
     '''
+    # use the file located where the package is installed
     path = pkg_resources.get_distribution('simetuc').location
     full_path = os.path.join(path, 'simetuc', 'config', 'settings.cfg')
     default_settings = _load_yaml_file(full_path)

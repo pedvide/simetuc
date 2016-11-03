@@ -38,11 +38,6 @@ def optimize_dynamics(cte):
     '''
     logger = logging.getLogger(__name__)
 
-    cte['no_plot'] = True
-
-    # load decay experimental data
-    list_exp_data = simulations.load_decay_data(cte)
-
     def callback_fun(Xi):
         ''' This function is called after every minimization step
             It prints the current parameters and error from the cache
@@ -53,15 +48,14 @@ def optimize_dynamics(cte):
             msg = '({}): {:.3e}'.format(format_params, cache.f_val_lst[-1])
             tqdm.tqdm.write(msg)
 
+
     def _update_ET_and_simulate(cte, x):
         # update ET values if explicitly given
         for num, process in enumerate(process_list):
-            cte['ET'][process]['value'] = x[num]*x0[num] # precondition
+            sim.modify_ET_param_value(process, x[num]*x0[num]) # precondition
 
-        # we could call simulate_dynamics_and_errors, but it loads the data
-        # everytime, so this should be faster
-        t_sim, list_sim_data, _ = simulations.simulate_dynamics(cte)
-        total_error, _ = simulations.calculate_dynamics_errors(list_exp_data, t_sim, list_sim_data)
+        dynamics_sol = sim.simulate_dynamics()
+        total_error = dynamics_sol.total_error
 
         return total_error
 
@@ -79,6 +73,10 @@ def optimize_dynamics(cte):
         pbar.update(1)
         total_error = _update_ET_and_simulate(cte, x)
         return total_error
+
+    cte['no_plot'] = True
+
+    sim = simulations.Simulations(cte)
 
     start_time = time.time()
 

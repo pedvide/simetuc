@@ -147,3 +147,4 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 simetuc/minimize_results.npz
+simetuc/DynamicsSolution

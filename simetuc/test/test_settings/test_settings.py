@@ -13,7 +13,7 @@ import os
 import pytest
 #import numpy as np
 
-import settings as settings
+import simetuc.settings as settings
 
 def test_standard_config():
     cte = settings.load('test/test_settings/test_standard_config.txt')

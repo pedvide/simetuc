@@ -11,8 +11,8 @@ import numpy as np
 # pylint: disable=E1101
 import scipy.sparse as sparse
 
-import setup as setup
-import lattice as lattice # for the LatticeError exception
+import simetuc.setup as setup
+import simetuc.lattice as lattice # for the LatticeError exception
 
 
 @pytest.fixture(scope='module')

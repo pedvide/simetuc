@@ -5,6 +5,11 @@ Created on Tue Nov  1 16:17:59 2016
 @author: Pedro
 """
 
+# build with: python setup.py bdist_wheel sdist
+# upload with: twine upload dist/* --skip-existing
+# install locally with: pip install --upgrade --no-deps --force-reinstall dist\simetuc-0.7-py3-none-any.whl
+# install from pypi with: pip install simetuc
+
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 # To use a consistent encoding
@@ -26,7 +31,7 @@ setup(
     version='0.7',
 
     description='Simulating Energy Transfer and Upconversion',
-    long_description=long_description,
+#    long_description=long_description,
 
     # The project's main homepage.
     url='https://github.com/pedvide/simetuc',

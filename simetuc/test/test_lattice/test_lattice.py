@@ -11,7 +11,7 @@ import numpy as np
 # pylint: disable=E1101
 #import scipy.sparse as sparse
 
-import lattice as lattice
+import simetuc.lattice as lattice
 
 @pytest.fixture(scope='module')
 def setup_cte():
