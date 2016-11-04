@@ -16,7 +16,7 @@ import argparse
 import pprint
 import time
 import os
-import pkg_resources
+from pkg_resources import resource_string
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -86,15 +86,15 @@ def main():
 
     # read logging settings from file
     # use the file located where the package is installed
-    path = pkg_resources.get_distribution('simetuc').location
+    _log_config_file = 'log_config.cfg'
+    # resource_string opens the file and gets it as a string. Works inside .egg too
+    _log_config_location = resource_string(__name__, os.path.join('config', _log_config_file))
     try:
-        full_path = os.path.join(path, 'simetuc', 'config', 'log_config.cfg')
-        with open(full_path) as file:
-            log_settings = yaml.safe_load(file)
-            # modify logging to console that the user wants
-            log_settings['handlers']['console']['level'] = console_level
+        log_settings = yaml.safe_load(_log_config_location)
+        # modify logging to console that the user wants
+        log_settings['handlers']['console']['level'] = console_level
     except OSError as err:
-        print('ERROR! Logging settings file not found at {}!'.format(full_path))
+        print('ERROR! Logging settings file not found at {}!'.format(_log_config_location))
         print('Logging won\'t be available!!')
         log_settings = {'version': 1} # minimum settings without errors
 

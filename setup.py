@@ -10,17 +10,26 @@ Created on Tue Nov  1 16:17:59 2016
 # install locally with: pip install --upgrade --no-deps --force-reinstall dist\simetuc-0.7-py3-none-any.whl
 # install from pypi with: pip install simetuc
 
+# CONDA:
+# build and upload to pypi as before.
+# then on directory python/conda delete folder simetuc
+# then conda skeleton pypi simetuc
+# conda build simetuc
+# conda convert -f --platform all PATH-TO-PACKAGE -o .
+# anaconda login
+# anaconda upload win-64¦win-36¦linux-32¦linux-64¦osx-64\PACKAGE-NAME
+
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 # To use a consistent encoding
-from codecs import open
+#from codecs import open
 from os import path
 
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
+#with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+#    long_description = f.read()
 
 setup(
     name='simetuc',
@@ -28,7 +37,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.7',
+    version='0.9.1',
 
     description='Simulating Energy Transfer and Upconversion',
 #    long_description=long_description,
@@ -100,9 +109,8 @@ setup(
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
     package_data={
-        'simetuc': ['config_file.txt',
-                    './config/log_config.cfg',
-                    './config/settings.cfg'],
+        'simetuc': ['config/log_config.cfg',
+                    'config/settings.cfg'],
     },
 
     # Although 'package_data' is the preferred approach, in some case you may

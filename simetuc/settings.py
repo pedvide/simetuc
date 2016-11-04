@@ -15,7 +15,7 @@ import logging
 import pprint
 import warnings
 import os
-import pkg_resources
+from pkg_resources import resource_string
 
 import numpy as np
 
@@ -32,17 +32,21 @@ class ConfigWarning(UserWarning):
     pass
 
 
-def _load_yaml_file(filename):
+def _load_yaml_file(filename, direct_file=False):
     '''Open a yaml filename and loads it into a dictionary
-        Exceptions are raised if the file doesn't exist or is invalid
+        Exceptions are raised if the file doesn't exist or is invalid.
+        If direct_file=True, filename is actually a file and not a path to one
     '''
     logger = logging.getLogger(__name__)
 
     cte = {}
     try:
-        with open(filename) as file:
-            # load data as ordered dictionaries so the ET processes are in the right order
-            cte = _ordered_load(file, yaml.SafeLoader)
+        if not direct_file:
+            with open(filename) as file:
+                # load data as ordered dictionaries so the ET processes are in the right order
+                cte = _ordered_load(file, yaml.SafeLoader)
+        else:
+            cte = _ordered_load(filename, yaml.SafeLoader)
     except OSError as err:
         logger.error('Error reading file!')
         logger.error(err.args)
@@ -637,9 +641,10 @@ def _parse_simulation_params(user_settings):
         If some are not given, the default values are used
     '''
     # use the file located where the package is installed
-    path = pkg_resources.get_distribution('simetuc').location
-    full_path = os.path.join(path, 'simetuc', 'config', 'settings.cfg')
-    default_settings = _load_yaml_file(full_path)
+    _log_config_file = 'settings.cfg'
+    # resource_string opens the file and gets it as a string. Works inside .egg too
+    _log_config_location = resource_string(__name__, os.path.join('config', _log_config_file))
+    default_settings = _load_yaml_file(_log_config_location, direct_file=True)
     default_settings = default_settings['simulation_params']
 
     optional_keys = ['rtol', 'atol',

@@ -138,14 +138,14 @@ class Solution():
         self.cte_copy = copy.deepcopy(cte)
 
     def save(self, filename=None):
-        '''Save all instance vars to disk (including child's)'''
+        '''Save all instance vars to disk (including those of derived classes)'''
         if filename is None:
             filename = str(solution.__class__).split('\'')[1].split('.')[1]
         with open(filename, 'wb') as file:
             pickle.dump(self.__dict__, file)
 
     def load(self, filename=None):
-        '''Load all instance vars from disk (including child's)'''
+        '''Load all instance vars from disk (including those of derived classes)'''
         if filename is None:
             filename = str(solution.__class__).split('\'')[1].split('.')[1]
         with open(filename, 'rb') as file:
