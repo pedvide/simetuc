@@ -8,6 +8,7 @@ Created on Tue Oct 11 15:58:58 2016
 import time
 import logging
 import functools
+import os
 
 import numpy as np
 # pylint: disable=E1101
@@ -148,9 +149,11 @@ def optimize_dynamics(cte):
         min_f = res.fun
 
     print('\n\n')
-    print(res)
+    logger.info(res)
 
-    np.savez('minimize_results', res=res, cte=cte, best_x=best_x) # save results
+    lattice_name = cte['lattice']['name']
+    path = os.path.join('results', lattice_name, 'minimize_results')
+    np.savez(path, res=res, cte=cte, best_x=best_x) # save results
 
     total_time = time.time()-start_time
     formatted_time = time.strftime("%Hh %Mm %Ss", time.localtime(total_time))

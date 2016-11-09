@@ -9,7 +9,7 @@ lattice:
     name: bNaYF4
     N_uc: 30
     # concentration
-    S_conc: 0.0
+    S_conc: 0
     A_conc: 0.3
     # unit cell
     # distances in Angstrom

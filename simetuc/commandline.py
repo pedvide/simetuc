@@ -28,6 +28,9 @@ import simetuc.simulations as simulations
 import simetuc.settings as settings
 import simetuc.optimize as optimize
 
+VERSION = '0.9.2'
+DESCRIPTION = 'simetuc: Simulating Energy Transfer and Upconversion'
+
 
 def _change_console_logger(level):
     ''' change the logging level of the console handler '''
@@ -40,13 +43,14 @@ def _change_console_logger(level):
 def main():
 
     # parse arguments
-    parser = argparse.ArgumentParser(description='Microscopic Rate Equation Suite')
-    parser.add_argument('--version', action='version', version='Microscopic Rate Equation Suite 1.0')
+    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser.add_argument('--version', action='version', version=DESCRIPTION+' '+VERSION)
     # verbose or quiet options
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-v", "--verbose", help='show warnings and progress information',
                        action="store_true")
     group.add_argument("-q", "--quiet", help='show only errors', action="store_true")
+    # no plot
     parser.add_argument("--no-plot", help='don\'t show plots', action="store_true")
     # config file
     parser.add_argument(metavar='configFilename', dest='filename', help='configuration filename')
@@ -65,6 +69,14 @@ def main():
                         action='store_true')
     group.add_argument('-o', '--optimize', help='optimize the energy transfer parameters',
                         action='store_true')
+
+    parser.add_argument('--save', help='save results', action="store_true")
+
+    # add plot subcommand
+    subparsers = parser.add_subparsers(dest="plot")
+    foo_parser = subparsers.add_parser('foo')
+    foo_parser.add_argument('-c', '--count')
+
     args = parser.parse_args()
 
     # choose console logger level
@@ -118,6 +130,8 @@ def main():
     cte['no_console'] = no_console
     cte['no_plot'] = no_plot
 
+    # solution of the simulation
+    solution = None
 
     # choose what to do
     if args.config: # load config file
@@ -130,8 +144,8 @@ def main():
     elif args.steady_state: # simulate steady state
         logger.info('Simulating steady state...')
         sim = simulations.Simulations(cte)
-        steady_sol = sim.simulate_steady_state()
-        sim.plot_solution(steady_sol)
+        solution = sim.simulate_steady_state()
+        sim.plot_solution(solution)
 
     elif args.power_dependence: # simulate power dependence
         logger.info('Simulating power dependence...')
@@ -149,9 +163,9 @@ def main():
     elif args.dynamics: # simulate dynamics
         logger.info('Simulating dynamics...')
         sim = simulations.Simulations(cte)
-        dynamics_sol = sim.simulate_dynamics()
-        dynamics_sol.log_errors()
-        sim.plot_solution(dynamics_sol)
+        solution = sim.simulate_dynamics()
+        solution.log_errors()
+        solution.plot()
 
     if args.optimize: # optimize
         logger.info('Optimizing ET parameters...')
@@ -166,6 +180,11 @@ def main():
         formatted_time = time.strftime("%Mm %Ss", time.localtime(total_time))
         logger.info('Minimum reached! Total time: %s.', formatted_time)
         logger.info('Minimum value: {} at {}'.format(min_f, np.array_str(best_x, precision=5)))
+
+    if args.save:
+        if solution is not None:
+            logger.info('Saving results to file.')
+            solution.save()
 
     logger.info('Program finished!')
 
