@@ -138,7 +138,7 @@ def test_standard_config():
 # http://stackoverflow.com/a/11892712
 @contextmanager
 def temp_config_filename(data):
-    '''Creates a temporary file and writes data to ii. It returns its filename
+    '''Creates a temporary file and writes data to it. It returns its filename
         It deletes the file after use in a context manager
     '''
     temp = tempfile.NamedTemporaryFile(mode='wt', delete=False) # file won't be deleted after closing

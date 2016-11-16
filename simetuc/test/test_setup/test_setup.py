@@ -730,9 +730,10 @@ def test_random_lattice(setup_cte, params, absorption):
          total_abs_matrix, decay_matrix, ET_matrix,
          N_indices, jac_indices) = setup.precalculate(cte, test_filename=filename)
 
-        # ET_matrix can grow very large. Make sure it's returned as sparse
+        # some matrices can grow very large. Make sure it's returned as sparse
         assert sparse.issparse(ET_matrix)
         assert sparse.issparse(total_abs_matrix)
+        assert sparse.issparse(decay_matrix)
 
         assert cte['ions']['total'] == cte['ions']['activators'] + cte['ions']['sensitizers']
         num_ions = cte['ions']['total']
@@ -759,6 +760,8 @@ def test_random_lattice(setup_cte, params, absorption):
         assert decay_matrix.shape == (num_states, num_states)
         # sum of all rows is zero for each column
         assert np.allclose(np.sum(decay_matrix, axis=0), 0.0)
+        # decay matrix is upper triangular
+        assert np.allclose(decay_matrix.todense(), np.triu(decay_matrix.todense()))
 
         assert ET_matrix.shape == (num_states, num_interactions)
         # sum of all rows is zero for each column
@@ -788,3 +791,25 @@ def test_random_lattice(setup_cte, params, absorption):
              absorption_matrix, decay_matrix, ET_matrix,
              N_indices, jac_indices) = setup.precalculate(cte, test_filename=filename)
 
+def test_get_lifetimes(setup_cte):
+
+    cte = setup_cte
+    cte['lattice']['S_conc'] = 10.5
+    cte['lattice']['A_conc'] = 5.2
+    cte['lattice']['N_uc'] = 7
+    cte['states']['sensitizer_states'] = 2
+    cte['states']['activator_states'] = 7
+
+    cte['lattice']['name'] = 'test_setup'
+    filename = 'test/test_setup/'+'data_{}uc_{}S_{}A.npz'.format(cte['lattice']['N_uc'],
+                                                                 cte['lattice']['S_conc'],
+                                                                 cte['lattice']['A_conc'])
+
+    (cte, initial_population, index_S_i, index_A_j,
+     total_abs_matrix, decay_matrix, ET_matrix,
+     N_indices, jac_indices) = setup.precalculate(cte, test_filename=filename)
+
+    tau_list = setup.get_lifetimes(cte)
+
+    assert len(tau_list) == (cte['states']['sensitizer_states'] +
+                            cte['states']['activator_states'] - 2)

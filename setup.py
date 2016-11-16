@@ -97,7 +97,8 @@ setup(
                       'numpy >=1.11',
                       'scipy >=0.18',
                       'tqdm >=4.8',
-                      'PyYAML >=3.12'],
+                      'PyYAML >=3.12',
+                      'h5py >=2.6'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,

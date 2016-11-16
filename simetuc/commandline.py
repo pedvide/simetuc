@@ -6,7 +6,7 @@ Created on Sun Oct 16 11:53:51 2016
 """
 
 # TODO: INCLUDE PULSE FREQUENCY IN STEADY STATE FOR NON CW-LASER EXCITATION
-# TODO: INCLUDE .CIF FILE GENERATION OF LATTICE -> doesn't work well with multiple sites...
+# notTODO: INCLUDE .CIF FILE GENERATION OF LATTICE -> doesn't work with multiple sites...
 # TODO: cooperative sensitization
 
 import sys
@@ -55,27 +55,35 @@ def main():
     # config file
     parser.add_argument(metavar='configFilename', dest='filename', help='configuration filename')
 
-    # main options: load config file, simulate or optimize
+    # main options: load config file, lattice, simulate or optimize
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-c', '--config', help='import configuration from file',
-                        action='store_true')
+#    group.add_argument('-c', '--config', help='import configuration from file',
+#                        action='store_true')
     group.add_argument('-l', '--lattice', help='generate and plot the lattice',
                         action='store_true')
     group.add_argument('-d', '--dynamics', help='simulate dynamics',
                         action='store_true')
     group.add_argument('-s', '--steady-state', help='simulate steady state',
                         action='store_true')
-    group.add_argument('-p', '--power-dependence', help='simulate power dependence',
+    group.add_argument('-p', '--power-dependence', help='simulate power dependence of steady state',
                         action='store_true')
+    group.add_argument('-c', '--conc-dep', dest='conc_dependence',
+                       metavar='[d]',
+                       help='simulate concentration dependence of steady state (default) or dynamics (d)',
+                       action='store')
     group.add_argument('-o', '--optimize', help='optimize the energy transfer parameters',
                         action='store_true')
 
-    parser.add_argument('--save', help='save results', action="store_true")
+    # save data
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument('--save', help='save results in HDF5 format (recommended)', action="store_true")
+    group.add_argument('--save-txt', help='save results in text format', action="store_true")
+    group.add_argument('--save-npz', help='save results in numpy\'s npz format', action="store_true")
 
     # add plot subcommand
-    subparsers = parser.add_subparsers(dest="plot")
-    foo_parser = subparsers.add_parser('foo')
-    foo_parser.add_argument('-c', '--count')
+#    subparsers = parser.add_subparsers(dest="plot")
+#    foo_parser = subparsers.add_parser('foo')
+#    foo_parser.add_argument('-c', '--count')
 
     args = parser.parse_args()
 
@@ -125,6 +133,7 @@ def main():
 
     logger.info('Starting program...')
 
+    # load config file
     logger.info('Loading configuration...')
     cte = settings.load(args.filename)
     cte['no_console'] = no_console
@@ -134,38 +143,53 @@ def main():
     solution = None
 
     # choose what to do
-    if args.config: # load config file
-        pass
-
-    elif args.lattice: # create lattice
+    if args.lattice: # create lattice
         logger.info('Creating and plotting lattice...')
         lattice.generate(cte)
-
-    elif args.steady_state: # simulate steady state
-        logger.info('Simulating steady state...')
-        sim = simulations.Simulations(cte)
-        solution = sim.simulate_steady_state()
-        sim.plot_solution(solution)
-
-    elif args.power_dependence: # simulate power dependence
-        logger.info('Simulating power dependence...')
-        power_dens_list = np.logspace(1, 8, 8-2+1)
-
-        # change the logging level of the console handler
-        # so it only prints warnings to screen while calculating all steady states
-        _change_console_logger(logging.WARNING)
-        sim = simulations.Simulations(cte)
-        sim.simulate_power_dependence(power_dens_list)
-        # restore old level value
-        _change_console_logger(console_level)
-        print('')
 
     elif args.dynamics: # simulate dynamics
         logger.info('Simulating dynamics...')
         sim = simulations.Simulations(cte)
         solution = sim.simulate_dynamics()
         solution.log_errors()
-        solution.plot()
+
+    elif args.steady_state: # simulate steady state
+        logger.info('Simulating steady state...')
+        sim = simulations.Simulations(cte)
+        solution = sim.simulate_steady_state()
+        solution.log_populations()
+
+    elif args.power_dependence: # simulate power dependence
+        logger.info('Simulating power dependence...')
+        sim = simulations.Simulations(cte)
+        power_dens_list = np.logspace(1, 8, 8-2+1)
+
+        # change the logging level of the console handler
+        # so it only prints warnings to screen while calculating all solutions
+        _change_console_logger(logging.WARNING)
+        solution = sim.simulate_power_dependence(power_dens_list)
+        # restore old level value
+        _change_console_logger(console_level)
+        print('')
+
+    elif args.conc_dependence: # simulate concentration dependence
+        sim = simulations.Simulations(cte)
+        conc_list = [(0, 0.3), (0.1, 0.3), (1, 0.3), (2, 0.3)]
+
+        dynamics = False
+        if args.conc_dependence == 'd':
+            dynamics = True
+            logger.info('Simulating concentration dependence of dynamics...')
+        else:
+            logger.info('Simulating concentration dependence of steady state...')
+
+        # change the logging level of the console handler
+        # so it only prints warnings to screen while calculating all solutions
+        _change_console_logger(logging.WARNING)
+        solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics)
+        # restore old level value
+        _change_console_logger(console_level)
+        print('')
 
     if args.optimize: # optimize
         logger.info('Optimizing ET parameters...')
@@ -181,19 +205,25 @@ def main():
         logger.info('Minimum reached! Total time: %s.', formatted_time)
         logger.info('Minimum value: {} at {}'.format(min_f, np.array_str(best_x, precision=5)))
 
-    if args.save:
-        if solution is not None:
-            logger.info('Saving results to file.')
+    # save results to disk
+    if solution is not None and (args.save or args.save_txt or args.save_npz):
+        logger.info('Saving results to file.')
+        if args.save:
             solution.save()
+        elif args.save_txt:
+            solution.save_txt()
+        elif args.save_npz:
+            solution.save_npz()
 
     logger.info('Program finished!')
 
     # show all plots
     # the user needs to close the window to exit the program
     if not cte['no_plot']:
-        if not args.config:
-            logger.info('Close the plot window to exit.')
-            plt.show()
+        if solution is not None:
+            solution.plot()
+        logger.info('Close the plot window to exit.')
+        plt.show()
 
 if __name__ == "__main__":
     main()

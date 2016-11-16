@@ -12,7 +12,7 @@ import logging
 
 import numpy as np
 import scipy.sparse
-from scipy.sparse import csc_matrix
+from scipy.sparse import csr_matrix
 
 import simetuc.lattice as lattice
 
@@ -333,7 +333,7 @@ def _create_ET_matrices(index_S_i, index_A_j, dict_ET,
     v_index = v_index[0:4*(uc_index)]
 
     # create ET matrix
-    ET_matrix = csc_matrix((v_index, (i_index, j_index)),
+    ET_matrix = csr_matrix((v_index, (i_index, j_index)),
                            shape=(num_energy_states, uc_index),
                            dtype=np.float64)
     N_indices = np.column_stack((N_index_I, N_index_J))
@@ -363,7 +363,7 @@ def _calculate_jac_matrices(N_indices):
 
     return jac_indices
 
-def get_lifetimes(cte): # pragma: no cover
+def get_lifetimes(cte):
     '''Returns a list of all lifetimes in seconds.
        First sensitizer and then activator
     '''
@@ -571,7 +571,7 @@ def precalculate(cte, gen_lattice=False, test_filename=None):
             total_abs_matrix, decay_matrix, ET_matrix, N_indices, jac_indices)
 
 
-if __name__ == "__main__": # pragma: no cover
+if __name__ == "__main__":
     logger = logging.getLogger()
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')

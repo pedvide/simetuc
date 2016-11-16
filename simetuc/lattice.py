@@ -387,7 +387,7 @@ def generate(cte, min_im_conv=True):
             index_A_l, dist_A_l)
 
 
-if __name__ == "__main__": # pragma: no cover
+if __name__ == "__main__":
    logger = logging.getLogger()
    logging.basicConfig(level=logging.INFO,
                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')

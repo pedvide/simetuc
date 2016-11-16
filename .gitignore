@@ -148,3 +148,4 @@ $RECYCLE.BIN/
 *.lnk
 simetuc/minimize_results.npz
 simetuc/DynamicsSolution
+*.coveragerc
