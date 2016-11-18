@@ -1,0 +1,5 @@
+[MESSAGES CONTROL]
+# E1101 numpy erros
+# C0103 invalid name (using caps)
+# W0511 TODO gives a warning
+disable=E1101,C0103,W0511

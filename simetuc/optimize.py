@@ -12,6 +12,7 @@ import os
 
 import numpy as np
 # pylint: disable=E1101
+# pylint: disable=W0613
 import scipy.optimize as optimize
 
 import tqdm
@@ -28,11 +29,13 @@ def cache(function):
 
     @functools.wraps(function)
     def wrapper(*args):
+        '''Wraps a function to add a cache'''
         f_val = function(*args)
         cache.params_lst.append(tuple(*args))
         cache.f_val_lst.append(f_val)
         return f_val
     return wrapper
+
 
 def optimize_dynamics(cte):
     ''' Minimize the error between experimental data and simulation for the settings in cte
@@ -49,11 +52,10 @@ def optimize_dynamics(cte):
             msg = '({}): {:.3e}'.format(format_params, cache.f_val_lst[-1])
             tqdm.tqdm.write(msg)
 
-
-    def _update_ET_and_simulate(cte, x):
+    def _update_ET_and_simulate(x):
         # update ET values if explicitly given
         for num, process in enumerate(process_list):
-            sim.modify_ET_param_value(process, x[num]*x0[num]) # precondition
+            sim.modify_ET_param_value(process, x[num]*x0[num])  # precondition
 
         dynamics_sol = sim.simulate_dynamics()
         total_error = dynamics_sol.total_error
@@ -65,14 +67,14 @@ def optimize_dynamics(cte):
         ''' Function to optimize.
             The parameters and results are stored in the cache decorator
         '''
-        total_error = _update_ET_and_simulate(cte, x)
+        total_error = _update_ET_and_simulate(x)
         return total_error
 
     def fun_optim_brute(x):
         ''' Function to optimize by brute force.
         '''
         pbar.update(1)
-        total_error = _update_ET_and_simulate(cte, x)
+        total_error = _update_ET_and_simulate(x)
         return total_error
 
     cte['no_plot'] = True
@@ -84,15 +86,15 @@ def optimize_dynamics(cte):
     # read the starting values from the settings
     if 'optimization_processes' in cte and cte['optimization_processes'] is not None:
         # optimize only those ET parameters that the user has selected
-        process_list = np.array([process for process in cte['ET'] if process in cte['optimization_processes']])
+        process_list = np.array([process for process in cte['ET']
+                                 if process in cte['optimization_processes']])
     else:
         process_list = np.array([process for process in cte['ET']])
 
     # starting point
     x0 = np.array([cte['ET'][process]['value'] for process in process_list])
 
-    tol=1e-4
-
+    tol = 1e-4
     bounds = ((0, 1e10),)*len(x0)
 
     method = 'SLSQP'
@@ -101,14 +103,14 @@ def optimize_dynamics(cte):
         # minimize error. The starting point is preconditioned to be 1
         res = optimize.minimize(fun_optim, np.ones_like(x0), method=method, tol=tol)
 
-    if method == 'L-BFGS-B': # fails?
+    if method == 'L-BFGS-B':  # fails?
         pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
         logger.info('ET parameters. RMSD.')
         res = optimize.minimize(fun_optim, np.ones_like(x0), bounds=bounds,
                                 method=method, tol=tol, callback=callback_fun)
         pbar.close()
 
-    if method == 'TNC': # fails?
+    if method == 'TNC':  # fails?
         pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
         logger.info('ET parameters. RMSD.')
         res = optimize.minimize(fun_optim, np.ones_like(x0), bounds=bounds,
@@ -125,8 +127,8 @@ def optimize_dynamics(cte):
     if method == 'basin_hopping':
         minimizer_kwargs = {"method": "SLSQP"}
 
-        def accept_test(f_new, x_new, f_old, x_old) :
-            return np.alltrue(x_new > 0)
+#        def accept_test(f_new, x_new, f_old, x_old) :
+#            return np.alltrue(x_new > 0)
 
         pbar = tqdm.tqdm(desc='Optimizing', unit=' points', disable=cte['no_console'])
         logger.info('ET parameters. RMSD.')
@@ -137,9 +139,10 @@ def optimize_dynamics(cte):
     if method == 'brute':
         rranges = ((1e-2, 6),)*len(x0)
         N_points = 50
-        pbar = tqdm.tqdm(desc='Optimizing', total=1+N_points**2, unit='points', disable=cte['no_console'])
+        pbar = tqdm.tqdm(desc='Optimizing', total=1+N_points**2,
+                         unit='points', disable=cte['no_console'])
         res = optimize.brute(fun_optim_brute, ranges=rranges, Ns=N_points, full_output=True,
-                                  finish=None, disp=True)
+                             finish=None, disp=True)
         pbar.close()
         best_x = res[0]*x0
         min_f = res[1]
@@ -153,28 +156,27 @@ def optimize_dynamics(cte):
 
     lattice_name = cte['lattice']['name']
     path = os.path.join('results', lattice_name, 'minimize_results')
-    np.savez(path, res=res, cte=cte, best_x=best_x) # save results
+    np.savez(path, res=res, cte=cte, best_x=best_x)  # save results
 
     total_time = time.time()-start_time
     formatted_time = time.strftime("%Hh %Mm %Ss", time.localtime(total_time))
     logger.info('Minimum reached! Total time: %s.', formatted_time)
-    logger.info('Minimum value: {}'.format(np.array_str(min_f, precision=5)))
+    logger.info('Minimum value: %s', np.array_str(np.array(min_f), precision=5))
 
     return (best_x, min_f, total_time)
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.WARNING,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-
-    logger.debug('Called from cmd.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.txt')
-
-    cte['no_console'] = False
-    cte['no_plot'] = True
-
-    optimize_dynamics(cte)
-
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.WARNING,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#
+#    logger.debug('Called from cmd.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.txt')
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = True
+#
+#    optimize_dynamics(cte)

@@ -131,6 +131,7 @@ def setup_cte():
 
 def test_sim_dyn1(setup_cte):
     '''Test that the dynamics work'''
+    setup_cte['lattice']['S_conc'] = 0
     sim = simulations.Simulations(setup_cte)
 
     assert sim.cte == setup_cte
@@ -138,11 +139,13 @@ def test_sim_dyn1(setup_cte):
     solution = sim.simulate_dynamics()
     assert solution
 
-    solution.log_errors()
     solution.total_error
+    solution.log_errors()
     solution.plot()
     solution.plot(state=6)
     solution.plot(state=1)
+
+    setup_cte['lattice']['S_conc'] = 0.3
 
 def test_sim_dyn2(setup_cte):
     '''Test that the dynamics have the right result for a simple system'''
@@ -228,7 +231,8 @@ def test_sim_steady(setup_cte):
 
     os.remove(r'test\test_simulations\savedSolution.hdf5')
 
-def test_sim_power_dep(setup_cte):
+
+def test_sim_power_dep1(setup_cte):
     '''Test that the power dependence works'''
     sim = simulations.Simulations(setup_cte)
 
@@ -251,7 +255,25 @@ def test_sim_power_dep(setup_cte):
 
     os.remove(r'test\test_simulations\savedSolution.hdf5')
 
-def test_sim_conc_dep(setup_cte):
+def test_sim_power_dep2(setup_cte, recwarn):
+    '''Power dep list is empty'''
+
+    sim = simulations.Simulations(setup_cte)
+
+    power_dens_list = []
+    solution = sim.simulate_power_dependence(power_dens_list)
+
+    assert not solution # solution is empty
+
+    with pytest.warns(simulations.PlotWarning): # 'wrong: label' in simulation_params
+        solution.plot()
+    assert len(recwarn) == 1 # one warning
+    warning = recwarn.pop(simulations.PlotWarning)
+    assert issubclass(warning.category, simulations.PlotWarning)
+    assert 'Nothing to plot! The power_dependence list is emtpy!' in str(warning.message)
+
+
+def test_sim_conc_dep1(setup_cte):
     '''Test that the concentration dependence works'''
     sim = simulations.Simulations(setup_cte)
 
@@ -289,6 +311,25 @@ def test_sim_conc_dep(setup_cte):
     sol_hdf5.plot()
 
     os.remove(r'test\test_simulations\savedSolution.hdf5')
+
+def test_sim_conc_dep2(setup_cte):
+    '''Conc list has only A changing'''
+    sim = simulations.Simulations(setup_cte)
+
+    conc_list = [(0.0, 0.01), (0.0, 0.1), (0.0, 0.3), (0.0, 0.4), (0.0, 0.5)]
+    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
+    assert solution
+    solution.plot()
+
+def test_sim_conc_dep3(setup_cte):
+    '''Conc list has only S changing'''
+    sim = simulations.Simulations(setup_cte)
+
+    conc_list = [(0.01, 0.3), (0.1, 0.3), (0.3, 0.3)]
+    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
+    assert solution
+    solution.plot()
+
 
 def test_sim_conc_dep_no_file():
     '''Wrong filename'''

@@ -10,7 +10,7 @@ Created on Sun Oct 16 11:53:51 2016
 # TODO: cooperative sensitization
 
 import sys
-import logging, logging.config
+import logging
 import argparse
 # nice debug printing of settings
 import pprint
@@ -24,7 +24,6 @@ import yaml
 
 import simetuc.lattice as lattice
 import simetuc.simulations as simulations
-#from simetuc.simulations import Simulations
 import simetuc.settings as settings
 import simetuc.optimize as optimize
 
@@ -40,7 +39,9 @@ def _change_console_logger(level):
             if handler.stream == sys.stdout:
                 handler.setLevel(level)
 
+
 def main():
+    '''Main entry point for the command line interface'''
 
     # parse arguments
     parser = argparse.ArgumentParser(description=DESCRIPTION)
@@ -60,25 +61,29 @@ def main():
 #    group.add_argument('-c', '--config', help='import configuration from file',
 #                        action='store_true')
     group.add_argument('-l', '--lattice', help='generate and plot the lattice',
-                        action='store_true')
+                       action='store_true')
     group.add_argument('-d', '--dynamics', help='simulate dynamics',
-                        action='store_true')
+                       action='store_true')
     group.add_argument('-s', '--steady-state', help='simulate steady state',
-                        action='store_true')
+                       action='store_true')
     group.add_argument('-p', '--power-dependence', help='simulate power dependence of steady state',
-                        action='store_true')
+                       action='store_true')
     group.add_argument('-c', '--conc-dep', dest='conc_dependence',
-                       metavar='[d]',
-                       help='simulate concentration dependence of steady state (default) or dynamics (d)',
+                       metavar='d', nargs='?', const='s',
+                       help=('simulate concentration dependence of' +
+                             'steady state (default) or dynamics (d)'),
                        action='store')
     group.add_argument('-o', '--optimize', help='optimize the energy transfer parameters',
-                        action='store_true')
+                       action='store_true')
 
     # save data
     group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument('--save', help='save results in HDF5 format (recommended)', action="store_true")
-    group.add_argument('--save-txt', help='save results in text format', action="store_true")
-    group.add_argument('--save-npz', help='save results in numpy\'s npz format', action="store_true")
+    group.add_argument('--save', help='save results in HDF5 format (recommended)',
+                       action="store_true")
+    group.add_argument('--save-txt', help='save results in text format',
+                       action="store_true")
+    group.add_argument('--save-npz', help='save results in numpy\'s npz format',
+                       action="store_true")
 
     # add plot subcommand
 #    subparsers = parser.add_subparsers(dest="plot")
@@ -113,10 +118,10 @@ def main():
         log_settings = yaml.safe_load(_log_config_location)
         # modify logging to console that the user wants
         log_settings['handlers']['console']['level'] = console_level
-    except OSError as err:
+    except OSError:
         print('ERROR! Logging settings file not found at {}!'.format(_log_config_location))
         print('Logging won\'t be available!!')
-        log_settings = {'version': 1} # minimum settings without errors
+        log_settings = {'version': 1}  # minimum settings without errors
 
     # load settings and rollover any rotating file handlers
     # so each execution of this program is logged to a fresh file
@@ -127,7 +132,7 @@ def main():
         if isinstance(handler, logging.handlers.RotatingFileHandler):
             handler.doRollover()
 
-    logger.debug('Called from cmd with arguments: {}.'.format(sys.argv[1:]))
+    logger.debug('Called from cmd with arguments: %s.', sys.argv[1:])
     logger.debug('Log settings dump:')
     logger.debug(pprint.pformat(log_settings))
 
@@ -143,26 +148,26 @@ def main():
     solution = None
 
     # choose what to do
-    if args.lattice: # create lattice
+    if args.lattice:  # create lattice
         logger.info('Creating and plotting lattice...')
         lattice.generate(cte)
 
-    elif args.dynamics: # simulate dynamics
+    elif args.dynamics:  # simulate dynamics
         logger.info('Simulating dynamics...')
         sim = simulations.Simulations(cte)
         solution = sim.simulate_dynamics()
         solution.log_errors()
 
-    elif args.steady_state: # simulate steady state
+    elif args.steady_state:  # simulate steady state
         logger.info('Simulating steady state...')
         sim = simulations.Simulations(cte)
         solution = sim.simulate_steady_state()
         solution.log_populations()
 
-    elif args.power_dependence: # simulate power dependence
+    elif args.power_dependence:  # simulate power dependence
         logger.info('Simulating power dependence...')
         sim = simulations.Simulations(cte)
-        power_dens_list = np.logspace(1, 8, 8-2+1)
+        power_dens_list = cte['power_dependence']
 
         # change the logging level of the console handler
         # so it only prints warnings to screen while calculating all solutions
@@ -172,9 +177,10 @@ def main():
         _change_console_logger(console_level)
         print('')
 
-    elif args.conc_dependence: # simulate concentration dependence
+    elif args.conc_dependence:  # simulate concentration dependence
         sim = simulations.Simulations(cte)
-        conc_list = [(0, 0.3), (0.1, 0.3), (1, 0.3), (2, 0.3)]
+
+        conc_list = cte['conc_dependence']
 
         dynamics = False
         if args.conc_dependence == 'd':
@@ -191,7 +197,7 @@ def main():
         _change_console_logger(console_level)
         print('')
 
-    if args.optimize: # optimize
+    if args.optimize:  # optimize
         logger.info('Optimizing ET parameters...')
 
         _change_console_logger(logging.WARNING)
@@ -203,7 +209,7 @@ def main():
 
         formatted_time = time.strftime("%Mm %Ss", time.localtime(total_time))
         logger.info('Minimum reached! Total time: %s.', formatted_time)
-        logger.info('Minimum value: {} at {}'.format(min_f, np.array_str(best_x, precision=5)))
+        logger.info('Minimum value: %d at %s', min_f, np.array_str(best_x, precision=5))
 
     # save results to disk
     if solution is not None and (args.save or args.save_txt or args.save_npz):
@@ -225,8 +231,6 @@ def main():
         logger.info('Close the plot window to exit.')
         plt.show()
 
+
 if __name__ == "__main__":
     main()
-else:
-    pass
-#    logger = logging.getLogger(__name__)

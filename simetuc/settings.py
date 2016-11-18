@@ -21,12 +21,17 @@ import numpy as np
 
 import yaml
 
+
 class LabelError(ValueError):
     '''A label in the configuration file is not correct'''
     pass
+
+
 class ConfigError(SyntaxError):
     '''Something in the configuration file is not correct'''
     pass
+
+
 class ConfigWarning(UserWarning):
     '''Something in the configuration file is not correct'''
     pass
@@ -55,18 +60,19 @@ def _load_yaml_file(filename, direct_file=False):
         logger.error('Error while parsing the config file: %s!', filename)
         if hasattr(exc, 'problem_mark'):
             logger.error(str(exc.problem_mark).strip())
-            if exc.context != None:
+            if exc.context is not None:
                 logger.error(str(exc.problem).strip() + ' ' + str(exc.context).strip())
             else:
                 logger.error(str(exc.problem).strip())
             logger.error('Please correct data and retry.')
-        else:
+        else:  # pragma: no cover
             logger.error('Something went wrong while parsing the config file (%s):', filename)
             logger.error(exc)
-        raise ConfigError('Something went wrong while parsing '+
+        raise ConfigError('Something went wrong while parsing ' +
                           'the config file ({})!'.format(filename)) from exc
 
     return cte
+
 
 def _ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
     '''Load data as ordered dictionaries so the ET processes are in the right order
@@ -111,10 +117,7 @@ def _check_values(needed_values, present_values_dict, section=None, optional_val
         present_values = set(present_values_dict.keys())
         needed_values = set(needed_values)
     except (AttributeError, TypeError) as err:
-        if section is None: # main check for all sections
-            msg = 'File has no sections!'
-        else:
-            msg = 'Section "{}" is empty!'.format(section)
+        msg = 'Section "{}" is empty!'.format(section)
         logger.error(msg)
         raise ConfigError(msg) from err
 
@@ -148,10 +151,11 @@ def _check_values(needed_values, present_values_dict, section=None, optional_val
         logger.warning(set_not_optional)
         warnings.warn('Some values or sections should not be present in the file.', ConfigWarning)
 
+
 def _get_ion_and_state_labels(string):
-    ''' Returns a list of tuples (ion_label, state_label)
-    '''
+    ''' Returns a list of tuples (ion_label, state_label)'''
     return re.findall(r'\s*(\w+)\s*\(\s*(\w+)\s*\)', string)
+
 
 def _get_state_index(list_labels, state_label, section='', process=None, num=None):
     ''' Returns the index of the state label in the list_labels
@@ -169,6 +173,7 @@ def _get_state_index(list_labels, state_label, section='', process=None, num=Non
         logger.error(msg)
         raise LabelError(msg) from err
     return index
+
 
 def _get_ion(list_ion_labels, ion_label, section='', process=None, num=None):
     ''' Returns the index of the ion label in the list_ion_labels
@@ -215,6 +220,7 @@ def _get_value(dictionary, value, val_type):
 
     return val
 
+
 def _get_positive_value(dictionary, value, val_type):
     '''Gets a value from the dict and raises a ValueError if it's negative'''
     logger = logging.getLogger(__name__)
@@ -227,17 +233,35 @@ def _get_positive_value(dictionary, value, val_type):
 
     return val
 
+
 def _get_int_value(dictionary, value):
     '''Gets an int from the dictionary'''
     return _get_positive_value(dictionary, value, int)
+
 
 def _get_float_value(dictionary, value):
     '''Gets a float from the dictionary, it converts it into a Fraction first'''
     return float(_get_positive_value(dictionary, value, Fraction))
 
+
+def _get_normalized_float_value(dictionary, value):
+    '''Gets a normalized float from the dictionary, it converts it into a Fraction first.
+        Value must be between 0 and 1, otherwise a ValueError is raised.
+    '''
+    logger = logging.getLogger(__name__)
+    val = float(_get_positive_value(dictionary, value, Fraction))
+    if 0 <= val <= 1.0:
+        return val
+    else:
+        msg = '"{}" is not between 0 and 1.'.format(value)
+        logger.error(msg)
+        raise ValueError(msg)
+
+
 def _get_string_value(dictionary, value):
     '''Gets a string from the dictionary'''
     return _get_value(dictionary, value, str)
+
 
 def _get_list_floats(list_vals):
     '''Returns a list of positive floats, it converts it into a Fraction first.
@@ -258,6 +282,7 @@ def _get_list_floats(list_vals):
         raise ValueError(msg)
 
     return lst
+
 
 def _parse_lattice(dict_lattice):
     '''Parses the lattice section of the settings.
@@ -327,6 +352,7 @@ def _parse_lattice(dict_lattice):
 
     return parsed_dict
 
+
 def _parse_excitations(dict_excitations):
     '''Parses the excitation section
         Returns the parsed excitations dict'''
@@ -384,7 +410,7 @@ def _parse_excitations(dict_excitations):
         parsed_dict[excitation]['degeneracy'] = _get_list_floats(list_deg)
         parsed_dict[excitation]['pump_rate'] = _get_list_floats(list_pump)
 
-        parsed_dict[excitation]['process'] = list_proc # processed in _parse_absorptions
+        parsed_dict[excitation]['process'] = list_proc  # processed in _parse_absorptions
         parsed_dict[excitation]['active'] = exc_dict['active']
 
     # at least one excitation must be active
@@ -427,14 +453,14 @@ def _parse_absorptions(dict_states, dict_excitations):
                 msg = 'Incorrect ion label in excitation: {}'.format(process)
                 logger.error(msg)
                 raise ValueError(msg)
-            if init_ion == dict_states['sensitizer_ion_label']: # SENSITIZER
+            if init_ion == dict_states['sensitizer_ion_label']:  # SENSITIZER
                 init_ion_num = _get_state_index(sensitizer_labels, init_state,
                                                 section='excitation process')
                 final_ion_num = _get_state_index(sensitizer_labels, final_state,
                                                  section='excitation process')
 
                 dict_excitations[excitation]['ion_exc'].append('S')
-            elif init_ion == dict_states['activator_ion_label']: # ACTIVATOR
+            elif init_ion == dict_states['activator_ion_label']:  # ACTIVATOR
                 init_ion_num = _get_state_index(activator_labels, init_state,
                                                 section='excitation process')
                 final_ion_num = _get_state_index(activator_labels, final_state,
@@ -481,18 +507,19 @@ def _parse_decay_rates(cte):
         # list of tuples of state and decay rate
         pos_value_S = [(_get_state_index(sensitizer_labels, key, section='decay rate',
                                          process=key, num=num),
-                        1/float(value)) for num, (key, value) in\
-                                        enumerate(cte['sensitizer_decay'].items())]
+                        1/_get_float_value(cte['sensitizer_decay'], key)) for num, key in
+                       enumerate(cte['sensitizer_decay'].keys())]
         pos_value_A = [(_get_state_index(activator_labels, key, section='decay rate',
                                          process=key, num=num),
-                        1/float(value)) for num, (key, value) in\
-                                        enumerate(cte['activator_decay'].items())]
+                        1/_get_float_value(cte['activator_decay'], key)) for num, key in
+                       enumerate(cte['activator_decay'].keys())]
     except ValueError as err:
         logger.error('Invalid value for parameter in decay rates.')
         logger.error(err.args)
         raise
 
     return (pos_value_S, pos_value_A)
+
 
 def _parse_branching_ratios(cte):
     '''Parse the branching ratios'''
@@ -506,19 +533,21 @@ def _parse_branching_ratios(cte):
         B_pos_value_S = []
         B_pos_value_A = []
         if cte['sensitizer_branching_ratios'] is not None:
-            for num, (key, value) in enumerate(cte['sensitizer_branching_ratios'].items()):
+            for num, key in enumerate(cte['sensitizer_branching_ratios'].keys()):
                 states_list = ''.join(key.split()).split('->')
                 state_i, state_f = (_get_state_index(sensitizer_labels, s,
                                                      section='branching ratio',
                                                      process=key, num=num) for s in states_list)
-                B_pos_value_S.append((state_i, state_f, float(value)))
+                val = _get_normalized_float_value(cte['sensitizer_branching_ratios'], key)
+                B_pos_value_S.append((state_i, state_f, val))
         if cte['activator_branching_ratios'] is not None:
-            for num, (key, value) in enumerate(cte['activator_branching_ratios'].items()):
+            for num, key in enumerate(cte['activator_branching_ratios'].keys()):
                 states_list = ''.join(key.split()).split('->')
                 state_i, state_f = (_get_state_index(activator_labels, s,
                                                      section='branching ratio',
                                                      process=key, num=num) for s in states_list)
-                B_pos_value_A.append((state_i, state_f, float(value)))
+                val = _get_normalized_float_value(cte['activator_branching_ratios'], key)
+                B_pos_value_A.append((state_i, state_f, val))
     except ValueError as err:
         logger.error('Invalid value for parameter in branching ratios.')
         logger.error(err.args)
@@ -572,7 +601,7 @@ def _parse_ET(cte):
             ET_type = 'SA'
         elif first_ion == activator_ion_label and second_ion == sensitizer_ion_label:
             ET_type = 'AS'
-        else:
+        else:  # pragma: no cover
             msg = 'Ions must be either activators or sensitizers in ET process.'
             logger.error(msg)
             raise ValueError(msg)
@@ -621,6 +650,7 @@ def _parse_ET(cte):
 #
 #    return filenames
 
+
 def _parse_optim_params(dict_optim, dict_ET):
     '''Parse the optional list of ET parameters to optimize'''
 
@@ -636,10 +666,12 @@ def _parse_optim_params(dict_optim, dict_ET):
 
     return dict_optim
 
-def _parse_simulation_params(user_settings):
+
+def _parse_simulation_params(user_settings=None):
     '''Parse the optional simulation parameters
         If some are not given, the default values are used
     '''
+
     # use the file located where the package is installed
     _log_config_file = 'settings.cfg'
     # resource_string opens the file and gets it as a string. Works inside .egg too
@@ -647,19 +679,56 @@ def _parse_simulation_params(user_settings):
     default_settings = _load_yaml_file(_log_config_location, direct_file=True)
     default_settings = default_settings['simulation_params']
 
+    if user_settings is None:
+        user_settings = default_settings
+
     optional_keys = ['rtol', 'atol',
                      'N_steps_pulse', 'N_steps']
     # check that only recognized keys are in the file, warn user otherwise
     _check_values([], user_settings, 'simulation_params', optional_values=optional_keys)
 
-    params_types = [float, float, int, int] # type of the parameters
+    params_types = [float, float, int, int]  # type of the parameters
 
     new_settings = dict(default_settings)
     for num, setting_key in enumerate(optional_keys):
         new_settings[setting_key] = _get_value(user_settings, setting_key, params_types[num])
 
-
     return new_settings
+
+
+def _parse_power_dependence(user_list=None):
+    '''Parses the power dependence list with the minimum, maximum and number of points.'''
+    if user_list is None or user_list == []:
+        return []
+
+    items = _get_list_floats(user_list)
+    min_power = items[0]
+    max_power = items[1]
+    num_points = int(items[2])
+
+    power_list = np.logspace(np.log10(min_power), np.log10(max_power), num_points)
+
+    return power_list
+
+
+def _parse_conc_dependence(user_list=None):
+    '''Parses the concentration dependence list with the minimum, maximum and number of points.'''
+    if user_list is None or user_list == []:
+        return []
+
+    # get the lists of concentrations from the user
+    # if empty, set to 0.0
+    S_conc_l = _get_list_floats(user_list[0]) or [0.0]
+    A_conc_l = _get_list_floats(user_list[1]) or [0.0]
+
+    # make a regular grid of values
+    conc_grid = np.meshgrid(S_conc_l, A_conc_l)
+    conc_grid[0].shape = (conc_grid[0].size, 1)
+    conc_grid[1].shape = (conc_grid[0].size, 1)
+    conc_list = list(tuple((float(a), float(b))) for a, b in zip(conc_grid[0], conc_grid[1]))
+
+    return conc_list
+
 
 def load(filename):
     ''' Load filename and extract the settings for the simulations
@@ -693,7 +762,8 @@ def load(filename):
                        'sensitizer_decay', 'activator_decay',
                        'sensitizer_branching_ratios', 'activator_branching_ratios']
     optional_sections = ['experimental_data', 'optimization_processes',
-                         'enery_transfer', 'simulation_params']
+                         'enery_transfer', 'simulation_params', 'power_dependence',
+                         'concentration_dependence']
     _check_values(needed_sections, config_cte, optional_values=optional_sections)
 
     cte = {}
@@ -701,7 +771,6 @@ def load(filename):
     # LATTICE
     # parse lattice params
     cte['lattice'] = _parse_lattice(config_cte['lattice'])
-
 
     # NUMBER OF STATES
     needed_keys = ['sensitizer_ion_label', 'sensitizer_states_labels',
@@ -724,14 +793,11 @@ def load(filename):
     cte['states']['sensitizer_states'] = len(config_cte['states']['sensitizer_states_labels'])
     cte['states']['activator_states'] = len(config_cte['states']['activator_states_labels'])
 
-
     # EXCITATIONS
     cte['excitations'] = _parse_excitations(config_cte['excitations'])
 
-
     # ABSORPTIONS
     _parse_absorptions(cte['states'], cte['excitations'])
-
 
     # DECAY RATES
     pos_value_S, pos_value_A = _parse_decay_rates(config_cte)
@@ -739,24 +805,20 @@ def load(filename):
     cte['decay']['pos_value_S'] = pos_value_S
     cte['decay']['pos_value_A'] = pos_value_A
 
-
     # BRANCHING RATIOS (from 0 to 1)
     B_pos_value_S, B_pos_value_A = _parse_branching_ratios(config_cte)
     cte['decay']['B_pos_value_S'] = B_pos_value_S
     cte['decay']['B_pos_value_A'] = B_pos_value_A
-
 
     # ET PROCESSES.
     # not mandatory -> check
     if 'enery_transfer' in config_cte:
         cte['ET'] = _parse_ET(config_cte)
 
-
     # EXPERIMENTAL DATA # not used anymore
     # not mandatory -> check
 #    if 'experimental_data' in config_cte:
 #        cte['experimental_data'] = _parse_exp_data(config_cte)
-
 
     # OPTIMIZATION PARAMETERS
     # not mandatory -> check
@@ -764,21 +826,36 @@ def load(filename):
         cte['optimization_processes'] = _parse_optim_params(config_cte['optimization_processes'],
                                                             cte['ET'])
 
-
     # SIMULATION PARAMETERS
     # not mandatory -> check
     if 'simulation_params' in config_cte:
         cte['simulation_params'] = _parse_simulation_params(config_cte['simulation_params'])
+    else:
+        cte['simulation_params'] = _parse_simulation_params()
 
+    # POWER DEPENDENCE LIST
+    # not mandatory -> check
+    if 'power_dependence' in config_cte:
+        cte['power_dependence'] = _parse_power_dependence(config_cte['power_dependence'])
+    else:
+        cte['power_dependence'] = []
+
+    # CONCENTRATION DEPENDENCE LIST
+    # not mandatory -> check
+    if 'concentration_dependence' in config_cte:
+        cte['conc_dependence'] = _parse_conc_dependence(config_cte['concentration_dependence'])
+    else:
+        cte['conc_dependence'] = []
 
     # log cte
     # use pretty print
     logger.debug('Settings dump:')
-    logger.debug(pprint.pformat(config_cte))
+    logger.debug(pprint.pformat(cte))
 
     logger.info('Settings loaded!')
     return cte
 
-if __name__ == "__main__": # pragma: no cover
-    cte = load('test/test_settings/test_standard_config.txt')
-#    cte = load('config_file.txt')
+#if __name__ == "__main__":
+##    cte = load('test/test_settings/test_standard_config.txt')
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.txt')

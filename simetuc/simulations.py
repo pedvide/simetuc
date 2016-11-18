@@ -4,11 +4,9 @@ Created on Mon Nov  9 14:22:41 2015
 
 @author: Villanueva
 """
-# pylint: disable=E1101
 # unused arguments, needed for ODE solver
 # pylint: disable=W0613
 # pylint: disable=C0326
-
 
 import time
 import csv
@@ -37,6 +35,7 @@ from tqdm import tqdm
 
 import simetuc.setup as setup
 
+
 def _rate_eq_pulse(t, y, abs_matrix, decay_matrix, UC_matrix, N_indices):
     ''' Calculates the rhs of the ODE for the excitation pulse
     '''
@@ -44,6 +43,7 @@ def _rate_eq_pulse(t, y, abs_matrix, decay_matrix, UC_matrix, N_indices):
     UC_matrix = UC_matrix.dot(N_prod_sel)
 
     return abs_matrix.dot(y) + decay_matrix.dot(y) + UC_matrix
+
 
 def _jac_rate_eq_pulse(t, y, abs_matrix, decay_matrix, UC_matrix, jac_indices):
     ''' Calculates the jacobian of the ODE for the excitation pulse
@@ -55,17 +55,17 @@ def _jac_rate_eq_pulse(t, y, abs_matrix, decay_matrix, UC_matrix, jac_indices):
 
     return abs_matrix.toarray() + decay_matrix.toarray() + UC_J_matrix.toarray()
 
+
 def _rate_eq(t, y, decay_matrix, UC_matrix, N_indices):
-    ''' Calculates the rhs of the ODE for the relaxation
-    '''
+    '''Calculates the rhs of the ODE for the relaxation'''
     N_prod_sel = y[N_indices[:, 0]]*y[N_indices[:, 1]]
     UC_matrix = UC_matrix.dot(N_prod_sel)
 
     return decay_matrix.dot(y) + UC_matrix
 
-def _rate_eq_dll(decay_matrix, UC_matrix, N_indices):
-    ''' Calculates the rhs of the ODE for the excitation pulse
-    '''
+
+def _rate_eq_dll(decay_matrix, UC_matrix, N_indices):  # pragma: no cover
+    ''' Calculates the rhs of the ODE for the relaxation using odesolver.dll'''
     odesolver = ctypes.windll.odesolver
 
     matrix_ctype = ndpointer(dtype=np.float64, ndim=2, flags='F_CONTIGUOUS')
@@ -74,10 +74,10 @@ def _rate_eq_dll(decay_matrix, UC_matrix, N_indices):
     vector_ctype = ndpointer(dtype=np.float64, ndim=1, flags='F_CONTIGUOUS')
 
     odesolver.rateEq.argtypes = [ctypes.c_double, vector_ctype,
-                             matrix_ctype,
-                             vector_ctype, vector_int_ctype, vector_int_ctype,
-                             vector_int_ctype, vector_int_ctype,
-                             ctypes.c_uint, ctypes.c_uint, vector_ctype]
+                                 matrix_ctype,
+                                 vector_ctype, vector_int_ctype, vector_int_ctype,
+                                 vector_int_ctype, vector_int_ctype,
+                                 ctypes.c_uint, ctypes.c_uint, vector_ctype]
     odesolver.rateEq.restype = ctypes.c_int
 
     n_states = decay_matrix.shape[0]
@@ -88,7 +88,7 @@ def _rate_eq_dll(decay_matrix, UC_matrix, N_indices):
     decay_matrix = np.asfortranarray(decay_matrix.toarray(), dtype=np.float64)
 
     # setup gives csr matrix, which isn't fortran style
-    UC_matrix = csc_matrix(UC_matrix) # setup gives csr matrix, which isn't fortran style
+    UC_matrix = csc_matrix(UC_matrix)  # setup gives csr matrix, which isn't fortran style
     UC_matrix_data = np.asfortranarray(UC_matrix.data, dtype=np.float64)
     UC_matrix_indices = np.asfortranarray(UC_matrix.indices, dtype=np.uint32)
     UC_matrix_indptr = np.asfortranarray(UC_matrix.indptr, dtype=np.uint32)
@@ -99,11 +99,12 @@ def _rate_eq_dll(decay_matrix, UC_matrix, N_indices):
     out_vector = np.asfortranarray(np.zeros((n_states,)), dtype=np.float64)
 
     def rate_eq(t, y):
+        '''Calculates the rhs of the ODE for the relaxation'''
         odesolver.rateEq(y,
-                        decay_matrix,
-                        UC_matrix_data, UC_matrix_indices, UC_matrix_indptr,
-                        N_indices_i, N_indices_j,
-                        n_states, n_inter, out_vector)
+                         decay_matrix,
+                         UC_matrix_data, UC_matrix_indices, UC_matrix_indptr,
+                         N_indices_i, N_indices_j,
+                         n_states, n_inter, out_vector)
         return out_vector
 
     return rate_eq
@@ -119,6 +120,7 @@ def _jac_rate_eq(t, y, decay_matrix, UC_matrix, jac_indices):
     jacobian = UC_J_matrix.toarray() + decay_matrix.toarray()
 
     return jacobian
+
 
 def _solve_ode(t_arr, fun, fargs, jfun, jargs, initial_population,
                rtol=1e-3, atol=1e-5, nsteps=500, method='bdf', quiet=True):
@@ -160,18 +162,19 @@ def _solve_ode(t_arr, fun, fargs, jfun, jargs, initial_population,
                 y_arr[step, :] = ode_obj.integrate(t_arr[step])
                 step += 1
                 pbar_cmd.update(1)
-        except UserWarning as err: # pragma: no cover
+        except UserWarning as err:  # pragma: no cover
             logger.warning(err)
             logger.warning('Most likely the ode solver is taking too many steps.')
             logger.warning('Either change your settings or increase "nsteps".')
             logger.warning('The program will continue, but the accuracy of the ' +
                            'results cannot be guaranteed.')
-    np.seterr(all='ignore') # restore settings
+    np.seterr(all='ignore')  # restore settings
 
     pbar_cmd.update(1)
     pbar_cmd.close()
 
     return y_arr
+
 
 class Solution():
     '''Base class for solutions of rate equation problems'''
@@ -193,14 +196,14 @@ class Solution():
 
     def __bool__(self):
         '''Instance is True if all its data structures have been filled out'''
-        return (self.t_sol.size != 0 and self.y_sol.size != 0  and self.cte_copy != {}
-                and len(self.index_S_i) != 0 and len(self.index_A_j) != 0)
+        return (self.t_sol.size != 0 and self.y_sol.size != 0 and self.cte_copy != {} and
+                len(self.index_S_i) != 0 and len(self.index_A_j) != 0)
 
     def __eq__(self, other):
         '''Two solutions are equal if all its vars are equal or numerically close'''
-        return (np.allclose(self.t_sol, other.t_sol) and np.allclose(self.y_sol, other.y_sol)
-                and self.cte_copy == other.cte_copy and self.index_S_i == other.index_S_i
-                and self.index_A_j == other.index_A_j)
+        return (np.allclose(self.t_sol, other.t_sol) and np.allclose(self.y_sol, other.y_sol) and
+                self.cte_copy == other.cte_copy and self.index_S_i == other.index_S_i and
+                self.index_A_j == other.index_A_j)
 
     def _calculate_avg_populations(self):
         '''Returs the average populations of each state. First S then A states.'''
@@ -231,7 +234,7 @@ class Solution():
         else:
             sim_data_Activator = cte['states']['activator_states']*[np.zeros((y_sol.shape[0],))]
 
-        return sim_data_Sensitizer+sim_data_Activator
+        return sim_data_Sensitizer + sim_data_Activator
 
     def _get_ion_state_labels(self) -> list:
         '''Returns a list of ion_state labels'''
@@ -243,12 +246,12 @@ class Solution():
         state_labels = sensitizer_labels + activator_labels
         return state_labels
 
-    def save_full_path(self): # pragma: no cover
+    def save_full_path(self):  # pragma: no cover
         '''Return the full path to save a file (without extention).'''
         lattice_name = self.cte_copy['lattice']['name']
         filename = 'data_{}uc_{}S_{}A'.format(self.cte_copy['lattice']['N_uc'],
-                                                   self.cte_copy['lattice']['S_conc'],
-                                                   self.cte_copy['lattice']['A_conc'])
+                                              self.cte_copy['lattice']['S_conc'],
+                                              self.cte_copy['lattice']['A_conc'])
         path = os.path.join('results', lattice_name)
         os.makedirs(path, exist_ok=True)
         full_path = os.path.join(path, filename)
@@ -307,7 +310,7 @@ class Solution():
 
     def save(self, full_path: str = None):
         '''Save data to disk as a HDF5 file'''
-        if full_path is None: # pragma: no cover
+        if full_path is None:  # pragma: no cover
             full_path = self._save_full_path() + '.hdf5'
         with h5py.File(full_path, 'w') as file:
             file.create_dataset("t_sol", data=self.t_sol, compression='gzip')
@@ -319,15 +322,15 @@ class Solution():
 
     def save_npz(self, full_path: str = None):
         '''Save data to disk as numpy .npz file'''
-        if full_path is None: # pragma: no cover
+        if full_path is None:  # pragma: no cover
             full_path = self._save_full_path() + '.npz'
         np.savez_compressed(full_path, t_sol=self.t_sol, y_sol=self.y_sol,
-                            cte_copy=[self.cte_copy], # store as a list of dicts
+                            cte_copy=[self.cte_copy],  # store as a list of dicts
                             index_S_i=self.index_S_i, index_A_j=self.index_A_j)
 
     def save_txt(self, full_path: str = None):
         '''Save the settings, the time and the average populations to disk as a textfile'''
-        if full_path is None: # pragma: no cover
+        if full_path is None:  # pragma: no cover
             full_path = self._save_full_path() + '.txt'
         # print cte
         with open(full_path, 'wt') as csvfile:
@@ -354,7 +357,7 @@ class Solution():
 
         self.t_sol = npz_file['t_sol']
         self.y_sol = npz_file['y_sol']
-        self.cte_copy = npz_file['cte_copy'][0] # stored as a list of dicts
+        self.cte_copy = npz_file['cte_copy'][0]  # stored as a list of dicts
         self.index_S_i = list(npz_file['index_S_i'])
         self.index_A_j = list(npz_file['index_A_j'])
 
@@ -434,17 +437,15 @@ class DynamicsSolution(Solution):
         '''Load the experimental data from the expData/lattice_name folder.
            Two columns of numbers: first is time (seconds), second intensity
         '''
-        if filename is None:
-            return 0
 
         path = os.path.join('expData', lattice_name, filename)
         try:
             with open(path, 'rt') as file:
-                try: # XXX: get a better way to read data
+                try:  # TODO: get a better way to read data
                     data = csv.reader(file, delimiter='\t')
                     data = [row for row in data if row[0][0] is not '#']
                     data = np.array(data, dtype=np.float64)
-                except ValueError:
+                except ValueError:  # pragma: no cover
                     data = csv.reader(file, delimiter=',')
                     data = [row for row in data if row[0][0] is not '#']
                     data = np.array(data, dtype=np.float64)
@@ -471,17 +472,17 @@ class DynamicsSolution(Solution):
            Returns the same simulated data if there's no exp_data
             expData is already normalized when loaded.
         '''
-        if not np.any(exp_data): # if there's no experimental data, don't do anything
+        if not np.any(exp_data):  # if there's no experimental data, don't do anything
             return sim_data
-        if not np.any(sim_data):
+        if not np.any(sim_data):  # pragma: no cover
             return 0
 
-        last_points = exp_data[-offset_points:, 1] # get last 50 points
+        last_points = exp_data[-offset_points:, 1]  # get last 50 points
         offset = np.mean(last_points[last_points > 0])*max(sim_data)
 
-        if np.isnan(offset):
+        if np.isnan(offset):  # pragma: no cover
             sim_data_ofs = sim_data
-        else: # offset-correct simulated data
+        else:  # offset-correct simulated data
             sim_data_ofs = sim_data+offset
 
         return sim_data_ofs
@@ -624,7 +625,7 @@ class SolutionList():
 
     def save(self, full_path: str = None) -> None:
         '''Save all data from all solutions in a HDF5 file'''
-        if full_path is None: # pragma: no cover
+        if full_path is None:  # pragma: no cover
             full_path = self.solution_list[0].save_full_path() + '_' + self._suffix + '.hdf5'
 
         with h5py.File(full_path, 'w') as file:
@@ -638,11 +639,12 @@ class SolutionList():
                 group.attrs['cte_copy'] = yaml.dump(sol.cte_copy)
 
     def load(self, full_path: str) -> None:
+        '''Load data from a HDF5 file'''
         solutions = []
         try:
             with h5py.File(full_path, 'r') as file:
                 for group_num in file:
-                    sol = self._items_class() # create appropiate object
+                    sol = self._items_class()  # create appropiate object
                     group = file[group_num]
                     sol.add_sim_data(np.array(group['t_sol']), np.array(group['y_sol']))
                     sol.add_ion_lists(list(group['index_S_i']), list(group['index_A_j']))
@@ -667,6 +669,13 @@ class PowerDependenceSolution(SolutionList):
 
     def plot(self) -> None:
         '''Plot the power dependence of the emission for all states'''
+        if len(self.solution_list) == 0:  # nothing to plot
+            logger = logging.getLogger(__name__)
+            msg = 'Nothing to plot! The power_dependence list is emtpy!'
+            logger.warning(msg)
+            warnings.warn(msg, PlotWarning)
+            return
+
         sim_data_arr = np.array([np.array(sol.steady_state_populations)
                                  for sol in self.solution_list])
         power_dens_arr = np.array([sol.power_dens for sol in self.solution_list])
@@ -693,7 +702,7 @@ class ConcentrationDependenceSolution(SolutionList):
 
     def save(self, full_path: str = None) -> None:
         '''Save all data from all solutions in a HDF5 file'''
-        if full_path is None:
+        if full_path is None:  # pragma: no cover
             conc_path = self.solution_list[0].save_full_path()
             # get only the data_Xuc part
             conc_path = '_'.join(conc_path.split('_')[:2])
@@ -711,10 +720,21 @@ class ConcentrationDependenceSolution(SolutionList):
                 Plotter.plot_avg_decay_data(sol, no_exp=no_exp, show_conc=True, colors=color)
         else:
             sim_data_arr = np.array([np.array(sol.steady_state_populations)
-                                 for sol in self.solution_list])
+                                     for sol in self.solution_list])
+
+            S_states = self.solution_list[0].cte_copy['states']['sensitizer_states']
+            A_states = self.solution_list[0].cte_copy['states']['activator_states']
+            conc_factor_arr = np.array([([float(sol.concentration[0])]*S_states +
+                                         [float(sol.concentration[1])]*A_states)
+                                        for sol in self.solution_list])
+
+            # multiply the average state populations by the concentration
+            # TODO: is this correct?
+            sim_data_arr *= conc_factor_arr
+
+            # if all elements of S_conc_l are equal use A_conc to plot and viceversa
             S_conc_l = [float(sol.concentration[0]) for sol in self.solution_list]
             A_conc_l = [float(sol.concentration[1]) for sol in self.solution_list]
-            # if all elements of S_conc_l are equal use A_conc to plot and viceversa
             if S_conc_l.count(S_conc_l[0]) == len(S_conc_l):
                 conc_arr = np.array(A_conc_l)
             elif A_conc_l.count(A_conc_l[0]) == len(A_conc_l):
@@ -722,8 +742,15 @@ class ConcentrationDependenceSolution(SolutionList):
             else:
                 # do a 2D heatmap otherwise
                 conc_arr = np.array(list(zip(S_conc_l, A_conc_l)))
+
+            # plot
             state_labels = self.solution_list[0].state_labels
             Plotter.plot_concentration_dependence(sim_data_arr, conc_arr, state_labels)
+
+
+class PlotWarning(UserWarning):
+    '''Warning for empty plots'''
+    pass
 
 
 class Plotter():
@@ -741,7 +768,7 @@ class Plotter():
 
         # if we have simulated data that has been offset-corrected, use it
         if (hasattr(solution, 'list_avg_data_ofs') and
-            solution.list_avg_data_ofs is not solution.list_avg_data):
+                solution.list_avg_data_ofs is not solution.list_avg_data):
             list_sim_data = solution.list_avg_data_ofs
         else:
             list_sim_data = [data for data in solution.list_avg_data]
@@ -749,9 +776,11 @@ class Plotter():
         num_plots = len(list_sim_data)
         num_rows = 3
         num_cols = int(np.ceil(num_plots/3))
-        t_sol = solution.t_sol[:]*1000 # convert to ms
+        t_sol = solution.t_sol[:]*1000  # convert to ms
 
-        if not hasattr(solution, 'list_exp_data') or solution.list_exp_data is None or no_exp is True:
+        if (not hasattr(solution, 'list_exp_data') or
+                solution.list_exp_data is None or
+                no_exp is True):
             list_exp_data = len(list_sim_data)*[0]
         else:
             list_exp_data = solution.list_exp_data
@@ -766,7 +795,7 @@ class Plotter():
             state_labels = [label+conc_str for label in state_labels]
 
         for num, (sim_data_corr, exp_data, state_label)\
-        in enumerate(zip(list_sim_data, list_exp_data, state_labels)):
+            in enumerate(zip(list_sim_data, list_exp_data, state_labels)):
             if sim_data_corr is 0:
                 continue
             if (np.isnan(sim_data_corr)).any() or not np.any(sim_data_corr > 0):
@@ -777,7 +806,7 @@ class Plotter():
             sim_color = colors[0]
             exp_color = colors[1]
 
-            if exp_data is 0: # no exp data: either a GS or simply no exp data available
+            if exp_data is 0:  # no exp data: either a GS or simply no exp data available
                 # nonposy='clip': clip non positive values to a very small positive number
                 plt.semilogy(t_sol, sim_data_corr, sim_color, label=state_label, nonposy='clip')
                 plt.yscale('log', nonposy='clip')
@@ -786,7 +815,7 @@ class Plotter():
                 margin_factor = np.array([0.7, 1.3])
                 plt.ylim(*np.array(plt.ylim())*margin_factor)
                 if plt.ylim()[0] < atol:
-                    plt.ylim(ymin=atol) # don't show noise below atol
+                    plt.ylim(ymin=atol)  # don't show noise below atol
                     # detect when the simulation goes above and below atol
                     above = sim_data_corr > atol
                     change_indices = np.where(np.roll(above, 1) != above)[0]
@@ -798,22 +827,22 @@ class Plotter():
                 min_y = min(*plt.ylim())
                 max_y = max(*plt.ylim())
                 plt.ylim(ymin=min_y, ymax=max_y)
-            else: # exp data available
+            else:  # exp data available
                 # convert exp_data time to ms
                 plt.semilogy(exp_data[:, 0]*1000, exp_data[:, 1]*np.max(sim_data_corr),
                              exp_color, t_sol, sim_data_corr, sim_color, label=state_label)
                 plt.axis('tight')
-                plt.ylim(ymax=plt.ylim()[1]*1.2) # add some white space on top
-                plt.xlim(xmax=exp_data[-1, 0]*1000) # don't show beyond expData
+                plt.ylim(ymax=plt.ylim()[1]*1.2)  # add some white space on top
+                plt.xlim(xmax=exp_data[-1, 0]*1000)  # don't show beyond expData
 
-            plt.legend(loc="best", fontsize = 'small')
+            plt.legend(loc="best", fontsize='small')
             plt.xlabel('t (ms)')
 
     @staticmethod
     def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
                               state_label: typing.List[str] = None, atol: int = 1e-15):
         ''' Plots a state's simulated data against time t_sol'''
-        t_sol *= 1000 # convert to ms
+        t_sol *= 1000  # convert to ms
 
         if sim_data_array is 0:
             return
@@ -831,7 +860,7 @@ class Plotter():
         margin_factor = np.array([0.7, 1.3])
         plt.ylim(*np.array(plt.ylim())*margin_factor)
         if plt.ylim()[0] < atol:
-            plt.ylim(ymin=atol) # don't show noise below atol
+            plt.ylim(ymin=atol)  # don't show noise below atol
             # detect when the simulation goes above and below atol
             above = sim_data_array > atol
             change_indices = np.where(np.roll(above, 1) != above)[0]
@@ -848,7 +877,7 @@ class Plotter():
     def plot_power_dependence(sim_data_arr: np.ndarray, power_dens_arr: np.ndarray,
                               state_labels: typing.List[str]):
         ''' Plots the intensity as a function of power density for each state'''
-        num_plots = sim_data_arr.shape[0]
+        num_plots = len(state_labels)
         num_rows = 3
         num_cols = int(np.ceil(num_plots/3))
 
@@ -860,7 +889,7 @@ class Plotter():
         slopes = [np.gradient(Y_arr, dX) for Y_arr in Y.T]
         slopes = np.around(slopes, 1)
 
-        for num, state_label in enumerate(state_labels): # for each state
+        for num, state_label in enumerate(state_labels):  # for each state
             sim_data = sim_data_arr[:, num]
             if not np.any(sim_data):
                 continue
@@ -870,7 +899,7 @@ class Plotter():
             plt.loglog(power_dens_arr, sim_data, '.-r', mfc='k', ms=10, label=state_label)
             plt.axis('tight')
             margin_factor = np.array([0.7, 1.3])
-            plt.ylim(*np.array(plt.ylim())*margin_factor) # add some white space on top
+            plt.ylim(*np.array(plt.ylim())*margin_factor)  # add some white space on top
             plt.xlim(*np.array(plt.xlim())*margin_factor)
 
             plt.legend(loc="best")
@@ -893,7 +922,7 @@ class Plotter():
         if len(conc_arr.shape) == 2:
             heatmap = True
 
-        for num, state_label in enumerate(state_labels): # for each state
+        for num, state_label in enumerate(state_labels):  # for each state
             sim_data = sim_data_arr[:, num]
             if not np.any(sim_data):
                 continue
@@ -904,15 +933,17 @@ class Plotter():
                 plt.plot(conc_arr, sim_data, '.-r', mfc='k', ms=10, label=state_label)
                 plt.axis('tight')
                 margin_factor = np.array([0.9, 1.1])
-                plt.ylim(*np.array(plt.ylim())*margin_factor) # add some white space on top
+                plt.ylim(*np.array(plt.ylim())*margin_factor)  # add some white space on top
                 plt.xlim(*np.array(plt.xlim())*margin_factor)
 
                 plt.legend(loc="best")
                 plt.xlabel('Concentration (%)')
-                plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-                ax.yaxis.major.formatter._useMathText = True
+                # change axis format to scientifc notation
+                xfmt = plt.ScalarFormatter(useMathText=True)
+                xfmt.set_powerlimits((-1, 1))
+                ax.yaxis.set_major_formatter(xfmt)
             else:
-                x, y = conc_arr[:,0], conc_arr[:,1]
+                x, y = conc_arr[:, 0], conc_arr[:, 1]
                 z = sim_data
 
                 # Set up a regular grid of interpolation points
@@ -927,7 +958,6 @@ class Plotter():
 #                interp_f = interpolate.interp2d(x, y, z, kind='linear')
 #                zi = interp_f(xi, yi)
 
-
                 plt.imshow(zi, vmin=z.min(), vmax=z.max(), origin='lower',
                            extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto')
                 plt.scatter(x, y, c=z)
@@ -937,6 +967,7 @@ class Plotter():
                 cb.formatter.set_powerlimits((0, 0))
                 cb.update_ticks()
                 cb.set_label(state_label)
+
 
 class Simulations():
     '''Setup and solve a dynamics or a steady state problem'''
@@ -972,13 +1003,13 @@ class Simulations():
 
         # initial and final times for excitation and relaxation
         t0 = 0
-        tf = (10*np.max(setup.get_lifetimes(cte))).round(8) # total simulation time
+        tf = (10*np.max(setup.get_lifetimes(cte))).round(8)  # total simulation time
         t0_p = t0
         # make sure t_pulse exists and get the active one
         try:
             for exc_dict in self.cte['excitations'].values():
                 if exc_dict['active']:
-                    tf_p = exc_dict['t_pulse'] # pulse width.
+                    tf_p = exc_dict['t_pulse']  # pulse width.
                     break
             type(tf_p)
         except (KeyError, NameError):
@@ -1052,7 +1083,7 @@ class Simulations():
 
         # initial and final times for excitation and relaxation
         t0 = 0
-        tf = (10*np.max(setup.get_lifetimes(cte))).round(8) # total simulation time
+        tf = (10*np.max(setup.get_lifetimes(cte))).round(8)  # total simulation time
         t0_p = t0
         tf_p = tf
         N_steps_pulse = cte['simulation_params']['N_steps']
@@ -1121,8 +1152,8 @@ class Simulations():
 
         return power_dep_solution
 
-    def simulate_concentration_dependence(self, concentration_list: list,
-                                          dynamics: bool = False) -> ConcentrationDependenceSolution:
+    def simulate_concentration_dependence(self, concentration_list: list, dynamics: bool = False
+                                         ) -> ConcentrationDependenceSolution:
         ''' Simulates the concentration dependence of the emission
             concentration_list must be a list of tuples
             If dynamics is True, the dynamics is simulated instead of the steady state
@@ -1134,6 +1165,9 @@ class Simulations():
         cte = self.cte
 
         start_time = time.time()
+
+        # make sure it's a list of floats
+        concentration_list = [(float(a), float(b)) for a, b in list(concentration_list)]
 
         num_conc_steps = len(concentration_list)
         solutions = []
@@ -1148,7 +1182,7 @@ class Simulations():
             if dynamics:
                 sol = self.simulate_dynamics()
             else:
-                sol = self.simulate_steady_state()
+                sol = self.simulate_steady_state()  # pylint: disable=R0204
             solutions.append(sol)
 
         total_time = time.time()-start_time
@@ -1160,60 +1194,60 @@ class Simulations():
 
         return conc_dep_solution
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-
-    logger.info('Called from cmd.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.txt')
-
-    cte['no_console'] = False
-    cte['no_plot'] = False
-
-    (cte, initial_population, index_S_i, index_A_j,
-     total_abs_matrix, decay_matrix,
-     UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(cte)
-
-    sim = Simulations(cte)
-
-#    solution = sim.simulate_dynamics()
-#    solution.log_errors()
-
-#    solution = sim.simulate_steady_state()
-#    solution.log_populations()
-
-#    solution.plot()
-
-#    solution.save()
-#    new_sol = DynamicsSolution()
-#    new_sol.load('results/bNaYF4/DynamicsSolution.hdf5')
-
-#    power_dens_list = np.logspace(1, 8, 8-1+1)
-#    solution = sim.simulate_power_dependence(power_dens_list)
-#    solution.plot()
-#    solution.save()
-#    new_sol = PowerDependenceSolution()
-#    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_pow_dep.hdf5')
-#    new_sol.plot()
-
-#    conc_list = [(0, 0.3), (0.1, 0.3), (0.3, 0), (0.3, 0.1)]
-#    N_points = 5
-#    S_conc_l = np.linspace(0, 10, N_points)
-#    A_conc_l = np.linspace(0.01, 1, N_points)
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#
+#    logger.info('Called from cmd.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.txt')
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+#
+#    (cte, initial_population, index_S_i, index_A_j,
+#     total_abs_matrix, decay_matrix,
+#     UC_matrix,
+#     N_indices, jac_indices) = setup.precalculate(cte)
+#
+#    sim = Simulations(cte)
+#
+##    solution = sim.simulate_dynamics()
+##    solution.log_errors()
+#
+##    solution = sim.simulate_steady_state()
+##    solution.log_populations()
+#
+##    solution.plot()
+#
+##    solution.save()
+##    new_sol = DynamicsSolution()
+##    new_sol.load('results/bNaYF4/DynamicsSolution.hdf5')
+#
+##    power_dens_list = np.logspace(1, 8, 8-1+1)
+##    solution = sim.simulate_power_dependence(cte['power_dependence'])
+##    solution.plot()
+##    solution.save()
+##    new_sol = PowerDependenceSolution()
+##    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_pow_dep.hdf5')
+##    new_sol.plot()
+#
+#    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
+##    N_points = 3
+##    S_conc_l = np.linspace(0, 10, N_points)
+##    A_conc_l = np.linspace(0.01, 1, N_points)
 ##    conc_list = list(zip(S_conc_l, A_conc_l))
-#    conc_list = np.meshgrid(S_conc_l, A_conc_l)
-#    conc_list[0].shape = (conc_list[0].size,1)
-#    conc_list[1].shape = (conc_list[0].size,1)
-#    conc_list = list(zip(conc_list[0], conc_list[1]))
+##    conc_list = np.meshgrid(S_conc_l, A_conc_l)
+##    conc_list[0].shape = (conc_list[0].size,1)
+##    conc_list[1].shape = (conc_list[0].size,1)
+##    conc_list = list(zip(conc_list[0], conc_list[1]))
 #    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
-#    solution.plot()
-#    solution.save()
-
-#    new_sol = ConcentrationDependenceSolution()
-#    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_conc_dep.hdf5')
-#    new_sol.plot()
-
+##    solution.plot()
+##    solution.save()
+#
+##    new_sol = ConcentrationDependenceSolution()
+##    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_conc_dep.hdf5')
+##    new_sol.plot()
+#

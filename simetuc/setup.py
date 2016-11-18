@@ -16,6 +16,7 @@ from scipy.sparse import csr_matrix
 
 import simetuc.lattice as lattice
 
+
 def _load_lattice(filename):
     '''Loads the filename and returns it along with its associanted lattice_info
         Exceptions aren't handled by this function
@@ -29,6 +30,7 @@ def _load_lattice(filename):
     lattice_info = npzfile['lattice_info'][()]
 
     return (npzfile, lattice_info)
+
 
 #@profile
 def _create_absorption_matrix(abs_sensitizer, abs_activator, index_S_i, index_A_j):
@@ -85,6 +87,7 @@ def _create_absorption_matrix(abs_sensitizer, abs_activator, index_S_i, index_A_
 
     return absorption_matrix
 
+
 def _setup_absorption(cte, index_S_i, index_A_j):
 
     num_energy_states = cte['states']['energy_states']
@@ -104,7 +107,7 @@ def _setup_absorption(cte, index_S_i, index_A_j):
             continue
 
         power_dens = current_exc_dict['power_dens']
-        for num, process in enumerate(current_exc_dict['process']):
+        for num in range(len(current_exc_dict['process'])):
             abs_sensitizer = np.zeros((sensitizer_states, sensitizer_states), dtype=np.float64)
             abs_activator = np.zeros((activator_states, activator_states), dtype=np.float64)
 
@@ -120,7 +123,7 @@ def _setup_absorption(cte, index_S_i, index_A_j):
                     abs_sensitizer[init_state, final_state] = +degeneracy*pump_rate
                     abs_sensitizer[final_state, init_state] = +pump_rate
                     abs_sensitizer[final_state, final_state] = -degeneracy*pump_rate
-                    abs_sensitizer *= power_dens # multiply by the power density
+                    abs_sensitizer *= power_dens  # multiply by the power density
 
             elif ion_exc == 'A' and cte['states']['activator_states']:
                 if init_state < activator_states and final_state < activator_states:
@@ -128,7 +131,7 @@ def _setup_absorption(cte, index_S_i, index_A_j):
                     abs_activator[init_state, final_state] = +degeneracy*pump_rate
                     abs_activator[final_state, init_state] = +pump_rate
                     abs_activator[final_state, final_state] = -degeneracy*pump_rate
-                    abs_activator *= power_dens # multiply by the power density
+                    abs_activator *= power_dens  # multiply by the power density
             # create matrix with this process
             absorption_matrix = _create_absorption_matrix(abs_sensitizer, abs_activator,
                                                           index_S_i, index_A_j)
@@ -136,6 +139,7 @@ def _setup_absorption(cte, index_S_i, index_A_j):
             total_abs_matrix = total_abs_matrix + absorption_matrix
 
     return total_abs_matrix
+
 
 #@profile
 def _create_decay_matrix(B_sensitizer, B_activator,
@@ -180,6 +184,7 @@ def _create_decay_matrix(B_sensitizer, B_activator,
 
     return decay_matrix
 
+
 #@profile
 def _create_ET_matrices(index_S_i, index_A_j, dict_ET,
                         indices_S_k, indices_S_l, indices_A_k, indices_A_l,
@@ -220,13 +225,16 @@ def _create_ET_matrices(index_S_i, index_A_j, dict_ET,
         i_vec_3 = indices_ions+fi_state
         i_vec_4 = indices_ions+ff_state
         # interweave i_vec_Xs
-        i_index[uc_index_indep:uc_index_indep+4*len(indices_ions)] = np.ravel(np.column_stack((i_vec_1, i_vec_2, i_vec_3, i_vec_4)))
+        i_index[uc_index_indep:uc_index_indep+4*len(indices_ions)] = \
+            np.ravel(np.column_stack((i_vec_1, i_vec_2, i_vec_3, i_vec_4)))
 
         temp = np.arange(uc_index, uc_index+len(indices_ions))
-        j_index[uc_index_indep:uc_index_indep+4*len(indices_ions)] = np.ravel(np.column_stack((temp, temp, temp, temp)))
+        j_index[uc_index_indep:uc_index_indep+4*len(indices_ions)] = \
+            np.ravel(np.column_stack((temp, temp, temp, temp)))
 
         temp = dist_ions**(-mult)*strength
-        v_index[uc_index_indep:uc_index_indep+4*len(indices_ions)] = np.ravel(np.column_stack((-temp, temp, -temp, temp)))
+        v_index[uc_index_indep:uc_index_indep+4*len(indices_ions)] = \
+            np.ravel(np.column_stack((-temp, temp, -temp, temp)))
 
         N_index_I[uc_index:uc_index+len(indices_ions)] = i_vec_1
         N_index_J[uc_index:uc_index+len(indices_ions)] = i_vec_3
@@ -240,8 +248,8 @@ def _create_ET_matrices(index_S_i, index_A_j, dict_ET,
 
     temp1 = np.array(index_S_i)
     temp2 = np.array(index_A_j)
-    num_energy_states = sensitizer_states*len(temp1[temp1 != -1]) +\
-                        activator_states*len(temp2[temp2 != -1])
+    num_energy_states = (sensitizer_states*len(temp1[temp1 != -1]) +
+                         activator_states*len(temp2[temp2 != -1]))
 
     num_et_processes = 10*(sum(len(arr) for arr in indices_S_k) +
                            sum(len(arr) for arr in indices_S_l) +
@@ -261,8 +269,8 @@ def _create_ET_matrices(index_S_i, index_A_j, dict_ET,
     # l, l+1, l+2, ... = Tm that interacts
     num_A = num_S = 0
     for num in range(num_total_ions):
-        if index_A_j[num] != -1 and activator_states != 0: # Tm ions
-            index_j = index_A_j[num] # position of ion num on the solution vector
+        if index_A_j[num] != -1 and activator_states != 0:  # Tm ions
+            index_j = index_A_j[num]  # position of ion num on the solution vector
 
             # add all A-A ET processes
             for process in dict_ET:
@@ -293,8 +301,8 @@ def _create_ET_matrices(index_S_i, index_A_j, dict_ET,
                                        dict_ET[process]['mult'],
                                        *dict_ET[process]['indices'])
             num_A += 1
-        if index_S_i[num] != -1 and sensitizer_states != 0: # Yb ions
-            index_i = index_S_i[num] # position of ion num on the solution vector
+        if index_S_i[num] != -1 and sensitizer_states != 0:  # Yb ions
+            index_i = index_S_i[num]  # position of ion num on the solution vector
 
             # add all S-S ET processes
             for process in dict_ET:
@@ -340,6 +348,7 @@ def _create_ET_matrices(index_S_i, index_A_j, dict_ET,
 
     return (ET_matrix, N_indices)
 
+
 #@profile
 def _calculate_jac_matrices(N_indices):
     '''Calculates the jacobian matrix helper data structures (non-zero values):
@@ -362,6 +371,7 @@ def _calculate_jac_matrices(N_indices):
     jac_indices = np.column_stack((row_indices, col_indices, y_indices))
 
     return jac_indices
+
 
 def get_lifetimes(cte):
     '''Returns a list of all lifetimes in seconds.
@@ -405,15 +415,15 @@ def precalculate(cte, gen_lattice=False, test_filename=None):
     # check if data exists, otherwise create it
     logger.info('Checking data...')
 
-    if test_filename is not None: # if the user requests a test lattice
+    if test_filename is not None:  # if the user requests a test lattice
         filename = test_filename
-    else: # pragma: no cover
-        filename = 'latticeData/'+lattice_name+'/'+\
-                   'data_{}uc_{}S_{}A.npz'.format(num_uc, S_conc, A_conc)
+    else:  # pragma: no cover
+        filename = ('latticeData/' + lattice_name + '/' +
+                    'data_{}uc_{}S_{}A.npz'.format(num_uc, S_conc, A_conc))
 
     try:
         # generate the lattice in any case
-        if gen_lattice: # pragma: no cover
+        if gen_lattice:  # pragma: no cover
             logger.debug('User request to recreate lattice.')
             raise FileNotFoundError('Recalculate lattice')
 
@@ -422,7 +432,7 @@ def precalculate(cte, gen_lattice=False, test_filename=None):
 
         # check that the number of states is correct
         if (lattice_info['sensitizer_states'] is not cte['states']['sensitizer_states'] or
-            lattice_info['activator_states'] is not cte['states']['activator_states']):
+                lattice_info['activator_states'] is not cte['states']['activator_states']):
             logger.info('Wrong number of states, recalculate lattice...')
             raise FileNotFoundError('Wrong number of states, recalculate lattice...')
 
@@ -477,19 +487,19 @@ def precalculate(cte, gen_lattice=False, test_filename=None):
 
     # for the ith ion, we find the indices of the energy levels of the ions it interacts with
     # indices and distances from S number i to another S number k
-    indices_S_k = [np.array(x, dtype=np.int64) for x in npzfile['index_S_k']] # list of arrays
+    indices_S_k = [np.array(x, dtype=np.int64) for x in npzfile['index_S_k']]  # list of arrays
     dists_S_k = npzfile['dist_S_k']
 
     # indices and distances from S number i to an A number l
-    indices_S_l = [np.array(x, dtype=np.int64) for x in npzfile['index_S_l']] # list of arrays
+    indices_S_l = [np.array(x, dtype=np.int64) for x in npzfile['index_S_l']]  # list of arrays
     dists_S_l = npzfile['dist_S_l']
 
     # indices and distances from A number j to an S number k
-    indices_A_k = [np.array(x, dtype=np.int64) for x in npzfile['index_A_k']] # list of arrays
+    indices_A_k = [np.array(x, dtype=np.int64) for x in npzfile['index_A_k']]  # list of arrays
     dists_A_k = npzfile['dist_A_k']
 
     # indices and distances from A number j to an A number l
-    indices_A_l = [np.array(x, dtype=np.int64) for x in npzfile['index_A_l']] # list of arrays
+    indices_A_l = [np.array(x, dtype=np.int64) for x in npzfile['index_A_l']]  # list of arrays
     dists_A_l = npzfile['dist_A_l']
 
     initial_population = npzfile['initial_population']
@@ -518,7 +528,7 @@ def precalculate(cte, gen_lattice=False, test_filename=None):
             if pos_i < activator_states and pos_f < activator_states:
                 B_activator[pos_i, pos_f] = value
     # this shouldn't happen
-    except IndexError as err: # pragma: no cover
+    except IndexError as err:  # pragma: no cover
         logger.error('Wrong number of states!')
         logger.error(err)
         raise
@@ -543,7 +553,7 @@ def precalculate(cte, gen_lattice=False, test_filename=None):
             if pos < activator_states:
                 k_activator[pos] = value
     # this shouldn't happen
-    except IndexError as err: # pragma: no cover
+    except IndexError as err:  # pragma: no cover
         logger.debug('Wrong number of states!')
         raise
 
@@ -563,7 +573,6 @@ def precalculate(cte, gen_lattice=False, test_filename=None):
 
     jac_indices = _calculate_jac_matrices(N_indices)
 
-
     logger.info('Number of interactions: %d.', N_indices.shape[0])
     logger.info('Setup finished. Total time: %.2fs.', time.time()-start_time)
 
@@ -571,22 +580,22 @@ def precalculate(cte, gen_lattice=False, test_filename=None):
             total_abs_matrix, decay_matrix, ET_matrix, N_indices, jac_indices)
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-    logger.debug('Called from main.')
-
-    import simetuc.settings as settings
-    cte = settings.load('test/test_settings/test_standard_config.txt')
-    cte['no_console'] = False
-    cte['no_plot'] = False
-
-
-    (cte, initial_population, index_S_i, index_A_j,
-     total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate(cte, test_filename='test/test_setup/data_2S_2A.npz')
-
-    UC_matrix = UC_matrix.toarray()
-    total_abs_matrix = total_abs_matrix.toarray()
-    decay_matrix = decay_matrix.toarray()
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#    logger.debug('Called from main.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('test/test_settings/test_standard_config.txt')
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+#
+#
+#    (cte, initial_population, index_S_i, index_A_j,
+#     total_abs_matrix, decay_matrix, UC_matrix,
+#     N_indices, jac_indices) = precalculate(cte, test_filename='test/test_setup/data_2S_2A.npz')
+#
+#    UC_matrix = UC_matrix.toarray()
+#    total_abs_matrix = total_abs_matrix.toarray()
+#    decay_matrix = decay_matrix.toarray()

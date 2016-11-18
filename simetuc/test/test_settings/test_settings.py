@@ -9,9 +9,8 @@ import tempfile
 from contextlib import contextmanager
 import os
 
-
 import pytest
-#import numpy as np
+import numpy as np
 
 import simetuc.settings as settings
 
@@ -83,6 +82,12 @@ def test_standard_config():
                                    ('final_state', [3, 5]),
                                    ('ion_exc', ['A', 'A'])]))])),
              ('optimization_processes', ['CR50']),
+             ('power_dependence', []),
+             ('conc_dependence', []),
+             ('simulation_params', {'N_steps': 1000,
+                                    'N_steps_pulse': 2,
+                                    'atol': 1e-15,
+                                    'rtol': 0.001}),
              ('decay',
               {'B_pos_value_A': [(1, 0, 1.0),
                 (2, 1, 0.4),
@@ -358,6 +363,18 @@ def test_states_config2():
     assert excinfo.match(r"sensitizer_states_labels must not be empty")
     assert excinfo.type == ValueError
 
+def test_states_config3():  # fractions in the state labels
+    data = data_lattice_ok + '''states:
+    sensitizer_ion_label: Yb
+    sensitizer_states_labels: [2F7/2, 2F5/2]
+    activator_ion_label: Tm
+    activator_states_labels: [3H6, 3F4, 3H5, 3H4, 3F3, 1G4, 1D2]'''
+    with pytest.raises(TypeError) as excinfo: # it should fail in the excitations section
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"string indices must be integers")
+    assert excinfo.type == TypeError
+
 data_states_ok = '''version: 1
 lattice:
     name: bNaYF4
@@ -537,7 +554,6 @@ def test_abs_config4(): # good test
     with pytest.raises(AttributeError) as excinfo: # fails later b/c no branching ratios
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match("'str' object has no attribute 'items'")
     assert excinfo.type == AttributeError
 
 def test_abs_config5(): # ok, ESA settings
@@ -553,7 +569,6 @@ def test_abs_config5(): # ok, ESA settings
     with pytest.raises(AttributeError) as excinfo: # fails later b/c no branching ratios
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match("'str' object has no attribute 'items'")
     assert excinfo.type == AttributeError
 
 def test_abs_config6():
@@ -659,7 +674,7 @@ activator_decay:
     with pytest.raises(ValueError) as excinfo: # decay rate is string
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"could not convert string to float")
+    assert excinfo.match(r"Invalid value for parameter")
     assert excinfo.type == ValueError
 
 def test_decay_config2():
@@ -847,6 +862,24 @@ activator_branching_ratios:
             settings.load(filename)
     assert excinfo.match(r"is not a valid state label")
     assert excinfo.type == settings.LabelError
+
+def test_branch_config4():
+    data = data_decay_ok + '''sensitizer_branching_ratios:
+activator_branching_ratios:
+    3H5->3F4: 1.4
+    3H4->3F4: 0.3
+    3F3->3H4: 0.999
+    1G4->3F4: 0.15
+    1G4->3H5: 0.16
+    1G4->3H4: 0.04
+    1G4->3F3: 0.00
+    1D2->3F4: 0.43
+'''
+    with pytest.raises(ValueError) as excinfo: # value above 1.0
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r'"3H5->3F4" is not between 0 and 1.')
+    assert excinfo.type == ValueError
 
 
 data_all_mandatory_ok = data_branch_ok = '''version: 1 # mandatory, only 1 is supported at the moment
@@ -1184,10 +1217,10 @@ def test_sim_params_config1(): # ok
 
     with temp_config_filename(data) as filename:
         cte = settings.load(filename)
-    assert cte['simulation_params'] == OrderedDict([('rtol', 1e-3),
-                                                    ('atol', 1e-15),
-                                                    ('N_steps_pulse', 100),
-                                                    ('N_steps', 1000)])
+    assert cte['simulation_params'] == dict([('rtol', 1e-3),
+                                            ('atol', 1e-15),
+                                            ('N_steps_pulse', 100),
+                                            ('N_steps', 1000)])
 
 def test_sim_params_config2(recwarn): # ok
     data = data_ET_ok + data_sim_params + 'wrong: label'
@@ -1199,6 +1232,60 @@ def test_sim_params_config2(recwarn): # ok
     warning = recwarn.pop(settings.ConfigWarning)
     assert issubclass(warning.category, settings.ConfigWarning)
     assert 'Some values or sections should not be present in the file.' in str(warning.message)
+
+
+def test_pow_dep_config1(): # ok
+    data = data_ET_ok + '''power_dependence: [1e0, 1e7, 8]'''
+
+    with temp_config_filename(data) as filename:
+        cte = settings.load(filename)
+    assert np.alltrue(cte['power_dependence'] == np.array([1.00000000e+00, 1.00000000e+01, 1.00000000e+02,
+                                                1.00000000e+03, 1.00000000e+04, 1.00000000e+05,
+                                                1.00000000e+06, 1.00000000e+07]))
+
+def test_pow_dep_config2(): # ok, but empty
+    data = data_ET_ok + '''power_dependence: []'''
+
+    with temp_config_filename(data) as filename:
+        cte = settings.load(filename)
+    assert cte['power_dependence'] == []
+
+def test_pow_dep_config3(): # text instead numbers
+    data = data_ET_ok + '''power_dependence: [asd, 1e7, 8]'''
+
+    with pytest.raises(ValueError) as excinfo:
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"Invalid value in list")
+    assert excinfo.type == ValueError
+
+
+def test_conc_dep_config1(): # ok
+    data = data_ET_ok + '''concentration_dependence: [[0, 1, 2], [0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]'''
+
+    with temp_config_filename(data) as filename:
+        cte = settings.load(filename)
+    assert cte['conc_dependence'] == [(0.0, 0.01), (1.0, 0.01), (2.0, 0.01), (0.0, 0.1),
+                                      (1.0, 0.1), (2.0, 0.1), (0.0, 0.2), (1.0, 0.2),
+                                      (2.0, 0.2), (0.0, 0.3), (1.0, 0.3), (2.0, 0.3),
+                                      (0.0, 0.4), (1.0, 0.4), (2.0, 0.4), (0.0, 0.5),
+                                      (1.0, 0.5), (2.0, 0.5)]
+
+def test_conc_dep_config2(): # ok, but empty
+    data = data_ET_ok + '''concentration_dependence: []'''
+
+    with temp_config_filename(data) as filename:
+        cte = settings.load(filename)
+    assert cte['power_dependence'] == []
+
+def test_conc_dep_config3(): # negative number
+    data = data_ET_ok + '''concentration_dependence: [[0, 1, 2], [-0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]'''
+
+    with pytest.raises(ValueError) as excinfo:
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"Negative value in list")
+    assert excinfo.type == ValueError
 
 # test extra value in section lattice
 def test_extra_value(recwarn):

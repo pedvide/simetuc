@@ -22,7 +22,7 @@ lattice:
     gamma: 120
     # the number is also ok for the spacegroup
     spacegroup: P-6
-    # info about sites. If there's only one, the square brakets are still mandatory
+    # info about sites. If there's only one, the square brackets are still mandatory
     sites_pos: [[0, 0, 0], [2/3, 1/3, 1/2]]
     sites_occ: [1, 1/2]
 
@@ -101,7 +101,7 @@ activator_branching_ratios:
     1G4->3F4: 0.15
     1G4->3H5: 0.16
     1G4->3H4: 0.04
-    1G4->3F3: 0.00
+    1G4->3F3: 0.001
     # 1D2 to 3F4
     1D2->3F4: 0.43
 
@@ -113,11 +113,11 @@ enery_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
         multipolarity: 6
-        strength: 2.89319954e+09
+        strength: 4.3057e+09
     ETU53:
         process:  Tm(1G4) + Tm(3H4) -> Tm(1D2) + Tm(3F4)
         multipolarity: 6
-        strength: 2.54295690e+08
+        strength: 2.5377e+08
     ETU55:
         process:  Tm(1G4) + Tm(1G4) -> Tm(1D2) + Tm(3F3)
         multipolarity: 6
@@ -138,10 +138,12 @@ enery_transfer:
 # this is optional: a list of enery_transfer labels to optimize.
 optimization_processes: [CR50, ETU53]
 
-# this is optional, values for certain parameters in the ODE solver
-# default values are loaded if not changed here (those values are in config/settings.cfg)
-simulation_params:
-    rtol: 1e-3 # relative tolerance
-    atol: 1e-15 # absolute tolerance
-    N_steps_pulse: 100 # number of steps for the pulse (only for dynamics)
-    N_steps: 1000 # number of steps for relaxation (also for steady state)
+# minimum and maximum excitation powers and the number of points
+# to calculate the power dependence
+# note: a logarithmic scale is used
+power_dependence: [1e0, 1e7, 8]
+
+# list of two lists:
+# with the sensitizer and the activator concentrations
+# to simulate for the concentration dependence
+concentration_dependence: [[0], [0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]

@@ -4,12 +4,9 @@ Created on Fri Oct 21 18:44:07 2016
 
 @author: Pedro
 """
-from collections import OrderedDict
-
 import pytest
 import numpy as np
 # pylint: disable=E1101
-#import scipy.sparse as sparse
 
 import simetuc.lattice as lattice
 
@@ -17,20 +14,13 @@ import simetuc.lattice as lattice
 def setup_cte():
     '''Load the cte data structure'''
 
-    cte = OrderedDict([
+    cte = dict([
              ('lattice',
-              OrderedDict([('name', 'bNaYF4'),
+              dict([('name', 'bNaYF4'),
                            ('N_uc', 20),
                            ('S_conc', 0.3),
                            ('A_conc', 0.3),
-                           ('a', 5.9738),
-                           ('b', 5.9738),
-                           ('c', 3.5297),
-                           ('alpha', 90),
-                           ('beta', 90),
-                           ('gamma', 120),
                            ('spacegroup', 'P-6'),
-                           ('sites_ions', ['Y', 'Y']),
                            ('sites_pos',
                             [(0.0, 0.0, 0.0),
                              (0.6666666666666666, 0.3333333333333333, 0.5)]),
@@ -38,93 +28,16 @@ def setup_cte():
                            ('cell_par',
                             [5.9738, 5.9738, 3.5297, 90.0, 90.0, 120.0])])),
              ('states',
-              OrderedDict([('sensitizer_ion_label', 'Yb'),
+              dict([('sensitizer_ion_label', 'Yb'),
                            ('sensitizer_states_labels', ['GS', 'ES']),
                            ('activator_ion_label', 'Tm'),
                            ('activator_states_labels',
                             ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2']),
                            ('sensitizer_states', 2),
-                           ('activator_states', 7)])),
-             ('excitations',
-              OrderedDict([('Vis_473',
-                            OrderedDict([('active', True),
-                                         ('power_dens', '1e6'),
-                                         ('t_pulse', '1e-8'),
-                                         ('process', 'Tm(3H6) -> Tm(1G4)'),
-                                         ('degeneracy', '13/9'),
-                                         ('pump_rate', 0.00093)])),
-                           ('NIR_980',
-                            OrderedDict([('active', False),
-                                         ('power_dens', '1e7'),
-                                         ('t_pulse', '1e-8'),
-                                         ('process', 'Yb(GS)->Yb(ES)'),
-                                         ('degeneracy', '4/3'),
-                                         ('pump_rate', 0.0044)])),
-                           ('label', 'Vis_473'),
-                           ('t_pulse', 1e-08),
-                           ('power_dens', 1000000.0),
-                           ('degeneracy', 1.4444444444444444),
-                           ('pump_rate', 0.00093),
-                           ('ion_type', 'A'),
-                           ('init_state', 0),
-                           ('final_state', 5)])),
-             ('experimental_data',
-              [None,
-               None,
-               None,
-               'tau_Tm_3F4_exc_Vis_473.txt',
-               None,
-               'tau_Tm_3H4_exc_Vis_473.txt',
-               None,
-               'tau_Tm_1G4_exc_Vis_473.txt',
-               'tau_Tm_1D2_exc_Vis_473.txt']),
-             ('optimization_params', ['CR50']),
-             ('decay',
-              {'B_pos_value_A': [(2, 1, 0.4),
-                (3, 1, 0.3),
-                (4, 3, 0.999),
-                (5, 1, 0.15),
-                (5, 2, 0.16),
-                (5, 3, 0.04),
-                (5, 4, 0.0),
-                (6, 1, 0.43)],
-               'B_pos_value_S': [],
-               'pos_value_A': [(1, 83.33333333333333),
-                (2, 40000.0),
-                (3, 500.0),
-                (4, 500000.0),
-                (5, 1315.7894736842104),
-                (6, 14814.814814814814)],
-               'pos_value_S': [(1, 400.0)]}),
-             ('ET',
-              OrderedDict([('CR50',
-                            {'indices': [5, 0, 3, 2],
-                             'mult': 6,
-                             'type': 'AA',
-                             'value': 887920884.0}),
-                           ('ETU53',
-                            {'indices': [5, 3, 6, 1],
-                             'mult': 6,
-                             'type': 'AA',
-                             'value': 450220614.0}),
-                           ('ETU55',
-                            {'indices': [5, 5, 6, 4],
-                             'mult': 6,
-                             'type': 'AA',
-                             'value': 0.0}),
-                           ('BackET',
-                            {'indices': [3, 0, 0, 1],
-                             'mult': 6,
-                             'type': 'AS',
-                             'value': 4502.20614}),
-                           ('EM',
-                            {'indices': [1, 0, 0, 1],
-                             'mult': 6,
-                             'type': 'SS',
-                             'value': 45022061400.0})]))])
+                           ('activator_states', 7)]))])
 
     cte['no_console'] = True
-    cte['no_plot'] = True
+    cte['no_plot'] = False
     return cte
 
 
@@ -261,4 +174,45 @@ def test_cte(setup_cte, params):
             index_S_l, dist_S_l,
             index_A_k, dist_A_k,
             index_A_l, dist_A_l) = lattice.generate(cte)
+
+def test_single_atom(setup_cte): # generate lattices with a single S or A
+    cte = setup_cte
+
+    cte['lattice']['N_uc'] = 1
+    cte['states']['sensitizer_states'] = 2
+    cte['states']['activator_states'] = 7
+
+    success = False
+    cte['lattice']['S_conc'] = 0
+    cte['lattice']['A_conc'] = 50
+    while not success:
+        try:
+            (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
+            index_S_i, index_A_j,
+            index_S_k, dist_S_k,
+            index_S_l, dist_S_l,
+            index_A_k, dist_A_k,
+            index_A_l, dist_A_l) = lattice.generate(cte)
+        except lattice.LatticeError: # no ions were generated, repeat
+            pass
+        else:
+            if len(ion_type) == 1: # only one ion was generated
+                success = True
+
+    success = False
+    cte['lattice']['S_conc'] = 50
+    cte['lattice']['A_conc'] = 0
+    while not success:
+        try:
+            (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
+            index_S_i, index_A_j,
+            index_S_k, dist_S_k,
+            index_S_l, dist_S_l,
+            index_A_k, dist_A_k,
+            index_A_l, dist_A_l) = lattice.generate(cte)
+        except lattice.LatticeError: # no ions were generated, repeat
+            pass
+        else:
+            if len(ion_type) == 1: # only one ion was generated
+                success = True
 
