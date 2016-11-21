@@ -206,6 +206,10 @@ class Solution():
                 self.cte_copy == other.cte_copy and self.index_S_i == other.index_S_i and
                 self.index_A_j == other.index_A_j)
 
+    def __ne__(self, other):
+        '''Define a non-equality test'''
+        return not self == other
+
     def _calculate_avg_populations(self):
         '''Returs the average populations of each state. First S then A states.'''
 
