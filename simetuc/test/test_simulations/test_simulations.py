@@ -174,6 +174,13 @@ def test_sim_dyn_save(setup_cte):
     sol_hdf5 = simulations.DynamicsSolution()
     sol_hdf5.load(r'test\test_simulations\savedSolution.hdf5')
     assert sol_hdf5
+
+    assert np.allclose(sol_hdf5.t_sol, solution.t_sol)
+    assert np.allclose(sol_hdf5.y_sol, solution.y_sol)
+    assert sol_hdf5.cte_copy == solution.cte_copy
+    assert sol_hdf5.index_S_i == solution.index_S_i
+    assert sol_hdf5.index_A_j == solution.index_A_j
+
     assert sol_hdf5 == solution
     sol_hdf5.log_errors()
     sol_hdf5.plot()
