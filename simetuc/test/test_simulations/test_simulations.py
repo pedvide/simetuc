@@ -174,11 +174,11 @@ def test_sim_dyn_save(setup_cte):
     sol_hdf5.load(r'test\test_simulations\savedSolution.hdf5')
     assert sol_hdf5
 
-    assert np.allclose(sol_hdf5.t_sol, solution.t_sol)
-    assert np.allclose(sol_hdf5.y_sol, solution.y_sol)
-    assert sol_hdf5.cte_copy == solution.cte_copy
-    assert sol_hdf5.index_S_i == solution.index_S_i
-    assert sol_hdf5.index_A_j == solution.index_A_j
+#    assert np.allclose(sol_hdf5.t_sol, solution.t_sol)
+#    assert np.allclose(sol_hdf5.y_sol, solution.y_sol)
+#    assert sol_hdf5.cte_copy == solution.cte_copy
+#    assert sol_hdf5.index_S_i == solution.index_S_i
+#    assert sol_hdf5.index_A_j == solution.index_A_j
 
     assert sol_hdf5 == solution # same as the five statements above
     sol_hdf5.log_errors()
@@ -224,16 +224,16 @@ def test_sim_steady(setup_cte):
 
     solution.log_populations()
     solution.plot()
-    solution.save(r'test\test_simulations\savedSolution.hdf5')
+    solution.save(r'test\test_simulations\savedSolution_s.hdf5')
 
     sol_hdf5 = simulations.SteadyStateSolution()
     assert not sol_hdf5
-    sol_hdf5.load(r'test\test_simulations\savedSolution.hdf5')
+    sol_hdf5.load(r'test\test_simulations\savedSolution_s.hdf5')
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
 
-    os.remove(r'test\test_simulations\savedSolution.hdf5')
+    os.remove(r'test\test_simulations\savedSolution_s.hdf5')
 
 def test_sim_no_plot(setup_cte, recwarn):
     '''Test that no plot works'''
@@ -255,22 +255,22 @@ def test_sim_power_dep1(setup_cte):
 
     assert sim.cte == setup_cte
 
-    power_dens_list = np.logspace(1, 8, 8-1+1)
+    power_dens_list = np.logspace(1, 5, 5-1+1)
     solution = sim.simulate_power_dependence(power_dens_list)
 
     assert solution
 
     solution.plot()
-    solution.save(r'test\test_simulations\savedSolution.hdf5')
+    solution.save(r'test\test_simulations\savedSolution_pd1.hdf5')
 
     sol_hdf5 = simulations.PowerDependenceSolution()
     assert not sol_hdf5
-    sol_hdf5.load(r'test\test_simulations\savedSolution.hdf5')
+    sol_hdf5.load(r'test\test_simulations\savedSolution_pd1.hdf5')
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
 
-    os.remove(r'test\test_simulations\savedSolution.hdf5')
+    os.remove(r'test\test_simulations\savedSolution_pd1.hdf5')
 
 def test_sim_power_dep2(setup_cte, recwarn):
     '''Power dep list is empty'''
@@ -315,38 +315,38 @@ def test_sim_conc_dep1(setup_cte):
     assert solution
 
     solution.plot()
-    solution.save(r'test\test_simulations\savedSolution.hdf5')
+    solution.save(r'test\test_simulations\savedSolution_cd1.hdf5')
 
     sol_hdf5 = simulations.ConcentrationDependenceSolution()
     assert not sol_hdf5
-    sol_hdf5.load(r'test\test_simulations\savedSolution.hdf5')
+    sol_hdf5.load(r'test\test_simulations\savedSolution_cd1.hdf5')
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
 
-    os.remove(r'test\test_simulations\savedSolution.hdf5')
+    os.remove(r'test\test_simulations\savedSolution_cd1.hdf5')
 
     solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
 
     assert solution
 
     solution.plot()
-    solution.save(r'test\test_simulations\savedSolution.hdf5')
+    solution.save(r'test\test_simulations\savedSolution_cd2.hdf5')
 
     sol_hdf5 = simulations.ConcentrationDependenceSolution()
     assert not sol_hdf5
-    sol_hdf5.load(r'test\test_simulations\savedSolution.hdf5')
+    sol_hdf5.load(r'test\test_simulations\savedSolution_cd2.hdf5')
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
 
-    os.remove(r'test\test_simulations\savedSolution.hdf5')
+    os.remove(r'test\test_simulations\savedSolution_cd2.hdf5')
 
 def test_sim_conc_dep2(setup_cte):
     '''Conc list has only A changing'''
     sim = simulations.Simulations(setup_cte)
 
-    conc_list = [(0.0, 0.01), (0.0, 0.1), (0.0, 0.3), (0.0, 0.4), (0.0, 0.5)]
+    conc_list = [(0.0, 0.01), (0.0, 0.1), (0.0, 0.3)]
     solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
     assert solution
     solution.plot()
