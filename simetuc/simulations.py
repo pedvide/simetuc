@@ -294,7 +294,9 @@ class Solution():
         '''
         if self.cte_copy['no_plot']:
             logger = logging.getLogger(__name__)
-            logger.warning('A plot was requested, but no_plot setting is set')
+            msg = 'A plot was requested, but no_plot setting is set'
+            logger.warning(msg)
+            warnings.warn(msg, PlotWarning)
             return
 
         # get ion_state labels
@@ -683,7 +685,9 @@ class PowerDependenceSolution(SolutionList):
 
         if self.solution_list[0].cte_copy['no_plot']:
             logger = logging.getLogger(__name__)
-            logger.warning('A plot was requested, but no_plot setting is set')
+            msg = 'A plot was requested, but no_plot setting is set'
+            logger.warning(msg)
+            warnings.warn(msg, PlotWarning)
             return
 
         sim_data_arr = np.array([np.array(sol.steady_state_populations)
@@ -732,7 +736,9 @@ class ConcentrationDependenceSolution(SolutionList):
 
         if self.solution_list[0].cte_copy['no_plot']:
             logger = logging.getLogger(__name__)
-            logger.warning('A plot was requested, but no_plot setting is set')
+            msg = 'A plot was requested, but no_plot setting is set'
+            logger.warning(msg)
+            warnings.warn(msg, PlotWarning)
             return
 
         if self.dynamics:

@@ -16,7 +16,7 @@ import simetuc.setup as setup
 import simetuc.lattice as lattice # for the LatticeError exception
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def setup_cte():
     '''Load the cte data structure'''
 

@@ -11,7 +11,7 @@ import pytest
 
 import simetuc.optimize as optimize
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def setup_cte():
     '''Load the cte data structure'''
 

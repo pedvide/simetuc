@@ -13,7 +13,7 @@ import numpy as np
 
 import simetuc.simulations as simulations
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def setup_cte():
     '''Load the cte data structure'''
 
@@ -145,8 +145,6 @@ def test_sim_dyn1(setup_cte):
     solution.plot(state=6)
     solution.plot(state=1)
 
-    setup_cte['lattice']['S_conc'] = 0.3
-
 def test_sim_dyn2(setup_cte):
     '''Test that the dynamics have the right result for a simple system'''
     test_filename = 'test/test_setup/data_2S_2A.npz'
@@ -231,6 +229,19 @@ def test_sim_steady(setup_cte):
 
     os.remove(r'test\test_simulations\savedSolution.hdf5')
 
+def test_sim_no_plot(setup_cte, recwarn):
+    '''Test that no plot works'''
+    setup_cte['no_plot'] = True
+    sim = simulations.Simulations(setup_cte)
+
+    solution = sim.simulate_dynamics()
+
+    with pytest.warns(simulations.PlotWarning):
+        solution.plot()
+    assert len(recwarn) == 1 # one warning
+    warning = recwarn.pop(simulations.PlotWarning)
+    assert issubclass(warning.category, simulations.PlotWarning)
+    assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
 
 def test_sim_power_dep1(setup_cte):
     '''Test that the power dependence works'''
@@ -263,15 +274,28 @@ def test_sim_power_dep2(setup_cte, recwarn):
     power_dens_list = []
     solution = sim.simulate_power_dependence(power_dens_list)
 
-    assert not solution # solution is empty
-
-    with pytest.warns(simulations.PlotWarning): # 'wrong: label' in simulation_params
+    with pytest.warns(simulations.PlotWarning):
         solution.plot()
     assert len(recwarn) == 1 # one warning
     warning = recwarn.pop(simulations.PlotWarning)
     assert issubclass(warning.category, simulations.PlotWarning)
     assert 'Nothing to plot! The power_dependence list is emtpy!' in str(warning.message)
 
+def test_sim_power_dep3(setup_cte, recwarn):
+    '''A plot was requested, but no_plot is set'''
+
+    setup_cte['no_plot'] = True
+    sim = simulations.Simulations(setup_cte)
+
+    power_dens_list = np.logspace(1, 2, 3)
+    solution = sim.simulate_power_dependence(power_dens_list)
+
+    with pytest.warns(simulations.PlotWarning):
+        solution.plot()
+    assert len(recwarn) == 1 # one warning
+    warning = recwarn.pop(simulations.PlotWarning)
+    assert issubclass(warning.category, simulations.PlotWarning)
+    assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
 
 def test_sim_conc_dep1(setup_cte):
     '''Test that the concentration dependence works'''
@@ -329,6 +353,37 @@ def test_sim_conc_dep3(setup_cte):
     solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
     assert solution
     solution.plot()
+
+def test_sim_conc_dep4(setup_cte, recwarn):
+    '''Conc list is empty'''
+
+    sim = simulations.Simulations(setup_cte)
+
+    conc_list = []
+    solution = sim.simulate_concentration_dependence(conc_list)
+
+    with pytest.warns(simulations.PlotWarning):
+        solution.plot()
+    assert len(recwarn) == 1 # one warning
+    warning = recwarn.pop(simulations.PlotWarning)
+    assert issubclass(warning.category, simulations.PlotWarning)
+    assert 'Nothing to plot! The concentration_dependence list is emtpy!' in str(warning.message)
+
+
+def test_sim_conc_dep5(setup_cte, recwarn):
+    '''A plot was requested, but no_plot is set'''
+    setup_cte['no_plot'] = True
+    sim = simulations.Simulations(setup_cte)
+
+    conc_list = [(0.01, 0.3), (0.1, 0.3)]
+    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
+
+    with pytest.warns(simulations.PlotWarning):
+        solution.plot()
+    assert len(recwarn) == 1 # one warning
+    warning = recwarn.pop(simulations.PlotWarning)
+    assert issubclass(warning.category, simulations.PlotWarning)
+    assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
 
 
 def test_sim_conc_dep_no_file():

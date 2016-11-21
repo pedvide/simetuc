@@ -11,13 +11,13 @@ import numpy as np
 
 import simetuc.lattice as lattice
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope='function')
 def setup_cte():
     '''Load the cte data structure'''
 
     cte = dict([
              ('lattice',
-              dict([('name', 'bNaYF4'),
+              dict([('name', 'test_lattice'),
                            ('N_uc', 20),
                            ('S_conc', 0.3),
                            ('A_conc', 0.3),
@@ -87,8 +87,6 @@ def test_cte(setup_cte, params):
     cte['states']['activator_states'] = params[4]
     # True for normal results, False for exception
     normal_result = params[5]
-
-    cte['lattice']['name'] = 'test_lattice'
 
     if normal_result:
 
