@@ -181,7 +181,7 @@ def test_sim_dyn_save(setup_cte):
     assert sol_hdf5.index_S_i == solution.index_S_i
     assert sol_hdf5.index_A_j == solution.index_A_j
 
-    assert sol_hdf5 == solution
+    assert sol_hdf5 == solution # same as the five statements above
     sol_hdf5.log_errors()
     sol_hdf5.plot()
 
