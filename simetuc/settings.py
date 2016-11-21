@@ -76,6 +76,7 @@ def _load_yaml_file(filename, direct_file=False):
 
 def _ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
     '''Load data as ordered dictionaries so the ET processes are in the right order
+    # not necessary any more, but still used
         http://stackoverflow.com/a/21912744
     '''
 
@@ -569,8 +570,7 @@ def _parse_ET(cte):
     tuple_state_labels = (sensitizer_labels, activator_labels)
 
     # ET PROCESSES.
-    # OrderedDict so when we go over the processes we always get them in the same order
-    ET_dict = OrderedDict()
+    ET_dict = {}
     for num, (key, value) in enumerate(cte['enery_transfer'].items()):
         # make sure all three parts are present and of the right type
         name = key

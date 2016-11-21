@@ -4,7 +4,6 @@ Created on Fri Nov 18 17:22:18 2016
 
 @author: Pedro
 """
-from collections import OrderedDict
 
 import pytest
 #import numpy as np
@@ -15,7 +14,7 @@ import simetuc.optimize as optimize
 def setup_cte():
     '''Load the cte data structure'''
 
-    cte = {'ET': OrderedDict([('CR50',
+    cte = {'ET': dict([('CR50',
                {'indices': [5, 0, 3, 2],
                 'mult': 6,
                 'type': 'AA',

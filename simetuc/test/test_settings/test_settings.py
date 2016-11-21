@@ -4,7 +4,6 @@ Created on Sat Oct 22 00:10:24 2016
 
 @author: Villanueva
 """
-from collections import OrderedDict
 import tempfile
 from contextlib import contextmanager
 import os
@@ -107,7 +106,7 @@ def test_standard_config():
                 (6, 14814.814814814814)],
                'pos_value_S': [(1, 400.0)]}),
              ('ET',
-              OrderedDict([('CR50',
+              dict([('CR50',
                             {'indices': [5, 0, 3, 2],
                              'mult': 6,
                              'type': 'AA',

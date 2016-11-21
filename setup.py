@@ -105,7 +105,7 @@ setup(
     # for example:
     # $ pip install -e .[dev,test]
     extras_require={
-        'test': ['pytest >=3.0'],
+        'test': ['pytest >=3.0', 'pytest-cov', 'flake8'],
     },
 
     # If there are data files included in your packages that need to be

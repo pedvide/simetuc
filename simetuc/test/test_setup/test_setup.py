@@ -4,7 +4,6 @@ Created on Fri Oct 21 18:44:07 2016
 
 @author: Pedro
 """
-from collections import OrderedDict
 import os
 
 import pytest
@@ -118,7 +117,7 @@ def setup_cte():
                 (6, 14814.814814814814)],
                'pos_value_S': [(1, 400.0)]}),
              ('ET',
-              OrderedDict([('CR50',
+              dict([('CR50',
                             {'indices': [5, 0, 3, 2],
                              'mult': 6,
                              'type': 'AA',

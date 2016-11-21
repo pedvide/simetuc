@@ -421,7 +421,7 @@ def precalculate(cte, gen_lattice=False, full_path=None):
     else:  # pragma: no cover
         folder_path = os.path.join('latticeData', lattice_name)
         full_path = lattice.make_full_path(folder_path, num_uc, S_conc, A_conc)
-        filename= full_path
+        filename = full_path
 
     try:
         # generate the lattice in any case

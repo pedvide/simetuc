@@ -5,7 +5,6 @@ Created on Tue Nov  8 13:22:54 2016
 @author: Pedro
 """
 
-from collections import OrderedDict
 import os
 
 import pytest
@@ -17,7 +16,7 @@ import simetuc.simulations as simulations
 def setup_cte():
     '''Load the cte data structure'''
 
-    cte = {'ET': OrderedDict([('CR50',
+    cte = {'ET': dict([('CR50',
                {'indices': [5, 0, 3, 2],
                 'mult': 6,
                 'type': 'AA',
