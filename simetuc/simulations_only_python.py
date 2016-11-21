@@ -1022,7 +1022,7 @@ if __name__ == "__main__": # pragma: no cover
     logger.info('Called from cmd.')
 
     import simetuc.settings as settings
-    cte = settings.load('config_file.txt')
+    cte = settings.load('config_file.cfg')
 
     cte['no_console'] = False
     cte['no_plot'] = False

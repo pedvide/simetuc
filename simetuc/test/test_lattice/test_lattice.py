@@ -4,6 +4,7 @@ Created on Fri Oct 21 18:44:07 2016
 
 @author: Pedro
 """
+import os
 import pytest
 import numpy as np
 # pylint: disable=E1101
@@ -98,6 +99,12 @@ def test_cte(setup_cte, params):
         index_A_k, dist_A_k,
         index_A_l, dist_A_l) = lattice.generate(cte)
 
+        # remove lattice file
+        folder_path = os.path.join('test', cte['lattice']['name'])
+        full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
+                                           cte['lattice']['S_conc'], cte['lattice']['A_conc'])
+        os.remove(full_path)
+
         num_ions = lattice_info['num_total']
         num_activators = lattice_info['num_activators']
         num_sensitizers = lattice_info['num_sensitizers']
@@ -182,9 +189,10 @@ def test_single_atom(setup_cte): # generate lattices with a single S or A
     cte['states']['sensitizer_states'] = 2
     cte['states']['activator_states'] = 7
 
+    # single A atom
     success = False
-    cte['lattice']['S_conc'] = 0
-    cte['lattice']['A_conc'] = 50
+    cte['lattice']['S_conc'] = 0.0
+    cte['lattice']['A_conc'] = 50.0
     while not success:
         try:
             (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
@@ -199,9 +207,17 @@ def test_single_atom(setup_cte): # generate lattices with a single S or A
             if len(ion_type) == 1: # only one ion was generated
                 success = True
 
+    # remove lattice file
+    folder_path = os.path.join('test', cte['lattice']['name'])
+    full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
+                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
+    os.remove(full_path)
+
+
+    # single S atom
     success = False
-    cte['lattice']['S_conc'] = 50
-    cte['lattice']['A_conc'] = 0
+    cte['lattice']['S_conc'] = 50.0
+    cte['lattice']['A_conc'] = 0.0
     while not success:
         try:
             (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
@@ -216,3 +232,8 @@ def test_single_atom(setup_cte): # generate lattices with a single S or A
             if len(ion_type) == 1: # only one ion was generated
                 success = True
 
+    # remove lattice file
+    folder_path = os.path.join('test', cte['lattice']['name'])
+    full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
+                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
+    os.remove(full_path)

@@ -11,6 +11,7 @@ Created on Sun Oct 16 11:53:51 2016
 
 import sys
 import logging
+import logging.config
 import argparse
 # nice debug printing of settings
 import pprint
@@ -27,6 +28,7 @@ import simetuc.simulations as simulations
 import simetuc.settings as settings
 import simetuc.optimize as optimize
 
+
 VERSION = '0.9.2'
 DESCRIPTION = 'simetuc: Simulating Energy Transfer and Upconversion'
 
@@ -40,9 +42,8 @@ def _change_console_logger(level):
                 handler.setLevel(level)
 
 
-def main():
-    '''Main entry point for the command line interface'''
-
+def parse_args(args):
+    '''Create a argparser and parse the args'''
     # parse arguments
     parser = argparse.ArgumentParser(description=DESCRIPTION)
     parser.add_argument('--version', action='version', version=DESCRIPTION+' '+VERSION)
@@ -90,7 +91,14 @@ def main():
 #    foo_parser = subparsers.add_parser('foo')
 #    foo_parser.add_argument('-c', '--count')
 
-    args = parser.parse_args()
+    parsed_args = parser.parse_args(args)
+
+    return parsed_args
+
+
+def main():
+    '''Main entry point for the command line interface'''
+    args = parse_args(sys.argv[1:])  # skip the program name
 
     # choose console logger level
     no_console = True

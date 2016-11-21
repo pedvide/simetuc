@@ -34,6 +34,7 @@ import scipy.interpolate as interpolate
 from tqdm import tqdm
 
 import simetuc.setup as setup
+import simetuc.lattice as lattice
 
 
 def _rate_eq_pulse(t, y, abs_matrix, decay_matrix, UC_matrix, N_indices):
@@ -249,12 +250,11 @@ class Solution():
     def save_full_path(self):  # pragma: no cover
         '''Return the full path to save a file (without extention).'''
         lattice_name = self.cte_copy['lattice']['name']
-        filename = 'data_{}uc_{}S_{}A'.format(self.cte_copy['lattice']['N_uc'],
-                                              self.cte_copy['lattice']['S_conc'],
-                                              self.cte_copy['lattice']['A_conc'])
         path = os.path.join('results', lattice_name)
         os.makedirs(path, exist_ok=True)
-        full_path = os.path.join(path, filename)
+        full_path = lattice.make_full_path(path, self.cte_copy['lattice']['N_uc'],
+                                           self.cte_copy['lattice']['S_conc'],
+                                           self.cte_copy['lattice']['A_conc'])
         return full_path
 
     @property
@@ -972,10 +972,10 @@ class Plotter():
 class Simulations():
     '''Setup and solve a dynamics or a steady state problem'''
 
-    def __init__(self, cte: dict, test_filename: str = None):
+    def __init__(self, cte: dict, full_path: str = None):
         # settings
         self.cte = cte
-        self.test_filename = test_filename
+        self.full_path = full_path
 
     def modify_ET_param_value(self, process: str, value: float):
         '''Modify a ET parameter'''
@@ -995,7 +995,7 @@ class Simulations():
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
          UC_matrix,
-         N_indices, jac_indices) = setup.precalculate(self.cte, test_filename=self.test_filename)
+         N_indices, jac_indices) = setup.precalculate(self.cte, full_path=self.full_path)
         initial_population = np.asfortranarray(initial_population, dtype=np.float64)
 
         # update cte
@@ -1079,7 +1079,7 @@ class Simulations():
         # get matrices of interaction, initial conditions, abs, decay, etc
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
-         UC_matrix, N_indices, jac_indices) = setup.precalculate(cte)
+         UC_matrix, N_indices, jac_indices) = setup.precalculate(self.cte, full_path=self.full_path)
 
         # initial and final times for excitation and relaxation
         t0 = 0
@@ -1202,7 +1202,7 @@ class Simulations():
 #    logger.info('Called from cmd.')
 #
 #    import simetuc.settings as settings
-#    cte = settings.load('config_file.txt')
+#    cte = settings.load('config_file.cfg')
 #
 #    cte['no_console'] = False
 #    cte['no_plot'] = False

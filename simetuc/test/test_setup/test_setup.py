@@ -5,6 +5,7 @@ Created on Fri Oct 21 18:44:07 2016
 @author: Pedro
 """
 from collections import OrderedDict
+import os
 
 import pytest
 import numpy as np
@@ -162,7 +163,7 @@ def test_lattice_1A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, test_filename=test_filename)
+     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -208,7 +209,7 @@ def test_lattice_1A_ESA(setup_cte): # use the ESA processes in NIR_800 excitatio
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, test_filename=test_filename)
+     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -268,7 +269,7 @@ def test_lattice_1A_two_color(setup_cte): # use two color excitation
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, test_filename=test_filename)
+     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -325,7 +326,7 @@ def test_lattice_2A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, test_filename=test_filename)
+     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -402,7 +403,7 @@ def test_lattice_1S(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, test_filename=test_filename)
+     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -434,7 +435,7 @@ def test_lattice_2S(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, test_filename=test_filename)
+     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -472,7 +473,7 @@ def test_lattice_1S_1A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, test_filename=test_filename)
+     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -532,7 +533,7 @@ def test_lattice_2S_2A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, test_filename=test_filename)
+     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -720,15 +721,18 @@ def test_random_lattice(setup_cte, params, absorption):
 
 
     cte['lattice']['name'] = 'test_setup'
-    filename = 'test/test_setup/'+'data_{}uc_{}S_{}A.npz'.format(cte['lattice']['N_uc'],
-                                                                cte['lattice']['S_conc'],
-                                                                cte['lattice']['A_conc'])
+    folder_path = os.path.join('test', cte['lattice']['name'])
+    full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
+                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
 
     if normal_result:
 
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
-         N_indices, jac_indices) = setup.precalculate(cte, test_filename=filename)
+         N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)
+
+        # remove lattice file
+        os.remove(full_path)
 
         # some matrices can grow very large. Make sure it's returned as sparse
         assert sparse.issparse(ET_matrix)
@@ -789,7 +793,7 @@ def test_random_lattice(setup_cte, params, absorption):
         with pytest.raises(lattice.LatticeError):
             (cte, initial_population, index_S_i, index_A_j,
              absorption_matrix, decay_matrix, ET_matrix,
-             N_indices, jac_indices) = setup.precalculate(cte, test_filename=filename)
+             N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)
 
 def test_get_lifetimes(setup_cte):
 
@@ -801,15 +805,45 @@ def test_get_lifetimes(setup_cte):
     cte['states']['activator_states'] = 7
 
     cte['lattice']['name'] = 'test_setup'
-    filename = 'test/test_setup/'+'data_{}uc_{}S_{}A.npz'.format(cte['lattice']['N_uc'],
-                                                                 cte['lattice']['S_conc'],
-                                                                 cte['lattice']['A_conc'])
+    folder_path = os.path.join('test', cte['lattice']['name'])
+    full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
+                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, ET_matrix,
-     N_indices, jac_indices) = setup.precalculate(cte, test_filename=filename)
+     N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)
+
+    # remove lattice file
+    os.remove(full_path)
 
     tau_list = setup.get_lifetimes(cte)
 
     assert len(tau_list) == (cte['states']['sensitizer_states'] +
                             cte['states']['activator_states'] - 2)
+
+def test_wrong_number_states(setup_cte):
+
+    cte = setup_cte
+    cte['lattice']['S_conc'] = 1
+    cte['lattice']['A_conc'] = 1
+    cte['lattice']['N_uc'] = 5
+    cte['states']['sensitizer_states'] = 2
+    cte['states']['activator_states'] = 2
+
+    cte['lattice']['name'] = 'test_setup'
+    folder_path = os.path.join('test', cte['lattice']['name'])
+    full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
+                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
+
+    (cte, initial_population, index_S_i, index_A_j,
+     total_abs_matrix, decay_matrix, ET_matrix,
+     N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)
+
+    #¸ change number of states
+    cte['states']['activator_states'] = 7
+    (cte, initial_population, index_S_i, index_A_j,
+     total_abs_matrix, decay_matrix, ET_matrix,
+     N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)
+
+    # remove lattice file
+    os.remove(full_path)

@@ -858,4 +858,4 @@ def load(filename):
 #if __name__ == "__main__":
 ##    cte = load('test/test_settings/test_standard_config.txt')
 #    import simetuc.settings as settings
-#    cte = settings.load('config_file.txt')
+#    cte = settings.load('config_file.cfg')

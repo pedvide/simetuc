@@ -154,9 +154,9 @@ def optimize_dynamics(cte):
     print('\n\n')
     logger.info(res)
 
-    lattice_name = cte['lattice']['name']
-    path = os.path.join('results', lattice_name, 'minimize_results')
-    np.savez(path, res=res, cte=cte, best_x=best_x)  # save results
+#    lattice_name = cte['lattice']['name']
+#    path = os.path.join('results', lattice_name, 'minimize_results')
+#    np.savez(path, res=res, cte=cte, best_x=best_x)  # save results
 
     total_time = time.time()-start_time
     formatted_time = time.strftime("%Hh %Mm %Ss", time.localtime(total_time))
@@ -174,7 +174,7 @@ def optimize_dynamics(cte):
 #    logger.debug('Called from cmd.')
 #
 #    import simetuc.settings as settings
-#    cte = settings.load('config_file.txt')
+#    cte = settings.load('config_file.cfg')
 #
 #    cte['no_console'] = False
 #    cte['no_plot'] = True

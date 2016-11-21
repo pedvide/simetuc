@@ -242,6 +242,12 @@ def _plot_lattice(doped_lattice, ion_type):
     plt.axis('square')
 
 
+def make_full_path(folder_path, num_uc, S_conc, A_conc):
+    '''Makes the full path to a lattice in the folder.'''
+    filename = 'data_{}uc_{}S_{}A.npz'.format(int(num_uc), float(S_conc), float(A_conc))
+    full_path = os.path.join(folder_path, filename)
+    return full_path
+
 # @profile
 def generate(cte, min_im_conv=True):
     '''
@@ -359,15 +365,15 @@ def generate(cte, min_im_conv=True):
     logger.info('Saving data...')
 
     if 'test' in lattice_name:  # save in test folder
-        folder = 'test/'
+        folder = 'test'
     else:  # pragma: no cover
-        folder = 'latticeData/'
+        folder = 'latticeData'
 
     # check if folder exists
-    os.makedirs(folder+lattice_name, exist_ok=True)
-    filename = folder + '{}/data_{}uc_{}S_{}A'.format(lattice_name, num_uc,
-                                                      S_conc, A_conc)
-    np.savez(filename, dist_array=dist_array, ion_type=ion_type,
+    folder_path = os.path.join(folder, lattice_name)
+    os.makedirs(folder_path, exist_ok=True)
+    full_path = make_full_path(folder_path, num_uc, S_conc, A_conc)
+    np.savez(full_path, dist_array=dist_array, ion_type=ion_type,
              doped_lattice=doped_lattice,
              initial_population=initial_population, lattice_info=lattice_info,
              index_S_i=index_S_i, index_A_j=index_A_j,
@@ -392,27 +398,27 @@ def generate(cte, min_im_conv=True):
             index_A_l, dist_A_l)
 
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.INFO,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#
-#    logger.debug('Called from main.')
-#
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.txt')
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
-#
-#    cte['lattice']['S_conc'] = 25
-#    cte['lattice']['A_conc'] = 0.3
-#    cte['lattice']['N_uc'] = 5
-##    cte['states']['sensitizer_states'] = 0
-##    cte['states']['activator_states'] = 4
-#
-#    (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
-#     index_S_i, index_A_j,
-#     index_S_k, dist_S_k,
-#     index_S_l, dist_S_l,
-#     index_A_k, dist_A_k,
-#     index_A_l, dist_A_l) = generate(cte)
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+
+    logger.debug('Called from main.')
+
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')
+    cte['no_console'] = False
+    cte['no_plot'] = False
+
+    cte['lattice']['S_conc'] = 25
+    cte['lattice']['A_conc'] = 0.3
+    cte['lattice']['N_uc'] = 5
+#    cte['states']['sensitizer_states'] = 0
+#    cte['states']['activator_states'] = 4
+
+    (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
+     index_S_i, index_A_j,
+     index_S_k, dist_S_k,
+     index_S_l, dist_S_l,
+     index_A_k, dist_A_k,
+     index_A_l, dist_A_l) = generate(cte)

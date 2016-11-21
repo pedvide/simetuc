@@ -150,7 +150,7 @@ def test_sim_dyn1(setup_cte):
 def test_sim_dyn2(setup_cte):
     '''Test that the dynamics have the right result for a simple system'''
     test_filename = 'test/test_setup/data_2S_2A.npz'
-    sim = simulations.Simulations(setup_cte, test_filename=test_filename)
+    sim = simulations.Simulations(setup_cte, full_path=test_filename)
 
     solution = sim.simulate_dynamics()
     assert solution.cte_copy == setup_cte

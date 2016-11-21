@@ -27,7 +27,6 @@ var/
 
 # test data
 data*uc*
-simetuc/test/test_setup/backup_simple_lattices
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -146,6 +145,7 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
-simetuc/minimize_results.npz
-simetuc/DynamicsSolution
-*.coveragerc
+
+simetuc/flake8.txt
+simetuc/results/*
+simetuc/test/test_simulations/savedSolution.hdf5

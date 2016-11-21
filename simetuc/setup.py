@@ -8,6 +8,7 @@ Created on Mon Nov 23 16:07:21 2015
 
 import time
 import itertools
+import os
 import logging
 
 import numpy as np
@@ -385,7 +386,7 @@ def get_lifetimes(cte):
 
 
 #@profile
-def precalculate(cte, gen_lattice=False, test_filename=None):
+def precalculate(cte, gen_lattice=False, full_path=None):
     '''Setups all data structures necessary for simulations.py to work
         As arguments it gets the cte dict (that can be read from a file with settings.py)
         It returns the updated cte, initial conditions vector,
@@ -394,7 +395,7 @@ def precalculate(cte, gen_lattice=False, test_filename=None):
         and also jac_indices for the jacobian
 
         gen_lattice=True will generate a lattice even if it already exists
-        test_filename=True will load the test lattice
+        full_path=True will load a specific lattice
     '''
     logger = logging.getLogger(__name__)
 
@@ -415,11 +416,12 @@ def precalculate(cte, gen_lattice=False, test_filename=None):
     # check if data exists, otherwise create it
     logger.info('Checking data...')
 
-    if test_filename is not None:  # if the user requests a test lattice
-        filename = test_filename
+    if full_path is not None:  # if the user requests a specific lattice
+        filename = full_path
     else:  # pragma: no cover
-        filename = ('latticeData/' + lattice_name + '/' +
-                    'data_{}uc_{}S_{}A.npz'.format(num_uc, S_conc, A_conc))
+        folder_path = os.path.join('latticeData', lattice_name)
+        full_path = lattice.make_full_path(folder_path, num_uc, S_conc, A_conc)
+        filename= full_path
 
     try:
         # generate the lattice in any case
