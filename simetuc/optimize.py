@@ -8,7 +8,6 @@ Created on Tue Oct 11 15:58:58 2016
 import time
 import logging
 import functools
-import os
 
 import numpy as np
 # pylint: disable=E1101
@@ -18,8 +17,6 @@ import scipy.optimize as optimize
 import tqdm
 
 import simetuc.simulations as simulations
-
-#import numdifftools as numdiff
 
 
 def cache(function):

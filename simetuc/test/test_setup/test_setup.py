@@ -828,7 +828,7 @@ def test_wrong_number_states(setup_cte):
     cte['lattice']['A_conc'] = 1
     cte['lattice']['N_uc'] = 5
     cte['states']['sensitizer_states'] = 2
-    cte['states']['activator_states'] = 2
+    cte['states']['activator_states'] = 7
 
     cte['lattice']['name'] = 'test_setup'
     folder_path = os.path.join('test', cte['lattice']['name'])
@@ -840,7 +840,7 @@ def test_wrong_number_states(setup_cte):
      N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)
 
     #¸ change number of states
-    cte['states']['activator_states'] = 7
+    cte['states']['activator_states'] = 10
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, ET_matrix,
      N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)

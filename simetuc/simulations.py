@@ -292,6 +292,11 @@ class Solution():
             If state is given, the population of only that state for all ions
             is shown along with the average.
         '''
+        if self.cte_copy['no_plot']:
+            logger = logging.getLogger(__name__)
+            logger.warning('A plot was requested, but no_plot setting is set')
+            return
+
         # get ion_state labels
         state_labels = self.state_labels
 
@@ -606,7 +611,7 @@ class SolutionList():
     '''Base class for a list of solutions for problems like power or concentration dependence.'''
     def __init__(self):
         self.solution_list = ()
-        # constructor of the underliying class that the list stores
+        # constructor of the underliying class that the list stores.
         # the load method will create instances of this type
         self._items_class = Solution
         self._suffix = ''
@@ -676,6 +681,11 @@ class PowerDependenceSolution(SolutionList):
             warnings.warn(msg, PlotWarning)
             return
 
+        if self.solution_list[0].cte_copy['no_plot']:
+            logger = logging.getLogger(__name__)
+            logger.warning('A plot was requested, but no_plot setting is set')
+            return
+
         sim_data_arr = np.array([np.array(sol.steady_state_populations)
                                  for sol in self.solution_list])
         power_dens_arr = np.array([sol.power_dens for sol in self.solution_list])
@@ -713,6 +723,18 @@ class ConcentrationDependenceSolution(SolutionList):
         '''Plot the concentration dependence of the emission for all states.
            If no_exp is True, no experimental data is plotted.
         '''
+        if len(self.solution_list) == 0:  # nothing to plot
+            logger = logging.getLogger(__name__)
+            msg = 'Nothing to plot! The concentration_dependence list is emtpy!'
+            logger.warning(msg)
+            warnings.warn(msg, PlotWarning)
+            return
+
+        if self.solution_list[0].cte_copy['no_plot']:
+            logger = logging.getLogger(__name__)
+            logger.warning('A plot was requested, but no_plot setting is set')
+            return
+
         if self.dynamics:
             # plot all decay curves together
             color_list = [c+c for c in 'rgbmyc'*3]

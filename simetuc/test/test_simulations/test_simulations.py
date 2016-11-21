@@ -126,7 +126,7 @@ def setup_cte():
           'sensitizer_states_labels': ['GS', 'ES']}}
 
     cte['no_console'] = True
-    cte['no_plot'] = True
+    cte['no_plot'] = False
     return cte
 
 def test_sim_dyn1(setup_cte):
