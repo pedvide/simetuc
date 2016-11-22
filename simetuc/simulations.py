@@ -180,7 +180,7 @@ def _solve_ode(t_arr, fun, fargs, jfun, jargs, initial_population,
 class Solution():
     '''Base class for solutions of rate equation problems'''
 
-    def __init__(self):
+    def __init__(self) -> None:
         # simulation time
         self.t_sol = np.array([])
         # population of each state of each ion
@@ -195,18 +195,18 @@ class Solution():
         # state labels
         self._state_labels = []
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         '''Instance is True if all its data structures have been filled out'''
         return (self.t_sol.size != 0 and self.y_sol.size != 0 and self.cte_copy != {} and
                 len(self.index_S_i) != 0 and len(self.index_A_j) != 0)
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         '''Two solutions are equal if all its vars are equal or numerically close'''
         return (np.allclose(self.t_sol, other.t_sol) and np.allclose(self.y_sol, other.y_sol) and
                 self.cte_copy == other.cte_copy and self.index_S_i == other.index_S_i and
                 self.index_A_j == other.index_A_j)
 
-    def __ne__(self, other):
+    def __ne__(self, other) -> bool:
         '''Define a non-equality test'''
         return not self == other
 
@@ -322,7 +322,7 @@ class Solution():
     def save(self, full_path: str = None):
         '''Save data to disk as a HDF5 file'''
         if full_path is None:  # pragma: no cover
-            full_path = self._save_full_path() + '.hdf5'
+            full_path = self.save_full_path() + '.hdf5'
         with h5py.File(full_path, 'w') as file:
             file.create_dataset("t_sol", data=self.t_sol, compression='gzip')
             file.create_dataset("y_sol", data=self.y_sol, compression='gzip')
@@ -334,7 +334,7 @@ class Solution():
     def save_npz(self, full_path: str = None):
         '''Save data to disk as numpy .npz file'''
         if full_path is None:  # pragma: no cover
-            full_path = self._save_full_path() + '.npz'
+            full_path = self.save_full_path() + '.npz'
         np.savez_compressed(full_path, t_sol=self.t_sol, y_sol=self.y_sol,
                             cte_copy=[self.cte_copy],  # store as a list of dicts
                             index_S_i=self.index_S_i, index_A_j=self.index_A_j)
@@ -342,7 +342,7 @@ class Solution():
     def save_txt(self, full_path: str = None):
         '''Save the settings, the time and the average populations to disk as a textfile'''
         if full_path is None:  # pragma: no cover
-            full_path = self._save_full_path() + '.txt'
+            full_path = self.save_full_path() + '.txt'
         # print cte
         with open(full_path, 'wt') as csvfile:
             csvfile.write('Settings:\n')
@@ -792,8 +792,8 @@ class Plotter():
     def plot_avg_decay_data(solution: Solution, atol: float = 1e-15,
                             no_exp: bool = False, show_conc: bool = False, colors: str = 'rk'):
         ''' Plot the list of experimental and average simulated data against time in solution.
-            If no_exp is True no experimental data will be plotted.
-            If show_conc is True, the legend will show the concentrations.
+            If no_exp is True, no experimental data will be plotted.
+            If show_conc is True, the legend will show the concentrations (it can get long).
             colors is a string with two chars. The first is the sim color,
             the second the exp data color.
         '''
@@ -872,7 +872,7 @@ class Plotter():
 
     @staticmethod
     def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
-                              state_label: typing.List[str] = None, atol: int = 1e-15):
+                              state_label: typing.List[str] = None, atol: float = 1e-15):
         ''' Plots a state's simulated data against time t_sol'''
         t_sol *= 1000  # convert to ms
 
@@ -1004,12 +1004,12 @@ class Plotter():
 class Simulations():
     '''Setup and solve a dynamics or a steady state problem'''
 
-    def __init__(self, cte: dict, full_path: str = None):
+    def __init__(self, cte: dict, full_path: str = None) -> None:
         # settings
         self.cte = cte
         self.full_path = full_path
 
-    def modify_ET_param_value(self, process: str, value: float):
+    def modify_ET_param_value(self, process: str, value: float) -> None:
         '''Modify a ET parameter'''
         self.cte['ET'][process]['value'] = value
 
