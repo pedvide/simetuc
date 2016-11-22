@@ -27,7 +27,8 @@ from os import path
 
 here = path.abspath(path.dirname(__file__))
 
-VERSION = '0.9.1'
+from commandline import VERSION
+from commandline import DESCRIPTION
 
 # Get the long description from the README file
 #with open(path.join(here, 'README.md'), encoding='utf-8') as f:
@@ -41,7 +42,7 @@ setup(
     # https://packaging.python.org/en/latest/single_source_version.html
     version=VERSION,
 
-    description='Simulating Energy Transfer and Upconversion',
+    description=DESCRIPTION,
 #    long_description=long_description,
 
     # The project's main homepage.
