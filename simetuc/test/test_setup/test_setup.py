@@ -12,7 +12,7 @@ import numpy as np
 # pylint: disable=E1101
 import scipy.sparse as sparse
 
-import simetuc.setup as setup
+import simetuc.precalculate as precalculate
 import simetuc.lattice as lattice # for the LatticeError exception
 
 
@@ -164,7 +164,7 @@ def test_lattice_1A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -210,7 +210,7 @@ def test_lattice_1A_ESA(setup_cte): # use the ESA processes in NIR_800 excitatio
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -270,7 +270,7 @@ def test_lattice_1A_two_color(setup_cte): # use two color excitation
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -327,7 +327,7 @@ def test_lattice_2A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -406,7 +406,7 @@ def test_lattice_1S(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -438,7 +438,7 @@ def test_lattice_2S(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -478,7 +478,7 @@ def test_lattice_1S_1A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -539,7 +539,7 @@ def test_lattice_2S_2A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -736,7 +736,7 @@ def test_random_lattice(setup_cte, params, absorption):
 
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
-         N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)
+         N_indices, jac_indices) = precalculate.precalculate(cte, full_path=full_path)
 
         # remove lattice file
         os.remove(full_path)
@@ -800,7 +800,7 @@ def test_random_lattice(setup_cte, params, absorption):
         with pytest.raises(lattice.LatticeError):
             (cte, initial_population, index_S_i, index_A_j,
              absorption_matrix, decay_matrix, ET_matrix,
-             N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)
+             N_indices, jac_indices) = precalculate.precalculate(cte, full_path=full_path)
 
 def test_get_lifetimes(setup_cte):
 
@@ -818,12 +818,12 @@ def test_get_lifetimes(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, ET_matrix,
-     N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)
+     N_indices, jac_indices) = precalculate.precalculate(cte, full_path=full_path)
 
     # remove lattice file
     os.remove(full_path)
 
-    tau_list = setup.get_lifetimes(cte)
+    tau_list = precalculate.get_lifetimes(cte)
 
     assert len(tau_list) == (cte['states']['sensitizer_states'] +
                             cte['states']['activator_states'] - 2)
@@ -844,13 +844,13 @@ def test_wrong_number_states(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, ET_matrix,
-     N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)
+     N_indices, jac_indices) = precalculate.precalculate(cte, full_path=full_path)
 
     #¸ change number of states
     cte['states']['activator_states'] = 10
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, ET_matrix,
-     N_indices, jac_indices) = setup.precalculate(cte, full_path=full_path)
+     N_indices, jac_indices) = precalculate.precalculate(cte, full_path=full_path)
 
     # remove lattice file
     os.remove(full_path)

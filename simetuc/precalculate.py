@@ -10,6 +10,7 @@ import time
 import itertools
 import os
 import logging
+from typing import Dict, List, Tuple
 
 import numpy as np
 import scipy.sparse
@@ -18,7 +19,7 @@ from scipy.sparse import csr_matrix
 import simetuc.lattice as lattice
 
 
-def _load_lattice(filename):
+def _load_lattice(filename: str) -> Tuple:
     '''Loads the filename and returns it along with its associanted lattice_info
         Exceptions aren't handled by this function
     '''
@@ -34,7 +35,9 @@ def _load_lattice(filename):
 
 
 #@profile
-def _create_absorption_matrix(abs_sensitizer, abs_activator, index_S_i, index_A_j):
+def _create_absorption_matrix(abs_sensitizer: np.array, abs_activator: np.array,
+                              index_S_i: List[int], index_A_j: List[int]
+                             ) -> scipy.sparse.csr_matrix:
     '''Creates the total_states x total_states absorption matrix.
        The block diagonal is either abs_sensitizer or abs_activator depending on
        the position of the GS of S and A given in index_S_i and index_A_j
@@ -89,7 +92,9 @@ def _create_absorption_matrix(abs_sensitizer, abs_activator, index_S_i, index_A_
     return absorption_matrix
 
 
-def _setup_absorption(cte, index_S_i, index_A_j):
+def _setup_absorption(cte: Dict,
+                      index_S_i: List[int], index_A_j: List[int]) -> scipy.sparse.csr_matrix:
+    '''Returns the total absorption matrix'''
 
     num_energy_states = cte['states']['energy_states']
     sensitizer_states = cte['states']['sensitizer_states']
@@ -143,9 +148,10 @@ def _setup_absorption(cte, index_S_i, index_A_j):
 
 
 #@profile
-def _create_decay_matrix(B_sensitizer, B_activator,
-                         k_sensitizer, k_activator,
-                         index_S_i, index_A_j):
+def _create_decay_matrix(B_sensitizer: np.array, B_activator: np.array,
+                         k_sensitizer: np.array, k_activator: np.array,
+                         index_S_i: List[int], index_A_j: List[int]) -> scipy.sparse.csr_matrix:
+    '''Returns the decay matrix'''
 
     num_total_ions = len(index_A_j)
 
@@ -187,10 +193,13 @@ def _create_decay_matrix(B_sensitizer, B_activator,
 
 
 #@profile
-def _create_ET_matrices(index_S_i, index_A_j, dict_ET,
-                        indices_S_k, indices_S_l, indices_A_k, indices_A_l,
-                        dists_S_k, dists_S_l, dists_A_k, dists_A_l,
-                        sensitizer_states, activator_states):
+def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dict,
+                        indices_S_k: List[np.array], indices_S_l: List[np.array],
+                        indices_A_k: List[np.array], indices_A_l: List[np.array],
+                        dists_S_k: List[np.array], dists_S_l: List[np.array],
+                        dists_A_k: List[np.array], dists_A_l: List[np.array],
+                        sensitizer_states: int, activator_states: int
+                       ) -> Tuple[scipy.sparse.csr_matrix, np.array]:
     '''Calculates the ET_matrix and N_indices matrices of energy transfer
        The ET_matrix has size num_interactions x num_states:
        at each column there are 4 nonzero values corresponding to the ET rate.
@@ -203,8 +212,9 @@ def _create_ET_matrices(index_S_i, index_A_j, dict_ET,
        ET_matrix * y(N_indices[:,0]) * y(N_indices[:,1]).
     '''
 #    @profile
-    def add_ET_process(index_ion, indices_ions, dist_ions,
-                       strength, mult, ii_state, fi_state, if_state, ff_state):
+    def add_ET_process(index_ion: int, indices_ions: np.array, dist_ions: np.array,
+                       strength: float, mult: int,
+                       ii_state: int, fi_state: int, if_state: int, ff_state: int) -> None:
         ''' Adds an energy transfer process
             ii_state: initial ion, initial state
             fi_state: final ion, initial state
@@ -242,8 +252,6 @@ def _create_ET_matrices(index_S_i, index_A_j, dict_ET,
 
         uc_index_indep += 4*len(indices_ions)
         uc_index += len(indices_ions)
-
-        return
 
     num_total_ions = len(index_A_j)
 
@@ -351,7 +359,7 @@ def _create_ET_matrices(index_S_i, index_A_j, dict_ET,
 
 
 #@profile
-def _calculate_jac_matrices(N_indices):
+def _calculate_jac_matrices(N_indices: np.array) -> np.array:
     '''Calculates the jacobian matrix helper data structures (non-zero values):
        N_indices has two columns and num_interactions rows
        with the index i and j of each interaction.
@@ -374,7 +382,7 @@ def _calculate_jac_matrices(N_indices):
     return jac_indices
 
 
-def get_lifetimes(cte):
+def get_lifetimes(cte: Dict) -> List[float]:
     '''Returns a list of all lifetimes in seconds.
        First sensitizer and then activator
     '''
@@ -386,7 +394,10 @@ def get_lifetimes(cte):
 
 
 #@profile
-def precalculate(cte, gen_lattice=False, full_path=None):
+def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
+                ) -> Tuple[Dict, np.array, List[int], List[int],
+                           scipy.sparse.csr_matrix, scipy.sparse.csr_matrix,
+                           scipy.sparse.csr_matrix, np.array, np.array]:
     '''Setups all data structures necessary for simulations.py to work
         As arguments it gets the cte dict (that can be read from a file with settings.py)
         It returns the updated cte, initial conditions vector,
@@ -395,7 +406,7 @@ def precalculate(cte, gen_lattice=False, full_path=None):
         and also jac_indices for the jacobian
 
         gen_lattice=True will generate a lattice even if it already exists
-        full_path=True will load a specific lattice
+        full_path=True will load a specific lattice from that path.
     '''
     logger = logging.getLogger(__name__)
 
@@ -532,7 +543,7 @@ def precalculate(cte, gen_lattice=False, full_path=None):
     # this shouldn't happen
     except IndexError as err:  # pragma: no cover
         logger.error('Wrong number of states!')
-        logger.error(err)
+        logger.error(str(err))
         raise
 
     # discard branching ratios to the ground state

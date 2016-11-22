@@ -6,7 +6,6 @@ Created on Mon Nov  9 14:22:41 2015
 """
 # unused arguments, needed for ODE solver
 # pylint: disable=W0613
-# pylint: disable=C0326
 
 import time
 import csv
@@ -15,8 +14,9 @@ import warnings
 import copy
 import os
 import pprint
-import typing
+from typing import Dict, List, Tuple
 import ctypes
+
 
 import h5py
 import yaml
@@ -33,7 +33,7 @@ import scipy.interpolate as interpolate
 # nice progress bar
 from tqdm import tqdm
 
-import simetuc.setup as setup
+import simetuc.precalculate as precalculate
 import simetuc.lattice as lattice
 
 
@@ -88,8 +88,8 @@ def _rate_eq_dll(decay_matrix, UC_matrix, N_indices):  # pragma: no cover
 #    abs_matrix = np.asfortranarray(abs_matrix.toarray(), dtype=np.float64)
     decay_matrix = np.asfortranarray(decay_matrix.toarray(), dtype=np.float64)
 
-    # setup gives csr matrix, which isn't fortran style
-    UC_matrix = csc_matrix(UC_matrix)  # setup gives csr matrix, which isn't fortran style
+    # precalculate gives csr matrix, which isn't fortran style
+    UC_matrix = csc_matrix(UC_matrix)  # precalculate gives csr matrix, which isn't fortran style
     UC_matrix_data = np.asfortranarray(UC_matrix.data, dtype=np.float64)
     UC_matrix_indices = np.asfortranarray(UC_matrix.indices, dtype=np.uint32)
     UC_matrix_indptr = np.asfortranarray(UC_matrix.indptr, dtype=np.uint32)
@@ -188,12 +188,12 @@ class Solution():
         # list of average population for each state
         self._list_avg_data = np.array([])
         # settings
-        self.cte_copy = {}
+        self.cte_copy = {}  # type: Dict
         # sensitizer and activator indices of their ground states
-        self.index_S_i = []
-        self.index_A_j = []
+        self.index_S_i = []  # type: List[int]
+        self.index_A_j = []  # type: List[int]
         # state labels
-        self._state_labels = []
+        self._state_labels = []  # type: List[str]
 
     def __bool__(self) -> bool:
         '''Instance is True if all its data structures have been filled out'''
@@ -210,7 +210,7 @@ class Solution():
         '''Define a non-equality test'''
         return not self == other
 
-    def _calculate_avg_populations(self):
+    def _calculate_avg_populations(self) -> List[np.array]:
         '''Returs the average populations of each state. First S then A states.'''
 
         cte = self.cte_copy
@@ -241,7 +241,7 @@ class Solution():
 
         return sim_data_Sensitizer + sim_data_Activator
 
-    def _get_ion_state_labels(self) -> list:
+    def _get_ion_state_labels(self) -> List[str]:
         '''Returns a list of ion_state labels'''
         cte = self.cte_copy
         sensitizer_labels = [cte['states']['sensitizer_ion_label'] + '_' + s
@@ -251,7 +251,7 @@ class Solution():
         state_labels = sensitizer_labels + activator_labels
         return state_labels
 
-    def save_full_path(self):  # pragma: no cover
+    def save_full_path(self) -> str:  # pragma: no cover
         '''Return the full path to save a file (without extention).'''
         lattice_name = self.cte_copy['lattice']['name']
         path = os.path.join('results', lattice_name)
@@ -262,7 +262,7 @@ class Solution():
         return full_path
 
     @property
-    def state_labels(self):
+    def state_labels(self) -> List[str]:
         '''List of ion_state labels'''
         # if empty, calculate
         if not len(self._state_labels):
@@ -270,28 +270,28 @@ class Solution():
         return self._state_labels
 
     @property
-    def list_avg_data(self):
+    def list_avg_data(self) -> List[np.array]:
         '''List of average populations for each state in the solution'''
         # if empty, calculate
         if not len(self._list_avg_data):
             self._list_avg_data = self._calculate_avg_populations()
         return self._list_avg_data
 
-    def add_sim_data(self, t_sol: np.ndarray, y_sol: np.ndarray):
+    def add_sim_data(self, t_sol: np.ndarray, y_sol: np.ndarray) -> None:
         '''Add the simulated solution data'''
         self.t_sol = t_sol
         self.y_sol = y_sol
 
-    def add_ion_lists(self, index_S_i: typing.List[int], index_A_j: typing.List[int]):
+    def add_ion_lists(self, index_S_i: List[int], index_A_j: List[int]) -> None:
         '''Add the sensitizer and activator ion lists'''
         self.index_S_i = index_S_i
         self.index_A_j = index_A_j
 
-    def copy_settings(self, cte: dict):
+    def copy_settings(self, cte: Dict) -> None:
         '''Copy the settings related to this solution'''
         self.cte_copy = copy.deepcopy(cte)
 
-    def plot(self, state: int=None):
+    def plot(self, state: int = None) -> None:
         '''Plot the soltion of a problem.
             If state is given, the population of only that state for all ions
             is shown along with the average.
@@ -319,7 +319,7 @@ class Solution():
             Plotter.plot_state_decay_data(self.t_sol, population.T,
                                           state_label=label, atol=1e-18)
 
-    def save(self, full_path: str = None):
+    def save(self, full_path: str = None) -> None:
         '''Save data to disk as a HDF5 file'''
         if full_path is None:  # pragma: no cover
             full_path = self.save_full_path() + '.hdf5'
@@ -331,7 +331,7 @@ class Solution():
             # serialze cte_copy as text and store it as an attribute
             file.attrs['cte_copy'] = yaml.dump(self.cte_copy)
 
-    def save_npz(self, full_path: str = None):
+    def save_npz(self, full_path: str = None) -> None:
         '''Save data to disk as numpy .npz file'''
         if full_path is None:  # pragma: no cover
             full_path = self.save_full_path() + '.npz'
@@ -339,7 +339,7 @@ class Solution():
                             cte_copy=[self.cte_copy],  # store as a list of dicts
                             index_S_i=self.index_S_i, index_A_j=self.index_A_j)
 
-    def save_txt(self, full_path: str = None):
+    def save_txt(self, full_path: str = None) -> None:
         '''Save the settings, the time and the average populations to disk as a textfile'''
         if full_path is None:  # pragma: no cover
             full_path = self.save_full_path() + '.txt'
@@ -357,7 +357,7 @@ class Solution():
             np.savetxt(csvfile, np.transpose([self.t_sol, *self.list_avg_data]),
                        fmt='%1.4e', delimiter=', ', newline='\r\n', header=header)
 
-    def load_npz(self, full_path: str):
+    def load_npz(self, full_path: str) -> None:
         '''Load data from a numpy .npz file'''
         try:
             npz_file = np.load(full_path)
@@ -372,7 +372,7 @@ class Solution():
         self.index_S_i = list(npz_file['index_S_i'])
         self.index_A_j = list(npz_file['index_A_j'])
 
-    def load(self, full_path: str):
+    def load(self, full_path: str) -> None:
         '''Load data from a HDF5 file'''
         try:
             with h5py.File(full_path, 'r') as file:
@@ -391,34 +391,34 @@ class Solution():
 class SteadyStateSolution(Solution):
     '''Class representing the solution to a steady state problem'''
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(SteadyStateSolution, self).__init__()
         self._final_populations = np.array([])
 
     @property
-    def power_dens(self):
+    def power_dens(self) -> float:
         '''Return the power density used to obtain this solution.'''
         for excitation in self.cte_copy['excitations'].keys():
             return self.cte_copy['excitations'][excitation]['power_dens']
 
     @property
-    def concentration(self):
+    def concentration(self) -> Tuple[float, float]:
         '''Return the tuple (sensitizer, activator) concentration used to obtain this solution.'''
         return (self.cte_copy['lattice']['S_conc'], self.cte_copy['lattice']['A_conc'])
 
-    def _calculate_final_populations(self):
+    def _calculate_final_populations(self) -> List[float]:
         '''Calculate the final population for all states after a steady state simulation'''
         return [curve[-1] for curve in self.list_avg_data]
 
     @property
-    def steady_state_populations(self):
+    def steady_state_populations(self) -> List[float]:
         '''List of final steady-state populations for each state in the solution'''
         # if empty, calculate
         if not len(self._final_populations):
             self._final_populations = self._calculate_final_populations()
         return self._final_populations
 
-    def log_populations(self):
+    def log_populations(self) -> None:
         '''Log the steady state populations'''
         logger = logging.getLogger(__name__)
         # get ion_state labels
@@ -433,18 +433,18 @@ class DynamicsSolution(Solution):
     '''Class representing the solution to a dynamics problem.
         It handles the loading of experimetal decay data and calculates errors.'''
 
-    def __init__(self):
+    def __init__(self) -> None:
         super(DynamicsSolution, self).__init__()
 
-        self._list_exp_data = []
-        self._list_avg_data_ofs = []
+        self._list_exp_data = []  # type: List[np.array]
+        self._list_avg_data_ofs = []  # type: List[np.array]
 
-        self._total_error = None
+        self._total_error = None  # type: float
         self._errors = np.array([])
 
     #@profile
     @staticmethod
-    def _load_exp_data(filename, lattice_name, filter_window=11):
+    def _load_exp_data(filename: str, lattice_name: str, filter_window: int = 11) -> np.array:
         '''Load the experimental data from the expData/lattice_name folder.
            Two columns of numbers: first is time (seconds), second intensity
         '''
@@ -478,7 +478,8 @@ class DynamicsSolution(Solution):
 
     #@profile
     @staticmethod
-    def _correct_background(exp_data, sim_data, offset_points=50):
+    def _correct_background(exp_data: np.array, sim_data: np.array,
+                            offset_points: int = 50) -> np.array:
         '''Add the experimental background to the simulated data.
            Returns the same simulated data if there's no exp_data
             expData is already normalized when loaded.
@@ -499,7 +500,7 @@ class DynamicsSolution(Solution):
         return sim_data_ofs
 
     #@profile
-    def _interpolate_sim_data(self):
+    def _interpolate_sim_data(self) -> List[np.array]:
         '''Interpolated simulated corrected data to exp data points
         '''
         # create function to interpolate
@@ -516,9 +517,8 @@ class DynamicsSolution(Solution):
         return list_iterp_sim_data
 
     #@profile
-    def _calc_errors(self):
-        '''Calculate root-square-deviation between experiment and simulation
-        '''
+    def _calc_errors(self) -> np.array:
+        '''Calculate root-square-deviation between experiment and simulation.'''
         # get interpolated simulated data
         list_iterp_sim_data = self._interpolate_sim_data()
 
@@ -534,9 +534,8 @@ class DynamicsSolution(Solution):
 
         return errors
 
-    def _load_decay_data(self):
-        '''Load the decay experimental data.
-        '''
+    def _load_decay_data(self) -> List[np.array]:
+        '''Load and return the decay experimental data.'''
         # get filenames from the ion_state labels, excitation and concentrations
         state_labels = self.state_labels
         active_exc_labels = [label for label, exc_dict in self.cte_copy['excitations'].items()
@@ -556,7 +555,7 @@ class DynamicsSolution(Solution):
 
         return list_exp_data
 
-    def log_errors(self):
+    def log_errors(self) -> None:
         '''Log errors'''
         logger = logging.getLogger(__name__)
 
@@ -571,7 +570,7 @@ class DynamicsSolution(Solution):
         logger.info('Total error: %.4e', self.total_error)
 
     @property
-    def errors(self):
+    def errors(self) -> np.array:
         '''List of root-square-deviation between experiment and simulation
             for each state in the solution
         '''
@@ -581,7 +580,7 @@ class DynamicsSolution(Solution):
         return self._errors
 
     @property
-    def total_error(self):
+    def total_error(self) -> float:
         '''Total root-square-deviation between experiment and simulation'''
         # if none, calculate
         if not self._total_error:
@@ -593,7 +592,7 @@ class DynamicsSolution(Solution):
         return self._total_error
 
     @property
-    def list_avg_data_ofs(self):
+    def list_avg_data_ofs(self) -> List[np.array]:
         '''List of offset-corrected (due to experimental background) average populations
             for each state in the solution
         '''
@@ -605,7 +604,7 @@ class DynamicsSolution(Solution):
         return self._list_avg_data_ofs
 
     @property
-    def list_exp_data(self):
+    def list_exp_data(self) -> List[np.array]:
         '''List of ofset-corrected average populations for each state in the solution'''
         # if empty, calculate
         if not self._list_exp_data:
@@ -615,24 +614,24 @@ class DynamicsSolution(Solution):
 
 class SolutionList():
     '''Base class for a list of solutions for problems like power or concentration dependence.'''
-    def __init__(self):
-        self.solution_list = ()
+    def __init__(self) -> None:
+        self.solution_list = []  # type: List[Solution]
         # constructor of the underliying class that the list stores.
         # the load method will create instances of this type
         self._items_class = Solution
         self._suffix = ''
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         '''Instance is True if its list is not emtpy.'''
         return len(self.solution_list) != 0
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         '''Two solutions are equal if all their solutions are equal.'''
         return self.solution_list == other.solution_list
 
-    def add_solutions(self, sol_list: typing.List[Solution]) -> None:
+    def add_solutions(self, sol_list: List[Solution]) -> None:
         '''Add a list of solutions.'''
-        self.solution_list = tuple(sol_list)
+        self.solution_list = list(sol_list)
 
     def save(self, full_path: str = None) -> None:
         '''Save all data from all solutions in a HDF5 file'''
@@ -671,7 +670,7 @@ class SolutionList():
 
 class PowerDependenceSolution(SolutionList):
     '''Solution to a power dependence simulation'''
-    def __init__(self):
+    def __init__(self) -> None:
         super(PowerDependenceSolution, self).__init__()
         # constructor of the underliying class that the list stores
         # the load method will create instances of this type
@@ -704,7 +703,7 @@ class PowerDependenceSolution(SolutionList):
 
 class ConcentrationDependenceSolution(SolutionList):
     '''Solution to a concentration dependence simulation'''
-    def __init__(self, dynamics=False):
+    def __init__(self, dynamics=False) -> None:
         '''If dynamics is true the solution list stores DynamicsSolution,
            otherwise it stores SteadyStateSolution
         '''
@@ -727,7 +726,7 @@ class ConcentrationDependenceSolution(SolutionList):
             full_path = conc_path + '_' + self._suffix + '.hdf5'
         super(ConcentrationDependenceSolution, self).save(full_path)
 
-    def plot(self, no_exp=False) -> None:
+    def plot(self, no_exp: bool = False) -> None:
         '''Plot the concentration dependence of the emission for all states.
            If no_exp is True, no experimental data is plotted.
         '''
@@ -790,7 +789,8 @@ class Plotter():
 
     @staticmethod
     def plot_avg_decay_data(solution: Solution, atol: float = 1e-15,
-                            no_exp: bool = False, show_conc: bool = False, colors: str = 'rk'):
+                            no_exp: bool = False, show_conc: bool = False,
+                            colors: str = 'rk') -> None:
         ''' Plot the list of experimental and average simulated data against time in solution.
             If no_exp is True, no experimental data will be plotted.
             If show_conc is True, the legend will show the concentrations (it can get long).
@@ -801,7 +801,7 @@ class Plotter():
         # if we have simulated data that has been offset-corrected, use it
         if (hasattr(solution, 'list_avg_data_ofs') and
                 solution.list_avg_data_ofs is not solution.list_avg_data):
-            list_sim_data = solution.list_avg_data_ofs
+            list_sim_data = solution.list_avg_data_ofs  # type: List[np.array]
         else:
             list_sim_data = [data for data in solution.list_avg_data]
 
@@ -813,7 +813,7 @@ class Plotter():
         if (not hasattr(solution, 'list_exp_data') or
                 solution.list_exp_data is None or
                 no_exp is True):
-            list_exp_data = len(list_sim_data)*[0]
+            list_exp_data = len(list_sim_data)*[0]  # type: List[np.array]
         else:
             list_exp_data = solution.list_exp_data
 
@@ -872,7 +872,7 @@ class Plotter():
 
     @staticmethod
     def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
-                              state_label: typing.List[str] = None, atol: float = 1e-15):
+                              state_label: str = None, atol: float = 1e-15) -> None:
         ''' Plots a state's simulated data against time t_sol'''
         t_sol *= 1000  # convert to ms
 
@@ -907,7 +907,7 @@ class Plotter():
 
     @staticmethod
     def plot_power_dependence(sim_data_arr: np.ndarray, power_dens_arr: np.ndarray,
-                              state_labels: typing.List[str]):
+                              state_labels: List[str]) -> None:
         ''' Plots the intensity as a function of power density for each state'''
         num_plots = len(state_labels)
         num_rows = 3
@@ -944,7 +944,7 @@ class Plotter():
 
     @staticmethod
     def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray,
-                                      state_labels: typing.List[str]):
+                                      state_labels: List[str]) -> None:
         '''Plots the concentration dependence of the steady state emission'''
         num_plots = len(state_labels)
         num_rows = 3
@@ -1004,7 +1004,7 @@ class Plotter():
 class Simulations():
     '''Setup and solve a dynamics or a steady state problem'''
 
-    def __init__(self, cte: dict, full_path: str = None) -> None:
+    def __init__(self, cte: Dict, full_path: str = None) -> None:
         # settings
         self.cte = cte
         self.full_path = full_path
@@ -1027,15 +1027,15 @@ class Simulations():
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
          UC_matrix,
-         N_indices, jac_indices) = setup.precalculate(self.cte, full_path=self.full_path)
-        initial_population = np.asfortranarray(initial_population, dtype=np.float64)
+         N_indices, jac_indices) = precalculate.precalculate(self.cte, full_path=self.full_path)
+#        initial_population = np.asfortranarray(initial_population, dtype=np.float64)
 
         # update cte
         self.cte = cte
 
         # initial and final times for excitation and relaxation
         t0 = 0
-        tf = (10*np.max(setup.get_lifetimes(cte))).round(8)  # total simulation time
+        tf = (10*np.max(precalculate.get_lifetimes(cte))).round(8)  # total simulation time
         t0_p = t0
         # make sure t_pulse exists and get the active one
         try:
@@ -1111,11 +1111,12 @@ class Simulations():
         # get matrices of interaction, initial conditions, abs, decay, etc
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
-         UC_matrix, N_indices, jac_indices) = setup.precalculate(self.cte, full_path=self.full_path)
+         UC_matrix, N_indices, jac_indices) = precalculate.precalculate(self.cte,
+                                                                        full_path=self.full_path)
 
         # initial and final times for excitation and relaxation
         t0 = 0
-        tf = (10*np.max(setup.get_lifetimes(cte))).round(8)  # total simulation time
+        tf = (10*np.max(precalculate.get_lifetimes(cte))).round(8)  # total simulation time
         t0_p = t0
         tf_p = tf
         N_steps_pulse = cte['simulation_params']['N_steps']
@@ -1150,7 +1151,7 @@ class Simulations():
 
         return steady_sol
 
-    def simulate_power_dependence(self, power_dens_list) -> PowerDependenceSolution:
+    def simulate_power_dependence(self, power_dens_list: List[float]) -> PowerDependenceSolution:
         ''' Simulates the power dependence.
             power_dens_list can be a list, tuple or a numpy array
             Returns a PowerDependenceSolution instance
@@ -1184,7 +1185,8 @@ class Simulations():
 
         return power_dep_solution
 
-    def simulate_concentration_dependence(self, concentration_list: list, dynamics: bool = False
+    def simulate_concentration_dependence(self, concentration_list: List[Tuple[float, float]],
+                                          dynamics: bool = False
                                          ) -> ConcentrationDependenceSolution:
         ''' Simulates the concentration dependence of the emission
             concentration_list must be a list of tuples
@@ -1242,7 +1244,7 @@ class Simulations():
 #    (cte, initial_population, index_S_i, index_A_j,
 #     total_abs_matrix, decay_matrix,
 #     UC_matrix,
-#     N_indices, jac_indices) = setup.precalculate(cte)
+#     N_indices, jac_indices) = precalculate.precalculate(cte)
 #
 #    sim = Simulations(cte)
 #

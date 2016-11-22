@@ -152,3 +152,4 @@ $RECYCLE.BIN/
 simetuc/flake8.txt
 simetuc/results/*
 simetuc/test/test_simulations/savedSolution.hdf5
+*.old
