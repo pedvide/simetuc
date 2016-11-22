@@ -3,11 +3,11 @@ Simulating Energy Transfer and Upconversion
 
 ------
 
+[![License](https://img.shields.io/github/license/pedvide/simetuc.svg)](https://github.com/pedvide/simetuc/blob/master/LICENSE.txt)
 [![Python version](https://img.shields.io/pypi/pyversions/simetuc.svg)](https://pypi.python.org/pypi/simetuc)
 [![Build version](https://img.shields.io/pypi/v/simetuc.svg)](https://pypi.python.org/pypi/simetuc)
 [![Build Status](https://travis-ci.org/pedvide/simetuc.svg?branch=master)](https://travis-ci.org/pedvide/simetuc)
-[![License](https://img.shields.io/github/license/pedvide/simetuc.svg)](https://github.com/pedvide/simetuc/blob/master/LICENSE.txt)
-
+[![Coverage Status](https://coveralls.io/repos/github/pedvide/simetuc/badge.svg?branch=master)](https://coveralls.io/github/pedvide/simetuc?branch=master)
 
 
 Installation

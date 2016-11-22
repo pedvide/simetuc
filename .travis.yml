@@ -34,7 +34,14 @@ script:
 
 after_success:
   - cd ..
-  - coveralls
+  - coveralls --base_dir ./ --data_file simetuc/.coverage
+
+notifications:
+  email:
+    recipients:
+      - pedvide@gmail.com
+    on_success: change # default: change
+    on_failure: always # default: always
 
 #deploy:
 #  provider: pypi

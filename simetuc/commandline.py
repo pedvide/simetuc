@@ -28,9 +28,8 @@ import simetuc.simulations as simulations
 import simetuc.settings as settings
 import simetuc.optimize as optimize
 
-
-VERSION = '0.9.6'
-DESCRIPTION = 'simetuc: Simulating Energy Transfer and Upconversion'
+from simetuc import VERSION
+from simetuc import DESCRIPTION
 
 
 def _change_console_logger(level):

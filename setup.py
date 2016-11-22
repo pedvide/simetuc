@@ -33,8 +33,8 @@ from os import path
 
 here = path.abspath(path.dirname(__file__))
 
-from simetuc.commandline import VERSION
-from simetuc.commandline import DESCRIPTION
+from simetuc import VERSION
+from simetuc import DESCRIPTION
 
 # Get the long description from the README file
 with open('README.rst') as fd:
