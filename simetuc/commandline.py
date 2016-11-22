@@ -29,7 +29,7 @@ import simetuc.settings as settings
 import simetuc.optimize as optimize
 
 
-VERSION = '0.9.3'
+VERSION = '0.9.4'
 DESCRIPTION = 'simetuc: Simulating Energy Transfer and Upconversion'
 
 
