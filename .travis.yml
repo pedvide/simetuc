@@ -33,6 +33,7 @@ script:
   - flake8 --tee
 
 after_success:
+  - cd ..
   - coveralls
 
 #deploy:
