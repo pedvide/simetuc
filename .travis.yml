@@ -31,24 +31,27 @@ script:
   - pytest
   - flake8 --tee
 
-deploy:
-  provider: pypi
-  user: pedvide
-  password:
-    secure: !!binary |
-      MTB6Yk9RRW1oV3dBVDk0N2R2VW1wNlpXUmNZbmt4RlM1aVNFNEZaN3YzeDBKN1NHSjY2OWd2c2Z3
-      MktNV0dOa3RScmk2SkMyMGkzenFBUGNiTmNDTWVVOWpFaThKdHdCM2twTWNoV2s2U2pwajNXamRL
-      Q050a0xaY21DTzdMUmludWR6WnlKOUNsR0VFWitXRnIzc2VzZjBZZks0eFMwalAyZmsyWU5JL01p
-      eUJ5OXJ4YXNtU1FLSmdBaTdOanRIdUZaQ0Y0TmRwY3RvRGJwdVNhMUw4cjlYUGh5K0V0RDNKcjV5
-      NXM1NlFiWnozSFpqRE05OUxVa1BSUnVHam5tQ2UwSG14T2RQdmhRRDZLdjd4KzdXV1AzdGUwZHJS
-      d3FVajRMMkg2VlFqbFloUjMvZ09PSk1DZ3RzZGI5RndVR044ZmZXT3U0SThqNGxEMWZsUWFzZ2Vr
-      a1VqNFlYVDFUc3E4Z1RJU2FvN3o1VWYySis5MlBzU0JDNVgxM1pPYWVGM253RlZpd29qM09HcGk1
-      bitMc1AvTDJKRFMyK2ZiQzY2UGR1dGwxQ1QwN0xISzFCN0l1aHlCcFdHeWVtcmpMWDhoT3dtSDQ1
-      R1dvL1h1VktXemgyT3RvS1V3ckx2OGt5SXowZ01ERFMxTUg0V0VJdUw5RW41NDZDY2xublJkdFpL
-      RnB4a1h6cVQ4MkNKVk1LZFQ2bHYra0FEQkprY3liOUdVZ3dHbndFTWtXMFBtTkEyYk1naFFmTWdU
-      Y3ZFWWdSTEdIOVhDcDRDcWpSSmU3UkU1NHBMczN1QTd6aC8zMENTZnFuSnZHbEl3ZDJzVnd2QW8w
-      TnFvODVNUmFZVDNSeWhwY2VoS3pxTzgvRW92Y2kzcGNQZVBFendMUXp1ZmJCR0kvb09keGUvekE9
-  on:
-    branch: master
-    tags: true
-  distributions: "sdist bdist_wheel" # Your distributions here
+after_success:
+  - coveralls
+
+#deploy:
+#  provider: pypi
+#  user: pedvide
+#  password:
+#    secure: !!binary |
+#      MTB6Yk9RRW1oV3dBVDk0N2R2VW1wNlpXUmNZbmt4RlM1aVNFNEZaN3YzeDBKN1NHSjY2OWd2c2Z3
+#      MktNV0dOa3RScmk2SkMyMGkzenFBUGNiTmNDTWVVOWpFaThKdHdCM2twTWNoV2s2U2pwajNXamRL
+#      Q050a0xaY21DTzdMUmludWR6WnlKOUNsR0VFWitXRnIzc2VzZjBZZks0eFMwalAyZmsyWU5JL01p
+#      eUJ5OXJ4YXNtU1FLSmdBaTdOanRIdUZaQ0Y0TmRwY3RvRGJwdVNhMUw4cjlYUGh5K0V0RDNKcjV5
+#      NXM1NlFiWnozSFpqRE05OUxVa1BSUnVHam5tQ2UwSG14T2RQdmhRRDZLdjd4KzdXV1AzdGUwZHJS
+#      d3FVajRMMkg2VlFqbFloUjMvZ09PSk1DZ3RzZGI5RndVR044ZmZXT3U0SThqNGxEMWZsUWFzZ2Vr
+#      a1VqNFlYVDFUc3E4Z1RJU2FvN3o1VWYySis5MlBzU0JDNVgxM1pPYWVGM253RlZpd29qM09HcGk1
+#      bitMc1AvTDJKRFMyK2ZiQzY2UGR1dGwxQ1QwN0xISzFCN0l1aHlCcFdHeWVtcmpMWDhoT3dtSDQ1
+#      R1dvL1h1VktXemgyT3RvS1V3ckx2OGt5SXowZ01ERFMxTUg0V0VJdUw5RW41NDZDY2xublJkdFpL
+#      RnB4a1h6cVQ4MkNKVk1LZFQ2bHYra0FEQkprY3liOUdVZ3dHbndFTWtXMFBtTkEyYk1naFFmTWdU
+#      Y3ZFWWdSTEdIOVhDcDRDcWpSSmU3UkU1NHBMczN1QTd6aC8zMENTZnFuSnZHbEl3ZDJzVnd2QW8w
+#      TnFvODVNUmFZVDNSeWhwY2VoS3pxTzgvRW92Y2kzcGNQZVBFendMUXp1ZmJCR0kvb09keGUvekE9
+#  on:
+#    branch: master
+#    tags: true
+#  distributions: "sdist bdist_wheel" # Your distributions here

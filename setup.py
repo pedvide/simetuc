@@ -5,6 +5,12 @@ Created on Tue Nov  1 16:17:59 2016
 @author: Pedro
 """
 
+# git tag -a v1.1 -m 'Version 1.1'
+# git push origin --tags
+
+# convert .md (github) to .rst (pypi)
+# pandoc --from=markdown --to=rst --output=README.rst README.md
+
 # build with: python setup.py bdist_wheel sdist
 # upload with: twine upload dist/* --skip-existing
 # install locally with: pip install --upgrade --no-deps --force-reinstall dist\simetuc-0.7-py3-none-any.whl
@@ -31,8 +37,8 @@ from simetuc.commandline import VERSION
 from simetuc.commandline import DESCRIPTION
 
 # Get the long description from the README file
-#with open(path.join(here, 'README.md'), encoding='utf-8') as f:
-#    long_description = f.read()
+with open('README.rst') as fd:
+    long_description = fd.read()
 
 setup(
     name='simetuc',
@@ -43,7 +49,7 @@ setup(
     version=VERSION,
 
     description=DESCRIPTION,
-#    long_description=long_description,
+    long_description=long_description,
 
     # The project's main homepage.
     url='https://github.com/pedvide/simetuc',
@@ -68,7 +74,9 @@ setup(
         'Topic :: Scientific/Engineering :: Chemistry',
         'Topic :: Scientific/Engineering :: Physics',
 
-        'Environment :: Console',
+        'Operating System :: MacOS :: MacOS X',
+        'Operating System :: Microsoft :: Windows',
+        'Operating System :: POSIX',
 
         # Pick your license as you wish (should match "license" above)
         'License :: OSI Approved :: MIT License',

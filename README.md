@@ -18,13 +18,13 @@ Installation
 or
 
     $ pip install simetuc
-    
+
 Features
 -------------
 
 Documentation
 -------------
-    
+
 Bugs/Requests
 -------------
 
@@ -36,4 +36,3 @@ License
 Copyright Pedro Villanueva Delgado, 2016.
 
 Distributed under the terms of the [MIT](https://github.com/pedvide/simetuc/blob/master/LICENSE.txt) license, simetuc is free and open source software.
-
