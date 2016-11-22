@@ -33,8 +33,7 @@ script:
   - flake8 --tee
 
 after_success:
-  - cd ..
-  - coveralls --base_dir ./ --data_file simetuc/.coverage
+  - coveralls --base_dir ../ --data_file .coverage
 
 notifications:
   email:
