@@ -19,7 +19,7 @@ install:
   # Replace dep1 dep2 ... with your dependencies
   - conda config --add channels conda-forge
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION scipy numpy matplotlib ase
-    tqdm pytest pytest-cov PyYAML h5py flake8 python-coveralls
+    tqdm pytest pytest-cov PyYAML h5py flake8 python-coveralls mypy-lang
   - source activate test-environment
   - python setup.py install
 # command to run tests
@@ -29,7 +29,7 @@ before_script:
   - "sh -e /etc/init.d/xvfb start"
   - sleep 3 # give xvfb some time to start
 script:
-  - pytest -v --cov=. --cov-report term-missing test/
+  - pytest -v --cov=simetuc --cov-report term-missing test/
   - flake8 --tee
   - cd ..
   - mypy -s -p simetuc
