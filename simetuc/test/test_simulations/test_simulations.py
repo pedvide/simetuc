@@ -4,13 +4,11 @@ Created on Tue Nov  8 13:22:54 2016
 
 @author: Pedro
 """
-
-import os
-
 import pytest
 import numpy as np
 
 import simetuc.simulations as simulations
+from simetuc.util import temp_config_filename
 
 @pytest.fixture(scope='function')
 def setup_cte():
@@ -128,6 +126,13 @@ def setup_cte():
     cte['no_plot'] = False
     return cte
 
+def test_sim(setup_cte):
+    '''Test that the simulations work'''
+    setup_cte['lattice']['S_conc'] = 0
+    sim = simulations.Simulations(setup_cte)
+
+    assert sim
+
 def test_sim_dyn1(setup_cte):
     '''Test that the dynamics work'''
     setup_cte['lattice']['S_conc'] = 0
@@ -150,7 +155,6 @@ def test_sim_dyn2(setup_cte):
     sim = simulations.Simulations(setup_cte, full_path=test_filename)
 
     solution = sim.simulate_dynamics()
-    assert solution.cte_copy == setup_cte
     assert solution.index_A_j == [-1, 2, -1, 11]
     assert solution.index_S_i == [0, -1, 9, -1]
 
@@ -160,49 +164,51 @@ def test_sim_dyn2(setup_cte):
     y_sol = np.load('test/test_simulations/y_sol_2S_2A.npy')
     assert np.allclose(y_sol, solution.y_sol)
 
-def test_sim_dyn_save(setup_cte):
+def test_sim_dyn_diff(setup_cte):
+    '''Test that the two dynamics are different'''
+    setup_cte['lattice']['S_conc'] = 0
+    sim1 = simulations.Simulations(setup_cte)
+    solution1 = sim1.simulate_dynamics()
+
+    setup_cte['lattice']['S_conc'] = 0.3
+    sim2 = simulations.Simulations(setup_cte)
+    solution2 = sim2.simulate_dynamics()
+
+    assert sim1 != sim2
+    assert solution1 != solution2
+
+
+def test_sim_dyn_save_hdf5(setup_cte):
     '''Test that the dynamics solution is saved a loaded correctly'''
 
     sim = simulations.Simulations(setup_cte)
     solution = sim.simulate_dynamics()
 
-    solution.save(r'test\test_simulations\savedSolution.hdf5')
-    solution.save_npz(r'test\test_simulations\savedSolution.npz')
-    solution.save_txt(r'test\test_simulations\savedSolution.txt')
+    with temp_config_filename('') as filename:
+        solution.save(filename)
+        sol_hdf5 = simulations.DynamicsSolution()
+        assert not sol_hdf5
+        sol_hdf5.load(filename)
 
-    sol_hdf5 = simulations.DynamicsSolution()
-    sol_hdf5.load(r'test\test_simulations\savedSolution.hdf5')
     assert sol_hdf5
-
-#    assert np.allclose(sol_hdf5.t_sol, solution.t_sol)
-#    assert np.allclose(sol_hdf5.y_sol, solution.y_sol)
-#    assert sol_hdf5.cte_copy == solution.cte_copy
-#    assert sol_hdf5.index_S_i == solution.index_S_i
-#    assert sol_hdf5.index_A_j == solution.index_A_j
-
-    assert sol_hdf5 == solution # same as the five statements above
+    assert sol_hdf5 == solution
     sol_hdf5.log_errors()
     sol_hdf5.plot()
 
-    sol_npz = simulations.DynamicsSolution()
-    sol_npz.load_npz(r'test\test_simulations\savedSolution.npz')
-    assert sol_npz
-    assert sol_npz == solution
-    sol_npz.plot()
 
-    os.remove(r'test\test_simulations\savedSolution.hdf5')
-    os.remove(r'test\test_simulations\savedSolution.npz')
-    os.remove(r'test\test_simulations\savedSolution.txt')
+def test_sim_dyn_save_txt(setup_cte):
+    '''Test that the dynamics solution is saved a loaded correctly'''
+
+    sim = simulations.Simulations(setup_cte)
+    solution = sim.simulate_dynamics()
+
+    with temp_config_filename('') as filename:
+        solution.save_txt(filename)
 
 def test_sim_no_file_hdf5():
     '''Wrong filename'''
     with pytest.raises(OSError):
         simulations.DynamicsSolution().load(r'test\test_simulations\wrongFile.hdf5')
-
-def test_sim_no_file_npz():
-    '''Wrong filename'''
-    with pytest.raises(OSError):
-        simulations.DynamicsSolution().load_npz(r'test\test_simulations\wrongFile.npz')
 
 def test_sim_dyn_no_t_pulse(setup_cte):
     '''Test that the dynamics gives an error if t_pulse is not defined'''
@@ -224,16 +230,16 @@ def test_sim_steady(setup_cte):
 
     solution.log_populations()
     solution.plot()
-    solution.save(r'test\test_simulations\savedSolution_s.hdf5')
 
-    sol_hdf5 = simulations.SteadyStateSolution()
-    assert not sol_hdf5
-    sol_hdf5.load(r'test\test_simulations\savedSolution_s.hdf5')
+    with temp_config_filename('') as filename:
+        solution.save(filename)
+        sol_hdf5 = simulations.SteadyStateSolution()
+        assert not sol_hdf5
+        sol_hdf5.load(filename)
+
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
-
-    os.remove(r'test\test_simulations\savedSolution_s.hdf5')
 
 def test_sim_no_plot(setup_cte, recwarn):
     '''Test that no plot works'''
@@ -261,16 +267,16 @@ def test_sim_power_dep1(setup_cte):
     assert solution
 
     solution.plot()
-    solution.save(r'test\test_simulations\savedSolution_pd1.hdf5')
 
-    sol_hdf5 = simulations.PowerDependenceSolution()
-    assert not sol_hdf5
-    sol_hdf5.load(r'test\test_simulations\savedSolution_pd1.hdf5')
+    with temp_config_filename('') as filename:
+        solution.save(filename)
+        sol_hdf5 = simulations.PowerDependenceSolution()
+        assert not sol_hdf5
+        sol_hdf5.load(filename)
+
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
-
-    os.remove(r'test\test_simulations\savedSolution_pd1.hdf5')
 
 def test_sim_power_dep2(setup_cte, recwarn):
     '''Power dep list is empty'''
@@ -303,6 +309,30 @@ def test_sim_power_dep3(setup_cte, recwarn):
     assert issubclass(warning.category, simulations.PlotWarning)
     assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
 
+def test_sim_power_dep4(setup_cte):
+    '''Check save_txt'''
+
+    setup_cte['no_plot'] = True
+    sim = simulations.Simulations(setup_cte)
+
+    power_dens_list = np.logspace(1, 2, 3)
+    solution = sim.simulate_power_dependence(power_dens_list)
+
+    with temp_config_filename('') as filename:
+        solution.save_txt(filename)
+
+def test_sim_power_dep5(setup_cte):
+    '''Check that the solutions have the right power_dens'''
+
+    setup_cte['no_plot'] = True
+    sim = simulations.Simulations(setup_cte)
+
+    power_dens_list = np.logspace(1, 2, 3)
+    solution = sim.simulate_power_dependence(power_dens_list)
+
+    for num, power_dens in enumerate(power_dens_list):
+        solution[num].power_dens == power_dens
+
 def test_sim_conc_dep1(setup_cte):
     '''Test that the concentration dependence works'''
     sim = simulations.Simulations(setup_cte)
@@ -311,36 +341,31 @@ def test_sim_conc_dep1(setup_cte):
 
     conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
     solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
-
     assert solution
-
     solution.plot()
-    solution.save(r'test\test_simulations\savedSolution_cd1.hdf5')
+    with temp_config_filename('') as filename:
+        solution.save(filename)
+        sol_hdf5 = simulations.ConcentrationDependenceSolution()
+        assert not sol_hdf5
+        sol_hdf5.load(filename)
 
-    sol_hdf5 = simulations.ConcentrationDependenceSolution()
-    assert not sol_hdf5
-    sol_hdf5.load(r'test\test_simulations\savedSolution_cd1.hdf5')
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
 
-    os.remove(r'test\test_simulations\savedSolution_cd1.hdf5')
 
     solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
-
     assert solution
-
     solution.plot()
-    solution.save(r'test\test_simulations\savedSolution_cd2.hdf5')
+    with temp_config_filename('') as filename:
+        solution.save(filename)
+        sol_hdf5 = simulations.ConcentrationDependenceSolution()
+        assert not sol_hdf5
+        sol_hdf5.load(filename)
 
-    sol_hdf5 = simulations.ConcentrationDependenceSolution()
-    assert not sol_hdf5
-    sol_hdf5.load(r'test\test_simulations\savedSolution_cd2.hdf5')
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
-
-    os.remove(r'test\test_simulations\savedSolution_cd2.hdf5')
 
 def test_sim_conc_dep2(setup_cte):
     '''Conc list has only A changing'''

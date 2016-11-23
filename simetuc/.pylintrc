@@ -1,6 +1,6 @@
 [MESSAGES CONTROL]
 # E1101 numpy erros
-# C0103 invalid name (using caps)
+# C0103 invalid name (using caps letters)
 # W0511 TODO gives a warning
-# C0326 spaces around keyword assignment are ok when types is given
+# C0326 spaces around keyword assignment are ok when type hints are given
 disable=E1101,C0103,W0511,C0326

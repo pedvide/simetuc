@@ -16,6 +16,7 @@ import pprint
 import warnings
 import os
 from pkg_resources import resource_string
+from typing import Dict, List, Tuple, Any, Union, Callable
 
 import numpy as np
 
@@ -37,14 +38,14 @@ class ConfigWarning(UserWarning):
     pass
 
 
-def _load_yaml_file(filename, direct_file=False):
+def _load_yaml_file(filename: str, direct_file: bool = False) -> Dict:
     '''Open a yaml filename and loads it into a dictionary
         Exceptions are raised if the file doesn't exist or is invalid.
         If direct_file=True, filename is actually a file and not a path to one
     '''
     logger = logging.getLogger(__name__)
 
-    cte = {}
+    cte = {}  # type: Dict
     try:
         if not direct_file:
             with open(filename) as file:
@@ -54,7 +55,7 @@ def _load_yaml_file(filename, direct_file=False):
             cte = _ordered_load(filename, yaml.SafeLoader)
     except OSError as err:
         logger.error('Error reading file!')
-        logger.error(err.args)
+        logger.error(str(err.args))
         raise ConfigError('Error reading file ({})!'.format(filename)) from err
     except yaml.YAMLError as exc:
         logger.error('Error while parsing the config file: %s!', filename)
@@ -106,7 +107,8 @@ def _ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
     return yaml.load(stream, OrderedLoader)
 
 
-def _check_values(needed_values, present_values_dict, section=None, optional_values=None):
+def _check_values(needed_values_lst: List[str], present_values_dict: Dict,
+                  section: str = None, optional_values_lst: List[str]= None):
     ''' Check that the needed keys are present in section
         Print error and exit if not
         Print warning in there are extra keys in section
@@ -116,16 +118,16 @@ def _check_values(needed_values, present_values_dict, section=None, optional_val
     # check section is a dictionary
     try:
         present_values = set(present_values_dict.keys())
-        needed_values = set(needed_values)
+        needed_values = set(needed_values_lst)
     except (AttributeError, TypeError) as err:
         msg = 'Section "{}" is empty!'.format(section)
         logger.error(msg)
         raise ConfigError(msg) from err
 
-    if optional_values is None:
-        optional_values = set()
+    if optional_values_lst is None:
+        optional_values = set()  # type: Set
     else:
-        optional_values = set(optional_values)
+        optional_values = set(optional_values_lst)
 
     # if present values don't include all needed values
     if not present_values.issuperset(needed_values):
@@ -136,7 +138,7 @@ def _check_values(needed_values, present_values_dict, section=None, optional_val
                              'but not present in the file:', section)
             else:
                 logger.error('Sections that are needed but not present in the file:')
-            logger.error(set(set_needed_not_present))
+            logger.error(str(set(set_needed_not_present)))
             raise ConfigError('The sections or values \
                               {} must be present.'.format(set_needed_not_present))
 
@@ -149,16 +151,17 @@ def _check_values(needed_values, present_values_dict, section=None, optional_val
                               are not recognized:''', section)
         else:
             logger.warning('These sections should not be present in the file:')
-        logger.warning(set_not_optional)
+        logger.warning(str(set_not_optional))
         warnings.warn('Some values or sections should not be present in the file.', ConfigWarning)
 
 
-def _get_ion_and_state_labels(string):
+def _get_ion_and_state_labels(string: str) -> List[Tuple[str, str]]:
     ''' Returns a list of tuples (ion_label, state_label)'''
     return re.findall(r'\s*(\w+)\s*\(\s*(\w+)\s*\)', string)
 
 
-def _get_state_index(list_labels, state_label, section='', process=None, num=None):
+def _get_state_index(list_labels: List[str], state_label: str,
+                     section: str = '', process: str = None, num: int = None) -> int:
     ''' Returns the index of the state label in the list_labels
         Print error and exit if it doesn't exist
     '''
@@ -176,7 +179,8 @@ def _get_state_index(list_labels, state_label, section='', process=None, num=Non
     return index
 
 
-def _get_ion(list_ion_labels, ion_label, section='', process=None, num=None):
+def _get_ion(list_ion_labels: List[str], ion_label: str,
+             section: str = '', process: str = None, num: int = None) -> int:
     ''' Returns the index of the ion label in the list_ion_labels
         Print error and exit if it doesn't exist
     '''
@@ -194,7 +198,7 @@ def _get_ion(list_ion_labels, ion_label, section='', process=None, num=None):
     return index
 
 
-def _get_value(dictionary, value, val_type):
+def _get_value(dictionary: Dict, value: str, val_type: Callable) -> Any:
     '''Gets the value from the dictionary and makes sure it has the val_type
         Otherwise raises a ValueError exception.
         If the value or label doen't exist, it raises a ConfigError exception
@@ -206,23 +210,23 @@ def _get_value(dictionary, value, val_type):
     except ValueError as err:
         msg = 'Invalid value for parameter "{}"'.format(value)
         logger.error(msg)
-        logger.error(err.args)
+        logger.error(str(err.args))
         raise ValueError(msg) from err
     except KeyError as err:
         msg = 'Missing parameter "{}"'.format(value)
         logger.error(msg)
-        logger.error(err.args)
+        logger.error(str(err.args))
         raise ConfigError(msg) from err
     except TypeError as err:
         msg = 'Label missing in "{}"?'.format(dictionary)
         logger.error(msg)
-        logger.error(err.args)
+        logger.error(str(err.args))
         raise ConfigError(msg) from err
 
     return val
 
 
-def _get_positive_value(dictionary, value, val_type):
+def _get_positive_value(dictionary: Dict, value: str, val_type: Callable) -> Union[int, float]:
     '''Gets a value from the dict and raises a ValueError if it's negative'''
     logger = logging.getLogger(__name__)
 
@@ -235,17 +239,17 @@ def _get_positive_value(dictionary, value, val_type):
     return val
 
 
-def _get_int_value(dictionary, value):
+def _get_int_value(dictionary: Dict, value: str) -> int:
     '''Gets an int from the dictionary'''
-    return _get_positive_value(dictionary, value, int)
+    return int(_get_positive_value(dictionary, value, int))
 
 
-def _get_float_value(dictionary, value):
+def _get_float_value(dictionary: Dict, value: str) -> float:
     '''Gets a float from the dictionary, it converts it into a Fraction first'''
     return float(_get_positive_value(dictionary, value, Fraction))
 
 
-def _get_normalized_float_value(dictionary, value):
+def _get_normalized_float_value(dictionary: Dict, value: str) -> float:
     '''Gets a normalized float from the dictionary, it converts it into a Fraction first.
         Value must be between 0 and 1, otherwise a ValueError is raised.
     '''
@@ -259,22 +263,22 @@ def _get_normalized_float_value(dictionary, value):
         raise ValueError(msg)
 
 
-def _get_string_value(dictionary, value):
+def _get_string_value(dictionary: Dict, value: str) -> str:
     '''Gets a string from the dictionary'''
     return _get_value(dictionary, value, str)
 
 
-def _get_list_floats(list_vals):
+def _get_list_floats(list_vals: List) -> List[float]:
     '''Returns a list of positive floats, it converts it into a Fraction first.
         Raises ValuError if it's not a float or if negative'''
     logger = logging.getLogger(__name__)
 
     try:
-        lst = [float(Fraction(elem)) for elem in list_vals]
+        lst = [float(Fraction(elem)) for elem in list_vals]  # type: ignore
     except ValueError as err:
         msg = 'Invalid value in list "{}"'.format(list_vals)
         logger.error(msg)
-        logger.error(err.args)
+        logger.error(str(err.args))
         raise ValueError(msg) from err
 
     if any(elem < 0 for elem in lst):
@@ -285,7 +289,7 @@ def _get_list_floats(list_vals):
     return lst
 
 
-def _parse_lattice(dict_lattice):
+def _parse_lattice(dict_lattice: Dict) -> Dict:
     '''Parses the lattice section of the settings.
         Returns the parsed lattice dict'''
     logger = logging.getLogger(__name__)
@@ -297,7 +301,7 @@ def _parse_lattice(dict_lattice):
     # check that all keys are in the file
     _check_values(needed_keys, dict_lattice, 'lattice')
 
-    parsed_dict = {}
+    parsed_dict = {}  # type: Dict
 
     parsed_dict['name'] = _get_string_value(dict_lattice, 'name')
     parsed_dict['spacegroup'] = _get_string_value(dict_lattice, 'spacegroup')
@@ -354,7 +358,7 @@ def _parse_lattice(dict_lattice):
     return parsed_dict
 
 
-def _parse_excitations(dict_excitations):
+def _parse_excitations(dict_excitations: Dict) -> Dict:
     '''Parses the excitation section
         Returns the parsed excitations dict'''
     logger = logging.getLogger(__name__)
@@ -370,7 +374,7 @@ def _parse_excitations(dict_excitations):
         logger.error(msg)
         raise ConfigError(msg)
 
-    parsed_dict = {}
+    parsed_dict = {}  # type: Dict
 
     # for each excitation
     for excitation in dict_excitations:
@@ -380,7 +384,7 @@ def _parse_excitations(dict_excitations):
         # check that all keys are in each excitation
         _check_values(needed_keys, exc_dict,
                       'excitations {}'.format(excitation),
-                      optional_values=optional_keys)
+                      optional_values_lst=optional_keys)
 
         # process values and check they are correct
         # if ESA: process, degeneracy and pump_rate are lists
@@ -423,7 +427,7 @@ def _parse_excitations(dict_excitations):
     return parsed_dict
 
 
-def _parse_absorptions(dict_states, dict_excitations):
+def _parse_absorptions(dict_states: Dict, dict_excitations: Dict) -> None:
     '''Parse the absorption and add to the excitation label the ion that is excited and
         the inital and final states. It makes changes to the argument dictionaries
     '''
@@ -484,7 +488,8 @@ def _parse_absorptions(dict_states, dict_excitations):
             raise ValueError(msg)
 
 
-def _parse_decay_rates(cte):
+def _parse_decay_rates(cte: Dict) -> Tuple[List[Tuple[int, float]],
+                                           List[Tuple[int, float]]]:
     '''Parse the decay rates and return two lists with the state index and decay rate'''
     logger = logging.getLogger(__name__)
 
@@ -516,13 +521,14 @@ def _parse_decay_rates(cte):
                        enumerate(cte['activator_decay'].keys())]
     except ValueError as err:
         logger.error('Invalid value for parameter in decay rates.')
-        logger.error(err.args)
+        logger.error(str(err.args))
         raise
 
     return (pos_value_S, pos_value_A)
 
 
-def _parse_branching_ratios(cte):
+def _parse_branching_ratios(cte: Dict) -> Tuple[List[Tuple[int, int, float]],
+                                                List[Tuple[int, int, float]]]:
     '''Parse the branching ratios'''
     logger = logging.getLogger(__name__)
 
@@ -551,13 +557,13 @@ def _parse_branching_ratios(cte):
                 B_pos_value_A.append((state_i, state_f, val))
     except ValueError as err:
         logger.error('Invalid value for parameter in branching ratios.')
-        logger.error(err.args)
+        logger.error(str(err.args))
         raise
 
     return (B_pos_value_S, B_pos_value_A)
 
 
-def _parse_ET(cte):
+def _parse_ET(cte: Dict) -> Dict:
     '''Parse the energy transfer processes'''
     logger = logging.getLogger(__name__)
 
@@ -570,7 +576,7 @@ def _parse_ET(cte):
     tuple_state_labels = (sensitizer_labels, activator_labels)
 
     # ET PROCESSES.
-    ET_dict = {}
+    ET_dict = {}  # type: Dict
     for num, (key, value) in enumerate(cte['enery_transfer'].items()):
         # make sure all three parts are present and of the right type
         name = key
@@ -583,7 +589,7 @@ def _parse_ET(cte):
         # and get the "letters", spaces may not exist
         list_init_final = _get_ion_and_state_labels(process)
         list_ions_num = [_get_ion(list_ion_label, ion) for ion, label in list_init_final]
-        list_indices = [_get_state_index(tuple_state_labels[ion_num], label,
+        list_indices = [_get_state_index(tuple_state_labels[ion_num], label,  # type: ignore
                                          section='ET process',
                                          process=process, num=num)
                         for ion_num, (ion_label, label) in zip(list_ions_num, list_init_final)]
@@ -651,7 +657,7 @@ def _parse_ET(cte):
 #    return filenames
 
 
-def _parse_optim_params(dict_optim, dict_ET):
+def _parse_optim_params(dict_optim: Dict, dict_ET: Dict) -> Dict:
     '''Parse the optional list of ET parameters to optimize'''
 
     logger = logging.getLogger(__name__)
@@ -667,7 +673,7 @@ def _parse_optim_params(dict_optim, dict_ET):
     return dict_optim
 
 
-def _parse_simulation_params(user_settings=None):
+def _parse_simulation_params(user_settings: Dict = None) -> Dict:
     '''Parse the optional simulation parameters
         If some are not given, the default values are used
     '''
@@ -685,9 +691,10 @@ def _parse_simulation_params(user_settings=None):
     optional_keys = ['rtol', 'atol',
                      'N_steps_pulse', 'N_steps']
     # check that only recognized keys are in the file, warn user otherwise
-    _check_values([], user_settings, 'simulation_params', optional_values=optional_keys)
+    _check_values([], user_settings, 'simulation_params', optional_values_lst=optional_keys)
 
-    params_types = [float, float, int, int]  # type of the parameters
+    # type of the parameters
+    params_types = [float, float, int, int]  # type: List[Callable]
 
     new_settings = dict(default_settings)
     for num, setting_key in enumerate(optional_keys):
@@ -696,7 +703,7 @@ def _parse_simulation_params(user_settings=None):
     return new_settings
 
 
-def _parse_power_dependence(user_list=None):
+def _parse_power_dependence(user_list: List = None) -> List[float]:
     '''Parses the power dependence list with the minimum, maximum and number of points.'''
     if user_list is None or user_list == []:
         return []
@@ -708,10 +715,11 @@ def _parse_power_dependence(user_list=None):
 
     power_list = np.logspace(np.log10(min_power), np.log10(max_power), num_points)
 
-    return power_list
+    return list(power_list)
 
 
-def _parse_conc_dependence(user_list=None):
+def _parse_conc_dependence(user_list: Tuple[List[float], List[float]] = None
+                          ) -> List[Tuple[float, float]]:
     '''Parses the concentration dependence list with the minimum, maximum and number of points.'''
     if user_list is None or user_list == []:
         return []
@@ -725,12 +733,12 @@ def _parse_conc_dependence(user_list=None):
     conc_grid = np.meshgrid(S_conc_l, A_conc_l)
     conc_grid[0].shape = (conc_grid[0].size, 1)
     conc_grid[1].shape = (conc_grid[0].size, 1)
-    conc_list = list(tuple((float(a), float(b))) for a, b in zip(conc_grid[0], conc_grid[1]))
+    conc_list = [((float(a), float(b))) for a, b in zip(conc_grid[0], conc_grid[1])]
 
     return conc_list
 
 
-def load(filename):
+def load(filename: str) -> Dict:
     ''' Load filename and extract the settings for the simulations
         If mandatory values are missing, errors are logged
         and exceptions are raised
@@ -764,9 +772,9 @@ def load(filename):
     optional_sections = ['experimental_data', 'optimization_processes',
                          'enery_transfer', 'simulation_params', 'power_dependence',
                          'concentration_dependence']
-    _check_values(needed_sections, config_cte, optional_values=optional_sections)
+    _check_values(needed_sections, config_cte, optional_values_lst=optional_sections)
 
-    cte = {}
+    cte = {}  # type: Dict
 
     # LATTICE
     # parse lattice params
@@ -837,25 +845,24 @@ def load(filename):
     # not mandatory -> check
     if 'power_dependence' in config_cte:
         cte['power_dependence'] = _parse_power_dependence(config_cte['power_dependence'])
-    else:
-        cte['power_dependence'] = []
 
     # CONCENTRATION DEPENDENCE LIST
     # not mandatory -> check
     if 'concentration_dependence' in config_cte:
         cte['conc_dependence'] = _parse_conc_dependence(config_cte['concentration_dependence'])
-    else:
-        cte['conc_dependence'] = []
 
     # log cte
     # use pretty print
     logger.debug('Settings dump:')
+    logger.debug('File dict (config_cte):')
+    logger.debug(pprint.pformat(config_cte))
+    logger.debug('Parsed dict (cte):')
     logger.debug(pprint.pformat(cte))
 
     logger.info('Settings loaded!')
     return cte
 
+
 #if __name__ == "__main__":
-##    cte = load('test/test_settings/test_standard_config.txt')
 #    import simetuc.settings as settings
 #    cte = settings.load('config_file.cfg')

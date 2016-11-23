@@ -1,0 +1,205 @@
+************* Module simetuc.commandline
+I: 37, 0: Locally disabling pointless-statement (W0104) (locally-disabled)
+R:103, 0: Too many local variables (19/15) (too-many-locals)
+R:176, 8: Redefinition of solution type from simetuc.simulations.DynamicsSolution to simetuc.simulations.SteadyStateSolution (redefined-variable-type)
+R:103, 0: Too many branches (20/12) (too-many-branches)
+R:103, 0: Too many statements (93/50) (too-many-statements)
+************* Module simetuc.lattice
+R:148, 0: Too many local variables (21/15) (too-many-locals)
+R:260, 0: Too many local variables (38/15) (too-many-locals)
+R:260, 0: Too many statements (72/50) (too-many-statements)
+************* Module simetuc.optimize
+I: 14, 0: Locally disabling no-member (E1101) (locally-disabled)
+I: 15, 0: Locally disabling unused-argument (W0613) (locally-disabled)
+R: 39, 0: Too many local variables (22/15) (too-many-locals)
+R:143, 8: Redefinition of res type from scipy.optimize.optimize.OptimizeResult to tuple (redefined-variable-type)
+R: 39, 0: Too many statements (54/50) (too-many-statements)
+************* Module simetuc.precalculate
+I:  7, 0: Locally disabling no-member (E1101) (locally-disabled)
+R: 95, 0: Too many local variables (18/15) (too-many-locals)
+R:145,12: Redefinition of total_abs_matrix type from scipy.sparse.csr.csr_matrix to NotImplementedType (redefined-variable-type)
+R:151, 0: Too many arguments (6/5) (too-many-arguments)
+R:196, 0: Too many arguments (13/5) (too-many-arguments)
+R:196, 0: Too many local variables (38/15) (too-many-locals)
+R:215, 4: Too many arguments (9/5) (too-many-arguments)
+R:215, 4: Too many local variables (16/15) (too-many-locals)
+R:280, 4: Too many nested blocks (6/5) (too-many-nested-blocks)
+R:196, 0: Too many branches (17/12) (too-many-branches)
+R:196, 0: Too many statements (68/50) (too-many-statements)
+R:397, 0: Too many local variables (49/15) (too-many-locals)
+R:397, 0: Too many branches (18/12) (too-many-branches)
+R:397, 0: Too many statements (99/50) (too-many-statements)
+************* Module simetuc.settings
+I:  7, 0: Locally disabling no-member (E1101) (locally-disabled)
+R: 84, 4: Too many ancestors (11/7) (too-many-ancestors)
+R:430, 0: Too many local variables (16/15) (too-many-locals)
+R:566, 0: Too many local variables (24/15) (too-many-locals)
+R:741, 0: Too many statements (58/50) (too-many-statements)
+************* Module simetuc.simulations
+I:  8, 0: Locally disabling unused-argument (W0613) (locally-disabled)
+I:1286, 0: Locally disabling redefined-variable-type (R0204) (locally-disabled)
+C:  1, 0: Too many lines in module (1347/1000) (too-many-lines)
+R: 40, 0: Too many arguments (6/5) (too-many-arguments)
+R: 49, 0: Too many arguments (6/5) (too-many-arguments)
+R: 68, 0: Too many local variables (16/15) (too-many-locals)
+R:126, 0: Too many arguments (11/5) (too-many-arguments)
+R:126, 0: Too many local variables (19/15) (too-many-locals)
+R:849, 4: Too many arguments (7/5) (too-many-arguments)
+R:849, 4: Too many local variables (22/15) (too-many-locals)
+R:969, 4: Too many local variables (17/15) (too-many-locals)
+R:1006, 4: Too many local variables (21/15) (too-many-locals)
+R:1084, 4: Too many local variables (31/15) (too-many-locals)
+R:1167, 4: Too many local variables (25/15) (too-many-locals)
+
+
+Report
+======
+1855 statements analysed.
+
+Statistics by type
+------------------
+
++---------+-------+-----------+-----------+------------+---------+
+|type     |number |old number |difference |%documented |%badname |
++=========+=======+===========+===========+============+=========+
+|module   |7      |7          |=          |100.00      |0.00     |
++---------+-------+-----------+-----------+------------+---------+
+|class    |14     |14         |=          |100.00      |0.00     |
++---------+-------+-----------+-----------+------------+---------+
+|method   |67     |67         |=          |100.00      |2.99     |
++---------+-------+-----------+-----------+------------+---------+
+|function |62     |62         |=          |100.00      |6.45     |
++---------+-------+-----------+-----------+------------+---------+
+
+
+
+External dependencies
+---------------------
+::
+
+    ase (simetuc.lattice)
+      \-spacegroup (simetuc.lattice)
+    h5py (simetuc.simulations)
+    matplotlib 
+      \-pyplot (simetuc.commandline,simetuc.simulations,simetuc.lattice)
+    mpl_toolkits 
+      \-mplot3d 
+        \-proj3d (simetuc.lattice)
+    numpy (simetuc.precalculate,simetuc.settings,simetuc.lattice,simetuc.simulations,simetuc.optimize,simetuc.commandline)
+      \-ctypeslib (simetuc.simulations)
+    pkg_resources (simetuc.commandline,simetuc.settings)
+    scipy 
+      \-integrate (simetuc.simulations)
+      \-interpolate (simetuc.simulations)
+      \-optimize (simetuc.optimize)
+      \-signal (simetuc.simulations)
+      \-sparse (simetuc.precalculate,simetuc.simulations)
+    simetuc (simetuc.commandline)
+      \-lattice (simetuc.precalculate,simetuc.commandline,simetuc.simulations)
+      \-optimize (simetuc.commandline)
+      \-precalculate (simetuc.simulations)
+      \-settings (simetuc.commandline)
+    tqdm (simetuc.simulations,simetuc.optimize)
+    yaml (simetuc.commandline,simetuc.settings,simetuc.simulations)
+
+
+
+Raw metrics
+-----------
+
++----------+-------+------+---------+-----------+
+|type      |number |%     |previous |difference |
++==========+=======+======+=========+===========+
+|code      |2159   |58.16 |2159     |=          |
++----------+-------+------+---------+-----------+
+|docstring |344    |9.27  |344      |=          |
++----------+-------+------+---------+-----------+
+|comment   |567    |15.27 |567      |=          |
++----------+-------+------+---------+-----------+
+|empty     |642    |17.30 |642      |=          |
++----------+-------+------+---------+-----------+
+
+
+
+Duplication
+-----------
+
++-------------------------+------+---------+-----------+
+|                         |now   |previous |difference |
++=========================+======+=========+===========+
+|nb duplicated lines      |0     |0        |=          |
++-------------------------+------+---------+-----------+
+|percent duplicated lines |0.000 |0.000    |=          |
++-------------------------+------+---------+-----------+
+
+
+
+Messages by category
+--------------------
+
++-----------+-------+---------+-----------+
+|type       |number |previous |difference |
++===========+=======+=========+===========+
+|convention |1      |241      |-240.00    |
++-----------+-------+---------+-----------+
+|refactor   |38     |38       |=          |
++-----------+-------+---------+-----------+
+|warning    |0      |4        |-4.00      |
++-----------+-------+---------+-----------+
+|error      |0      |27       |-27.00     |
++-----------+-------+---------+-----------+
+
+
+
+% errors / warnings by module
+-----------------------------
+
++---------------------+------+--------+---------+-----------+
+|module               |error |warning |refactor |convention |
++=====================+======+========+=========+===========+
+|simetuc.precalculate |0.00  |0.00    |34.21    |0.00       |
++---------------------+------+--------+---------+-----------+
+|simetuc.simulations  |0.00  |0.00    |28.95    |100.00     |
++---------------------+------+--------+---------+-----------+
+|simetuc.settings     |0.00  |0.00    |10.53    |0.00       |
++---------------------+------+--------+---------+-----------+
+|simetuc.commandline  |0.00  |0.00    |10.53    |0.00       |
++---------------------+------+--------+---------+-----------+
+|simetuc.optimize     |0.00  |0.00    |7.89     |0.00       |
++---------------------+------+--------+---------+-----------+
+|simetuc.lattice      |0.00  |0.00    |7.89     |0.00       |
++---------------------+------+--------+---------+-----------+
+
+
+
+Messages
+--------
+
++------------------------+------------+
+|message id              |occurrences |
++========================+============+
+|too-many-locals         |17          |
++------------------------+------------+
+|too-many-arguments      |7           |
++------------------------+------------+
+|locally-disabled        |7           |
++------------------------+------------+
+|too-many-statements     |6           |
++------------------------+------------+
+|too-many-branches       |3           |
++------------------------+------------+
+|redefined-variable-type |3           |
++------------------------+------------+
+|too-many-nested-blocks  |1           |
++------------------------+------------+
+|too-many-lines          |1           |
++------------------------+------------+
+|too-many-ancestors      |1           |
++------------------------+------------+
+
+
+
+Global evaluation
+-----------------
+Your code has been rated at 9.79/10 (previous run: 7.75/10, +2.04)
+

@@ -4,14 +4,12 @@ Created on Sat Oct 22 00:10:24 2016
 
 @author: Villanueva
 """
-import tempfile
-from contextlib import contextmanager
-import os
 
 import pytest
 import numpy as np
 
 import simetuc.settings as settings
+from simetuc.util import temp_config_filename
 
 def test_standard_config():
     cte = settings.load('test/test_settings/test_standard_config.txt')
@@ -81,8 +79,8 @@ def test_standard_config():
                                    ('final_state', [3, 5]),
                                    ('ion_exc', ['A', 'A'])]))])),
              ('optimization_processes', ['CR50']),
-             ('power_dependence', []),
-             ('conc_dependence', []),
+             ('power_dependence', [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0]),
+             ('conc_dependence', [(0.0, 0.01), (0.0, 0.1), (0.0, 0.2), (0.0, 0.3), (0.0, 0.4), (0.0, 0.5)]),
              ('simulation_params', {'N_steps': 1000,
                                     'N_steps_pulse': 2,
                                     'atol': 1e-15,
@@ -138,19 +136,6 @@ def test_standard_config():
                              'value': 45022061400.0})]))])
 
     assert cte == cte_good
-
-# http://stackoverflow.com/a/11892712
-@contextmanager
-def temp_config_filename(data):
-    '''Creates a temporary file and writes data to it. It returns its filename
-        It deletes the file after use in a context manager
-    '''
-    temp = tempfile.NamedTemporaryFile(mode='wt', delete=False) # file won't be deleted after closing
-    if data:
-        temp.write(data)
-    temp.close()
-    yield temp.name
-    os.unlink(temp.name) # delete file
 
 def test_non_existing_config():
     with pytest.raises(settings.ConfigError) as excinfo:
@@ -1242,14 +1227,22 @@ def test_pow_dep_config1(): # ok
                                                 1.00000000e+03, 1.00000000e+04, 1.00000000e+05,
                                                 1.00000000e+06, 1.00000000e+07]))
 
-def test_pow_dep_config2(): # ok, but empty
+def test_pow_dep_config2(): # not present
+    data = data_ET_ok + ''''''
+
+    with temp_config_filename(data) as filename:
+        cte = settings.load(filename)
+        assert 'power_dependence' not in cte
+
+def test_pow_dep_config3(): # empty
     data = data_ET_ok + '''power_dependence: []'''
 
     with temp_config_filename(data) as filename:
         cte = settings.load(filename)
-    assert cte['power_dependence'] == []
+        assert 'power_dependence' in cte
+        assert cte['power_dependence'] == []
 
-def test_pow_dep_config3(): # text instead numbers
+def test_pow_dep_config4(): # text instead numbers
     data = data_ET_ok + '''power_dependence: [asd, 1e7, 8]'''
 
     with pytest.raises(ValueError) as excinfo:
@@ -1270,14 +1263,22 @@ def test_conc_dep_config1(): # ok
                                       (0.0, 0.4), (1.0, 0.4), (2.0, 0.4), (0.0, 0.5),
                                       (1.0, 0.5), (2.0, 0.5)]
 
-def test_conc_dep_config2(): # ok, but empty
+def test_conc_dep_config2(): # not present
+    data = data_ET_ok + ''''''
+
+    with temp_config_filename(data) as filename:
+        cte = settings.load(filename)
+        assert 'conc_dependence' not in cte
+
+def test_conc_dep_config3(): # ok, but empty
     data = data_ET_ok + '''concentration_dependence: []'''
 
     with temp_config_filename(data) as filename:
         cte = settings.load(filename)
-    assert cte['power_dependence'] == []
+        assert 'conc_dependence' in cte
+        assert cte['conc_dependence'] == []
 
-def test_conc_dep_config3(): # negative number
+def test_conc_dep_config4(): # negative number
     data = data_ET_ok + '''concentration_dependence: [[0, 1, 2], [-0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]'''
 
     with pytest.raises(ValueError) as excinfo:

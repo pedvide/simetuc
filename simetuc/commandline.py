@@ -18,6 +18,7 @@ import pprint
 import time
 import os
 from pkg_resources import resource_string
+from typing import Any, Union, List
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -32,16 +33,20 @@ from simetuc import VERSION
 from simetuc import DESCRIPTION
 
 
-def _change_console_logger(level):
+# Union used in a # type: comment, but pylint and flake8 don't see it
+Union  # pylint: disable=W0104
+
+
+def _change_console_logger(level: int) -> None:
     ''' change the logging level of the console handler '''
     logger = logging.getLogger()
     for handler in logger.handlers:
         if isinstance(handler, logging.StreamHandler):
-            if handler.stream == sys.stdout:
+            if handler.stream == sys.stdout:  # type: ignore
                 handler.setLevel(level)
 
 
-def parse_args(args):
+def parse_args(args: Any) -> argparse.Namespace:
     '''Create a argparser and parse the args'''
     # parse arguments
     parser = argparse.ArgumentParser(description=DESCRIPTION)
@@ -95,9 +100,12 @@ def parse_args(args):
     return parsed_args
 
 
-def main():
+def main(ext_args: List[str] = None) -> None:
     '''Main entry point for the command line interface'''
-    args = parse_args(sys.argv[1:])  # skip the program name
+    if ext_args is None:  # pragma: no cover
+        args = parse_args(sys.argv[1:])  # skip the program name
+    else:
+        args = parse_args(ext_args)
 
     # choose console logger level
     no_console = True
@@ -120,15 +128,22 @@ def main():
     # use the file located where the package is installed
     _log_config_file = 'log_config.cfg'
     # resource_string opens the file and gets it as a string. Works inside .egg too
-    _log_config_location = resource_string(__name__, os.path.join('config', _log_config_file))
     try:
-        log_settings = yaml.safe_load(_log_config_location)
-        # modify logging to console that the user wants
-        log_settings['handlers']['console']['level'] = console_level
-    except OSError:
-        print('ERROR! Logging settings file not found at {}!'.format(_log_config_location))
+        _log_config_location = resource_string(__name__, os.path.join('config', _log_config_file))
+    except NotImplementedError:  # pragma: no cover
+        print('ERROR! Logging settings file ({}) not found!'.format(_log_config_file))
         print('Logging won\'t be available!!')
-        log_settings = {'version': 1}  # minimum settings without errors
+        # minimum settings without errors
+        log_settings = {'version': 1}  # type: Dict
+    else:
+        try:
+            log_settings = yaml.safe_load(_log_config_location)
+            # modify logging to console that the user wants
+            log_settings['handlers']['console']['level'] = console_level
+        except OSError:  # pragma: no cover
+            print('ERROR! Logging settings file not found at {}!'.format(_log_config_location))
+            print('Logging won\'t be available!!')
+            log_settings = {'version': 1}  # minimum settings without errors
 
     # load settings and rollover any rotating file handlers
     # so each execution of this program is logged to a fresh file
@@ -136,8 +151,8 @@ def main():
     logging.config.dictConfig(log_settings)
     logger = logging.getLogger('simetuc')
     for handler in logging.getLogger().handlers:
-        if isinstance(handler, logging.handlers.RotatingFileHandler):
-            handler.doRollover()
+        if isinstance(handler, logging.handlers.RotatingFileHandler):  # type: ignore
+            handler.doRollover()  # type: ignore
 
     logger.debug('Called from cmd with arguments: %s.', sys.argv[1:])
     logger.debug('Log settings dump:')
@@ -152,7 +167,7 @@ def main():
     cte['no_plot'] = no_plot
 
     # solution of the simulation
-    solution = None
+    solution = None  # type: Union[simulations.Solution, simulations.SolutionList]
 
     # choose what to do
     if args.lattice:  # create lattice
@@ -219,25 +234,24 @@ def main():
         logger.info('Minimum value: %d at %s', min_f, np.array_str(best_x, precision=5))
 
     # save results to disk
-    if solution is not None and (args.save or args.save_txt or args.save_npz):
+    if solution is not None and (args.save or args.save_txt):
         logger.info('Saving results to file.')
         if args.save:
             solution.save()
         elif args.save_txt:
             solution.save_txt()
-        elif args.save_npz:
-            solution.save_npz()
 
     logger.info('Program finished!')
 
     # show all plots
     # the user needs to close the window to exit the program
-    if not cte['no_plot']:
+    if not cte['no_plot']:  # pragma: no cover
         if solution is not None:
             solution.plot()
         logger.info('Close the plot window to exit.')
         plt.show()
 
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    ext_args = ['config_file.cfg', '-c d']
+#    main(ext_args)

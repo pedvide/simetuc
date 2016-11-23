@@ -14,7 +14,7 @@ import warnings
 import copy
 import os
 import pprint
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Iterator, Sequence
 import ctypes
 
 
@@ -202,13 +202,21 @@ class Solution():
 
     def __eq__(self, other) -> bool:
         '''Two solutions are equal if all its vars are equal or numerically close'''
-        return (np.allclose(self.t_sol, other.t_sol) and np.allclose(self.y_sol, other.y_sol) and
+        return (self.y_sol.shape == other.y_sol.shape and np.allclose(self.t_sol, other.t_sol) and
+                np.allclose(self.y_sol, other.y_sol) and
                 self.cte_copy == other.cte_copy and self.index_S_i == other.index_S_i and
                 self.index_A_j == other.index_A_j)
 
     def __ne__(self, other) -> bool:
         '''Define a non-equality test'''
         return not self == other
+
+    def __repr__(self) -> str:
+        '''Representation of a solution.'''
+        return '{}(num_states={}, conc={}, power_dens={:.1e})'.format(self.__class__.__name__,
+                                                                      self.y_sol.shape[1],
+                                                                      self.concentration,
+                                                                      self.power_dens)
 
     def _calculate_avg_populations(self) -> List[np.array]:
         '''Returs the average populations of each state. First S then A states.'''
@@ -251,15 +259,15 @@ class Solution():
         state_labels = sensitizer_labels + activator_labels
         return state_labels
 
-    def save_full_path(self) -> str:  # pragma: no cover
+    def save_file_full_path(self) -> str:  # pragma: no cover
         '''Return the full path to save a file (without extention).'''
         lattice_name = self.cte_copy['lattice']['name']
         path = os.path.join('results', lattice_name)
         os.makedirs(path, exist_ok=True)
-        full_path = lattice.make_full_path(path, self.cte_copy['lattice']['N_uc'],
-                                           self.cte_copy['lattice']['S_conc'],
-                                           self.cte_copy['lattice']['A_conc'])
-        return full_path
+        lattice_name = lattice.make_full_path(path, self.cte_copy['lattice']['N_uc'],
+                                              self.cte_copy['lattice']['S_conc'],
+                                              self.cte_copy['lattice']['A_conc'])
+        return os.path.splitext(lattice_name)[0]
 
     @property
     def state_labels(self) -> List[str]:
@@ -277,6 +285,17 @@ class Solution():
             self._list_avg_data = self._calculate_avg_populations()
         return self._list_avg_data
 
+    @property
+    def power_dens(self) -> float:
+        '''Return the power density used to obtain this solution.'''
+        for excitation in self.cte_copy['excitations'].keys():
+            return self.cte_copy['excitations'][excitation]['power_dens']
+
+    @property
+    def concentration(self) -> Tuple[float, float]:
+        '''Return the tuple (sensitizer, activator) concentration used to obtain this solution.'''
+        return (self.cte_copy['lattice']['S_conc'], self.cte_copy['lattice']['A_conc'])
+
     def add_sim_data(self, t_sol: np.ndarray, y_sol: np.ndarray) -> None:
         '''Add the simulated solution data'''
         self.t_sol = t_sol
@@ -291,6 +310,24 @@ class Solution():
         '''Copy the settings related to this solution'''
         self.cte_copy = copy.deepcopy(cte)
 
+    def _plot_avg(self) -> None:
+        '''Plot the average simulated data (list_avg_data).
+            Override to plot other lists of averaged data or experimental data.
+        '''
+        Plotter.plot_avg_decay_data(self.t_sol, self.list_avg_data, state_labels=self.state_labels)
+
+    def _plot_state(self, state: int) -> None:
+        '''Plot all decays of a state as a function of time.'''
+        if state < self.cte_copy['states']['sensitizer_states']:
+            indices = self.index_S_i
+        else:
+            indices = self.index_A_j
+        label = self.state_labels[state]
+        population = np.array([self.y_sol[:, index+state]
+                               for index in indices if index != -1])
+        Plotter.plot_state_decay_data(self.t_sol, population.T,
+                                      state_label=label, atol=1e-18)
+
     def plot(self, state: int = None) -> None:
         '''Plot the soltion of a problem.
             If state is given, the population of only that state for all ions
@@ -303,26 +340,15 @@ class Solution():
             warnings.warn(msg, PlotWarning)
             return
 
-        # get ion_state labels
-        state_labels = self.state_labels
-
         if state is None:
-            Plotter.plot_avg_decay_data(self)
-        elif state < len(state_labels):
-            if state < self.cte_copy['states']['sensitizer_states']:
-                indices = self.index_S_i
-            else:
-                indices = self.index_A_j
-            label = state_labels[state]
-            population = np.array([self.y_sol[:, index+state]
-                                   for index in indices if index != -1])
-            Plotter.plot_state_decay_data(self.t_sol, population.T,
-                                          state_label=label, atol=1e-18)
+            self._plot_avg()
+        elif state < len(self.state_labels):
+            self._plot_state(state)
 
     def save(self, full_path: str = None) -> None:
         '''Save data to disk as a HDF5 file'''
         if full_path is None:  # pragma: no cover
-            full_path = self.save_full_path() + '.hdf5'
+            full_path = self.save_file_full_path() + '.hdf5'
         with h5py.File(full_path, 'w') as file:
             file.create_dataset("t_sol", data=self.t_sol, compression='gzip')
             file.create_dataset("y_sol", data=self.y_sol, compression='gzip')
@@ -331,20 +357,12 @@ class Solution():
             # serialze cte_copy as text and store it as an attribute
             file.attrs['cte_copy'] = yaml.dump(self.cte_copy)
 
-    def save_npz(self, full_path: str = None) -> None:
-        '''Save data to disk as numpy .npz file'''
-        if full_path is None:  # pragma: no cover
-            full_path = self.save_full_path() + '.npz'
-        np.savez_compressed(full_path, t_sol=self.t_sol, y_sol=self.y_sol,
-                            cte_copy=[self.cte_copy],  # store as a list of dicts
-                            index_S_i=self.index_S_i, index_A_j=self.index_A_j)
-
-    def save_txt(self, full_path: str = None) -> None:
+    def save_txt(self, full_path: str = None, mode: str = 'wt') -> None:
         '''Save the settings, the time and the average populations to disk as a textfile'''
         if full_path is None:  # pragma: no cover
-            full_path = self.save_full_path() + '.txt'
+            full_path = self.save_file_full_path() + '.txt'
         # print cte
-        with open(full_path, 'wt') as csvfile:
+        with open(full_path, mode) as csvfile:
             csvfile.write('Settings:\n')
             pprint.pprint(self.cte_copy, stream=csvfile)
             csvfile.write('\nData:\n')
@@ -356,21 +374,6 @@ class Solution():
         with open(full_path, 'ab') as csvfile:
             np.savetxt(csvfile, np.transpose([self.t_sol, *self.list_avg_data]),
                        fmt='%1.4e', delimiter=', ', newline='\r\n', header=header)
-
-    def load_npz(self, full_path: str) -> None:
-        '''Load data from a numpy .npz file'''
-        try:
-            npz_file = np.load(full_path)
-        except OSError:
-            logger = logging.getLogger(__name__)
-            logger.error('File not found! (%s)', full_path)
-            raise
-
-        self.t_sol = npz_file['t_sol']
-        self.y_sol = npz_file['y_sol']
-        self.cte_copy = npz_file['cte_copy'][0]  # stored as a list of dicts
-        self.index_S_i = list(npz_file['index_S_i'])
-        self.index_A_j = list(npz_file['index_A_j'])
 
     def load(self, full_path: str) -> None:
         '''Load data from a HDF5 file'''
@@ -394,17 +397,6 @@ class SteadyStateSolution(Solution):
     def __init__(self) -> None:
         super(SteadyStateSolution, self).__init__()
         self._final_populations = np.array([])
-
-    @property
-    def power_dens(self) -> float:
-        '''Return the power density used to obtain this solution.'''
-        for excitation in self.cte_copy['excitations'].keys():
-            return self.cte_copy['excitations'][excitation]['power_dens']
-
-    @property
-    def concentration(self) -> Tuple[float, float]:
-        '''Return the tuple (sensitizer, activator) concentration used to obtain this solution.'''
-        return (self.cte_copy['lattice']['S_conc'], self.cte_copy['lattice']['A_conc'])
 
     def _calculate_final_populations(self) -> List[float]:
         '''Calculate the final population for all states after a steady state simulation'''
@@ -555,6 +547,14 @@ class DynamicsSolution(Solution):
 
         return list_exp_data
 
+    def _plot_avg(self) -> None:
+        '''Overrides the Solution method to plot
+            the average offset-corrected simulated data (list_avg_data) and experimental data.
+        '''
+        Plotter.plot_avg_decay_data(self.t_sol, self.list_avg_data_ofs,
+                                    state_labels=self.state_labels,
+                                    list_exp_data=self.list_exp_data)
+
     def log_errors(self) -> None:
         '''Log errors'''
         logger = logging.getLogger(__name__)
@@ -612,7 +612,7 @@ class DynamicsSolution(Solution):
         return self._list_exp_data
 
 
-class SolutionList():
+class SolutionList(Sequence[Solution]):
     '''Base class for a list of solutions for problems like power or concentration dependence.'''
     def __init__(self) -> None:
         self.solution_list = []  # type: List[Solution]
@@ -629,6 +629,29 @@ class SolutionList():
         '''Two solutions are equal if all their solutions are equal.'''
         return self.solution_list == other.solution_list
 
+    # __iter__, __len__ and __getitem__ implement all requirements for a Sequence,
+    # which is also Sized and Iterable
+    def __iter__(self) -> Iterator:
+        '''Make the class iterable by returning a iterator over the solution_list.'''
+        return iter(self.solution_list)
+
+    def __len__(self) -> int:
+        '''Return the length of the solution_list.'''
+        return len(self.solution_list)
+
+    def __getitem__(self, key):
+        '''Implements solution[number].'''
+        return self.solution_list[key]
+
+    def __repr__(self) -> str:
+        '''Representation of a solution list.'''
+        concs = [sol.concentration for sol in self]
+        powers = [sol.power_dens for sol in self]
+        return '{}(num_solutions={}, concs={}, power_dens={})'.format(self.__class__.__name__,
+                                                                      len(self),
+                                                                      concs,
+                                                                      powers)
+
     def add_solutions(self, sol_list: List[Solution]) -> None:
         '''Add a list of solutions.'''
         self.solution_list = list(sol_list)
@@ -636,10 +659,10 @@ class SolutionList():
     def save(self, full_path: str = None) -> None:
         '''Save all data from all solutions in a HDF5 file'''
         if full_path is None:  # pragma: no cover
-            full_path = self.solution_list[0].save_full_path() + '_' + self._suffix + '.hdf5'
+            full_path = self.solution_list[0].save_file_full_path() + '_' + self._suffix + '.hdf5'
 
         with h5py.File(full_path, 'w') as file:
-            for num, sol in enumerate(self.solution_list):
+            for num, sol in enumerate(self):
                 group = file.create_group(str(num))
                 group.create_dataset("t_sol", data=sol.t_sol, compression='gzip')
                 group.create_dataset("y_sol", data=sol.y_sol, compression='gzip')
@@ -667,6 +690,21 @@ class SolutionList():
             raise
         self.add_solutions(solutions)
 
+    def save_txt(self, full_path: str = None, mode: str = 'w') -> None:
+        '''Save the settings, the time and the average populations to disk as a textfile'''
+        if full_path is None:  # pragma: no cover
+            full_path = self.solution_list[0].save_file_full_path() + '.txt'
+        with open(full_path, 'wt') as csvfile:
+            csvfile.write('Solution list:\n')
+        for sol in self:
+            sol.save_txt(full_path, 'at')
+
+    def plot(self, no_exp: bool = False) -> None:
+        '''Interface of plot.
+            If no_exp is True, no experimental data is plotted.
+        '''
+        raise NotImplementedError
+
 
 class PowerDependenceSolution(SolutionList):
     '''Solution to a power dependence simulation'''
@@ -677,9 +715,20 @@ class PowerDependenceSolution(SolutionList):
         self._items_class = SteadyStateSolution
         self._suffix = 'pow_dep'
 
-    def plot(self) -> None:
-        '''Plot the power dependence of the emission for all states'''
-        if len(self.solution_list) == 0:  # nothing to plot
+    def __repr__(self) -> str:
+        '''Representation of a power dependence list.'''
+        conc = self.solution_list[0].concentration
+        powers = [sol.power_dens for sol in self]
+        return '{}(num_solutions={}, conc={}, power_dens={})'.format(self.__class__.__name__,
+                                                                     len(self),
+                                                                     conc,
+                                                                     powers)
+
+    def plot(self, no_exp: bool = False) -> None:
+        '''Plot the power dependence of the emission for all states.
+            If no_exp is True, no experimental data is plotted.
+        '''
+        if len(self) == 0:  # nothing to plot
             logger = logging.getLogger(__name__)
             msg = 'Nothing to plot! The power_dependence list is emtpy!'
             logger.warning(msg)
@@ -694,8 +743,8 @@ class PowerDependenceSolution(SolutionList):
             return
 
         sim_data_arr = np.array([np.array(sol.steady_state_populations)
-                                 for sol in self.solution_list])
-        power_dens_arr = np.array([sol.power_dens for sol in self.solution_list])
+                                 for sol in self])
+        power_dens_arr = np.array([sol.power_dens for sol in self])
         state_labels = self.solution_list[0].state_labels
 
         Plotter.plot_power_dependence(sim_data_arr, power_dens_arr, state_labels)
@@ -717,10 +766,20 @@ class ConcentrationDependenceSolution(SolutionList):
             self._items_class = SteadyStateSolution
         self._suffix = 'conc_dep'
 
+    def __repr__(self) -> str:
+        '''Representation of a concentration dependence list.'''
+        concs = [sol.concentration for sol in self]
+        power = self.solution_list[0].power_dens
+        return '{}(num_solutions={}, conc={}, power_dens={})'.format(self.__class__.__name__,
+                                                                     len(self),
+                                                                     concs,
+                                                                     power)
+
     def save(self, full_path: str = None) -> None:
         '''Save all data from all solutions in a HDF5 file'''
+        # change the name of the saved file and pass it to the super method
         if full_path is None:  # pragma: no cover
-            conc_path = self.solution_list[0].save_full_path()
+            conc_path = self.solution_list[0].save_file_full_path()
             # get only the data_Xuc part
             conc_path = '_'.join(conc_path.split('_')[:2])
             full_path = conc_path + '_' + self._suffix + '.hdf5'
@@ -730,7 +789,7 @@ class ConcentrationDependenceSolution(SolutionList):
         '''Plot the concentration dependence of the emission for all states.
            If no_exp is True, no experimental data is plotted.
         '''
-        if len(self.solution_list) == 0:  # nothing to plot
+        if len(self) == 0:  # nothing to plot
             logger = logging.getLogger(__name__)
             msg = 'Nothing to plot! The concentration_dependence list is emtpy!'
             logger.warning(msg)
@@ -748,24 +807,26 @@ class ConcentrationDependenceSolution(SolutionList):
             # plot all decay curves together
             color_list = [c+c for c in 'rgbmyc'*3]
             for color, sol in zip(color_list, self.solution_list):
-                Plotter.plot_avg_decay_data(sol, no_exp=no_exp, show_conc=True, colors=color)
+                Plotter.plot_avg_decay_data(sol.t_sol, sol.list_avg_data,
+                                            state_labels=sol.state_labels,
+                                            show_conc=True, colors=color)
         else:
             sim_data_arr = np.array([np.array(sol.steady_state_populations)
-                                     for sol in self.solution_list])
+                                     for sol in self])
 
             S_states = self.solution_list[0].cte_copy['states']['sensitizer_states']
             A_states = self.solution_list[0].cte_copy['states']['activator_states']
             conc_factor_arr = np.array([([float(sol.concentration[0])]*S_states +
                                          [float(sol.concentration[1])]*A_states)
-                                        for sol in self.solution_list])
+                                        for sol in self])
 
             # multiply the average state populations by the concentration
             # TODO: is this correct?
             sim_data_arr *= conc_factor_arr
 
             # if all elements of S_conc_l are equal use A_conc to plot and viceversa
-            S_conc_l = [float(sol.concentration[0]) for sol in self.solution_list]
-            A_conc_l = [float(sol.concentration[1]) for sol in self.solution_list]
+            S_conc_l = [float(sol.concentration[0]) for sol in self]
+            A_conc_l = [float(sol.concentration[1]) for sol in self]
             if S_conc_l.count(S_conc_l[0]) == len(S_conc_l):
                 conc_arr = np.array(A_conc_l)
             elif A_conc_l.count(A_conc_l[0]) == len(A_conc_l):
@@ -788,8 +849,10 @@ class Plotter():
     '''Plot different solutions to rate equations problems'''
 
     @staticmethod
-    def plot_avg_decay_data(solution: Solution, atol: float = 1e-15,
-                            no_exp: bool = False, show_conc: bool = False,
+    def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
+                            list_exp_data: List[np.array] = None,
+                            state_labels: List[str] = None,
+                            atol: float = 1e-15, show_conc: bool = False,
                             colors: str = 'rk') -> None:
         ''' Plot the list of experimental and average simulated data against time in solution.
             If no_exp is True, no experimental data will be plotted.
@@ -797,34 +860,23 @@ class Plotter():
             colors is a string with two chars. The first is the sim color,
             the second the exp data color.
         '''
-
-        # if we have simulated data that has been offset-corrected, use it
-        if (hasattr(solution, 'list_avg_data_ofs') and
-                solution.list_avg_data_ofs is not solution.list_avg_data):
-            list_sim_data = solution.list_avg_data_ofs  # type: List[np.array]
-        else:
-            list_sim_data = [data for data in solution.list_avg_data]
-
         num_plots = len(list_sim_data)
         num_rows = 3
         num_cols = int(np.ceil(num_plots/3))
-        t_sol = solution.t_sol[:]*1000  # convert to ms
 
-        if (not hasattr(solution, 'list_exp_data') or
-                solution.list_exp_data is None or
-                no_exp is True):
-            list_exp_data = len(list_sim_data)*[0]  # type: List[np.array]
-        else:
-            list_exp_data = solution.list_exp_data
+        t_sol *= 1000  # convert to ms
 
-        state_labels = solution.state_labels
-        if show_conc is True:
-            S_conc = str(float(solution.cte_copy['lattice']['S_conc']))
-            S_label = solution.cte_copy['states']['sensitizer_ion_label']
-            A_conc = str(float(solution.cte_copy['lattice']['A_conc']))
-            A_label = solution.cte_copy['states']['activator_ion_label']
-            conc_str = '_' + S_conc + S_label + '_' + A_conc + A_label
-            state_labels = [label+conc_str for label in state_labels]
+        # optional lists default to list of None
+        list_exp_data = list_exp_data or [None]*num_plots
+        state_labels = state_labels or [None]*num_plots
+
+#        if show_conc is True:
+#            S_conc = str(float(solution.cte_copy['lattice']['S_conc']))
+#            S_label = solution.cte_copy['states']['sensitizer_ion_label']
+#            A_conc = str(float(solution.cte_copy['lattice']['A_conc']))
+#            A_label = solution.cte_copy['states']['activator_ion_label']
+#            conc_str = '_' + S_conc + S_label + '_' + A_conc + A_label
+#            state_labels = [label+conc_str for label in state_labels]
 
         for num, (sim_data_corr, exp_data, state_label)\
             in enumerate(zip(list_sim_data, list_exp_data, state_labels)):
@@ -838,7 +890,8 @@ class Plotter():
             sim_color = colors[0]
             exp_color = colors[1]
 
-            if exp_data is 0:  # no exp data: either a GS or simply no exp data available
+            # no exp data: either a GS or simply no exp data available
+            if exp_data is 0 or exp_data is None:
                 # nonposy='clip': clip non positive values to a very small positive number
                 plt.semilogy(t_sol, sim_data_corr, sim_color, label=state_label, nonposy='clip')
                 plt.yscale('log', nonposy='clip')
@@ -1006,8 +1059,27 @@ class Simulations():
 
     def __init__(self, cte: Dict, full_path: str = None) -> None:
         # settings
-        self.cte = cte
+        self.cte = copy.deepcopy(cte)
         self.full_path = full_path
+
+    def __bool__(self) -> bool:
+        '''Instance is True if the cte dict has been filled'''
+        return self.cte != {}
+
+    def __eq__(self, other) -> bool:
+        '''Two solutions are equal if all its vars are equal.'''
+        return self.cte == other.cte and self.full_path == other.full_path
+
+    def __ne__(self, other) -> bool:
+        '''Define a non-equality test'''
+        return not self == other
+
+    def __repr__(self) -> str:
+        '''Representation of a simulation.'''
+        return '{}(lattice={}, n_uc={}, num_states={})'.format(self.__class__.__name__,
+                                                               self.cte['lattice']['name'],
+                                                               self.cte['lattice']['N_uc'],
+                                                               self.cte['states']['energy_states'])
 
     def modify_ET_param_value(self, process: str, value: float) -> None:
         '''Modify a ET parameter'''
@@ -1164,7 +1236,7 @@ class Simulations():
         power_dens_list = [float(elem) for elem in list(power_dens_list)]
 
         num_power_steps = len(power_dens_list)
-        solutions = []
+        solutions = []  # type: List[Solution]
 
         for power_dens in tqdm(power_dens_list, unit='points',
                                total=num_power_steps, disable=self.cte['no_console'],
@@ -1200,11 +1272,11 @@ class Simulations():
 
         start_time = time.time()
 
-        # make sure it's a list of floats
+        # make sure it's a list of tuple of two floats
         concentration_list = [(float(a), float(b)) for a, b in list(concentration_list)]
 
         num_conc_steps = len(concentration_list)
-        solutions = []
+        solutions = []  # type: List[Solution]
 
         for concs in tqdm(concentration_list, unit='points',
                           total=num_conc_steps, disable=cte['no_console'],
@@ -1214,7 +1286,7 @@ class Simulations():
             cte['lattice']['A_conc'] = concs[1]
             # simulate
             if dynamics:
-                sol = self.simulate_dynamics()
+                sol = self.simulate_dynamics()  # type: Solution
             else:
                 sol = self.simulate_steady_state()  # pylint: disable=R0204
             solutions.append(sol)
@@ -1228,6 +1300,7 @@ class Simulations():
 
         return conc_dep_solution
 
+
 #if __name__ == "__main__":
 #    logger = logging.getLogger()
 #    logging.basicConfig(level=logging.INFO,
@@ -1240,48 +1313,40 @@ class Simulations():
 #
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
-#
-#    (cte, initial_population, index_S_i, index_A_j,
-#     total_abs_matrix, decay_matrix,
-#     UC_matrix,
-#     N_indices, jac_indices) = precalculate.precalculate(cte)
-#
+##
+##    (cte, initial_population, index_S_i, index_A_j,
+##     total_abs_matrix, decay_matrix,
+##     UC_matrix,
+##     N_indices, jac_indices) = precalculate.precalculate(cte)
+##
 #    sim = Simulations(cte)
-#
-##    solution = sim.simulate_dynamics()
+##
+#    solution = sim.simulate_dynamics()
 ##    solution.log_errors()
-#
+##
 ##    solution = sim.simulate_steady_state()
-##    solution.log_populations()
-#
+###    solution.log_populations()
+##
 ##    solution.plot()
-#
-##    solution.save()
-##    new_sol = DynamicsSolution()
-##    new_sol.load('results/bNaYF4/DynamicsSolution.hdf5')
-#
+##
+###    solution.save()
+###    new_sol = DynamicsSolution()
+###    new_sol.load('results/bNaYF4/DynamicsSolution.hdf5')
+##
 ##    power_dens_list = np.logspace(1, 8, 8-1+1)
 ##    solution = sim.simulate_power_dependence(cte['power_dependence'])
 ##    solution.plot()
-##    solution.save()
-##    new_sol = PowerDependenceSolution()
-##    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_pow_dep.hdf5')
-##    new_sol.plot()
-#
-#    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
-##    N_points = 3
-##    S_conc_l = np.linspace(0, 10, N_points)
-##    A_conc_l = np.linspace(0.01, 1, N_points)
-##    conc_list = list(zip(S_conc_l, A_conc_l))
-##    conc_list = np.meshgrid(S_conc_l, A_conc_l)
-##    conc_list[0].shape = (conc_list[0].size,1)
-##    conc_list[1].shape = (conc_list[0].size,1)
-##    conc_list = list(zip(conc_list[0], conc_list[1]))
-#    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
+###    solution.save()
+###    new_sol = PowerDependenceSolution()
+###    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_pow_dep.hdf5')
+###    new_sol.plot()
+##
+##    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
+##    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
 ##    solution.plot()
 ##    solution.save()
-#
-##    new_sol = ConcentrationDependenceSolution()
-##    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_conc_dep.hdf5')
-##    new_sol.plot()
-#
+##
+###    new_sol = ConcentrationDependenceSolution()
+###    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_conc_dep.hdf5')
+###    new_sol.plot()
+##

@@ -29,11 +29,14 @@ before_script:
   - "sh -e /etc/init.d/xvfb start"
   - sleep 3 # give xvfb some time to start
 script:
-  - pytest
+  - pytest -v --cov=. --cov-report term-missing test/
   - flake8 --tee
+  - cd ..
+  - mypy -s -p simetuc
 
 after_success:
-  - coveralls --base_dir ../ --data_file .coverage
+  - cd simetuc
+  - coveralls --base_dir ../ --data_file ./.coverage
 
 notifications:
   email:

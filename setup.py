@@ -13,7 +13,7 @@ Created on Tue Nov  1 16:17:59 2016
 
 # build with: python setup.py bdist_wheel sdist
 # upload with: twine upload dist/* --skip-existing
-# install locally with: pip install --upgrade --no-deps --force-reinstall dist\simetuc-0.7-py3-none-any.whl
+# install locally with: pip install --upgrade --no-deps --force-reinstall dist\simetuc-XXXX
 # install from pypi with: pip install simetuc
 
 # CONDA:
@@ -31,10 +31,10 @@ from setuptools import setup, find_packages
 #from codecs import open
 from os import path
 
-here = path.abspath(path.dirname(__file__))
-
 from simetuc import VERSION
 from simetuc import DESCRIPTION
+
+here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
 with open('README.rst') as fd:

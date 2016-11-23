@@ -8,6 +8,7 @@ Created on Tue Oct 11 15:58:58 2016
 import time
 import logging
 import functools
+from typing import Dict, Tuple
 
 import numpy as np
 # pylint: disable=E1101
@@ -19,6 +20,7 @@ import tqdm
 import simetuc.simulations as simulations
 
 
+# I can't seem to find the right mypy syntax for this decorator.
 def cache(function):
     '''Decorator to store a list of parameters and function values'''
     cache.params_lst = []
@@ -34,7 +36,7 @@ def cache(function):
     return wrapper
 
 
-def optimize_dynamics(cte):
+def optimize_dynamics(cte: Dict) -> Tuple[float, float, float]:
     ''' Minimize the error between experimental data and simulation for the settings in cte
     '''
     logger = logging.getLogger(__name__)
@@ -60,14 +62,14 @@ def optimize_dynamics(cte):
         return total_error
 
     @cache
-    def fun_optim(x):
+    def fun_optim(x: np.array) -> float:
         ''' Function to optimize.
             The parameters and results are stored in the cache decorator
         '''
         total_error = _update_ET_and_simulate(x)
         return total_error
 
-    def fun_optim_brute(x):
+    def fun_optim_brute(x: np.array) -> float:
         ''' Function to optimize by brute force.
         '''
         pbar.update(1)

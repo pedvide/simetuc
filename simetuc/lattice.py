@@ -9,10 +9,12 @@ Created on Mon Nov  9 17:52:23 2015
 import os
 import time
 import logging
+from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import matplotlib.pyplot as plt
 
+import ase
 from ase.spacegroup import crystal
 
 
@@ -21,7 +23,8 @@ class LatticeError(Exception):
     pass
 
 
-def _create_lattice(spacegroup, cell_par, num_uc, sites_pos, sites_occ):
+def _create_lattice(spacegroup: Union[int, str], cell_par: List[float], num_uc: int,
+                    sites_pos: List[float], sites_occ: List[float]) -> ase.Atoms:
     '''Creates the lattice with the specified parameters.
         Returns an ase.Atoms object with all atomic positions
     '''
@@ -37,9 +40,9 @@ def _create_lattice(spacegroup, cell_par, num_uc, sites_pos, sites_occ):
     return atoms
 
 
-def _impurify_lattice(atoms, S_conc, A_conc):
+def _impurify_lattice(atoms: ase.Atoms, S_conc: float, A_conc: float) -> np.array:
     '''Impurifies the lattice atoms with the specified concentration of
-       sensitizers and activators.
+       sensitizers and activators (in %).
        Returns an array with the dopant positions and another with the ion type
     '''
     # convert from percentage
@@ -78,7 +81,7 @@ def _impurify_lattice(atoms, S_conc, A_conc):
     return ion_type
 
 
-def _calculate_distances(atoms, min_im_conv=True):
+def _calculate_distances(atoms: ase.Atoms, min_im_conv: bool = True) -> np.array:
     '''Calculates the distances between each pair of ions
        By defaul it uses the minimum image convention
        It returns a square array 'dist_array' with the distances
@@ -101,7 +104,7 @@ def _calculate_distances(atoms, min_im_conv=True):
     return dist_array
 
 
-def _create_ground_states(ion_type, lattice_info):
+def _create_ground_states(ion_type: np.array, lattice_info: Dict):
     '''Returns two arrays with the position of the sensitizers' and activators'
        ground states in the total simulation population index.
        It also returns an array with the initial populations, that is
@@ -142,8 +145,12 @@ def _create_ground_states(ion_type, lattice_info):
     return (index_S_i, index_A_j, initial_population)
 
 
-def _create_interaction_matrices(ion_type, dist_array, index_S_i, index_A_j,
-                                 lattice_info):
+def _create_interaction_matrices(ion_type: np.array, dist_array: np.array,
+                                 index_S_i: np.array, index_A_j: np.array,
+                                 lattice_info: dict) -> Tuple[List[np.array], List[np.array],
+                                                              List[np.array], List[np.array],
+                                                              List[np.array], List[np.array],
+                                                              List[np.array], List[np.array]]:
     '''It returns the interaction lists distances:
         index_S_k = position of the GS of S ions that interact with S ions
         index_S_l = position of the GS of A ions that interact with S ions
@@ -214,7 +221,7 @@ def _create_interaction_matrices(ion_type, dist_array, index_S_i, index_A_j,
             dist_S_k, dist_S_l, dist_A_k, dist_A_l)
 
 
-def _plot_lattice(doped_lattice, ion_type):
+def _plot_lattice(doped_lattice: np.array, ion_type: np.array) -> None:
     from mpl_toolkits.mplot3d import proj3d
 
     def orthogonal_proj(zfront, zback):  # pragma: no cover
@@ -242,7 +249,7 @@ def _plot_lattice(doped_lattice, ion_type):
     plt.axis('square')
 
 
-def make_full_path(folder_path, num_uc, S_conc, A_conc):
+def make_full_path(folder_path: str, num_uc: int, S_conc: float, A_conc: float) -> str:
     '''Makes the full path to a lattice in the folder.'''
     filename = 'data_{}uc_{}S_{}A.npz'.format(int(num_uc), float(S_conc), float(A_conc))
     full_path = os.path.join(folder_path, filename)
@@ -250,7 +257,7 @@ def make_full_path(folder_path, num_uc, S_conc, A_conc):
 
 
 # @profile
-def generate(cte, min_im_conv=True):
+def generate(cte: Dict, min_im_conv: bool = True) -> Tuple:
     '''
     Generates a list of (x,y,z) ion positions and a list with the type of ion (S or A)
     for a lattice with N unit cells and the given concentrations (in percentage) of S and A.
