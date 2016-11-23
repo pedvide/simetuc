@@ -21,22 +21,21 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION scipy numpy matplotlib ase
     tqdm pytest pytest-cov PyYAML h5py flake8 python-coveralls
   - source activate test-environment
-  - python setup.py install
   - pip install mypy-lang
+  - python setup.py install
+
 # command to run tests
 before_script:
-  - cd simetuc
   - "export DISPLAY=:99.0"
   - "sh -e /etc/init.d/xvfb start"
   - sleep 3 # give xvfb some time to start
 script:
-  - pytest -v --cov=simetuc --cov-report term-missing test/
+  - pytest -v --cov=simetuc --cov-report term-missing simetuc/test
   - flake8 --tee
-  - cd ..
   - mypy -s -p simetuc
 
 after_success:
-  - cd simetuc
+  - ls -l
   - coveralls --base_dir ../ --data_file ./.coverage
 
 notifications:

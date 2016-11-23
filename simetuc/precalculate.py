@@ -456,7 +456,7 @@ def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
         old_no_plot = cte['no_plot']
         cte['no_plot'] = True
         # generate lattice, data will be saved to disk
-        lattice.generate(cte)
+        lattice.generate(cte, full_path=filename)
         cte['no_plot'] = old_no_plot
 
         # load data from disk

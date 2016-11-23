@@ -16,6 +16,8 @@ import simetuc.precalculate as precalculate
 import simetuc.lattice as lattice # for the LatticeError exception
 
 
+test_folder_path = os.path.dirname(os.path.abspath(__file__))
+
 @pytest.fixture(scope='function')
 def setup_cte():
     '''Load the cte data structure'''
@@ -160,7 +162,7 @@ def setup_cte():
 def test_lattice_1A(setup_cte):
     '''Test a lattice with just one activator'''
 
-    test_filename = 'test/test_setup/data_0S_1A.npz'
+    test_filename = os.path.join(test_folder_path, 'data_0S_1A.npz')
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
@@ -203,7 +205,7 @@ def test_lattice_1A(setup_cte):
 def test_lattice_1A_ESA(setup_cte): # use the ESA processes in NIR_800 excitation
     '''Test a lattice with just one activator'''
 
-    test_filename = 'test/test_setup/data_0S_1A.npz'
+    test_filename = os.path.join(test_folder_path, 'data_0S_1A.npz')
 
     setup_cte['excitations']['Vis_473']['active'] = False
     setup_cte['excitations']['NIR_800']['active'] = True
@@ -263,7 +265,7 @@ def test_lattice_1A_ESA(setup_cte): # use the ESA processes in NIR_800 excitatio
 def test_lattice_1A_two_color(setup_cte): # use two color excitation
     '''Test a lattice with just one activator'''
 
-    test_filename = 'test/test_setup/data_0S_1A.npz'
+    test_filename = os.path.join(test_folder_path, 'data_0S_1A.npz')
 
     setup_cte['excitations']['Vis_473']['active'] = True
     setup_cte['excitations']['NIR_1470']['active'] = True
@@ -323,7 +325,7 @@ def test_lattice_1A_two_color(setup_cte): # use two color excitation
 def test_lattice_2A(setup_cte):
     '''Test a lattice with two activators'''
 
-    test_filename = 'test/test_setup/data_0S_2A.npz'
+    test_filename = os.path.join(test_folder_path, 'data_0S_2A.npz')
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
@@ -402,7 +404,7 @@ def test_lattice_2A(setup_cte):
 def test_lattice_1S(setup_cte):
     '''Test a lattice with just one sensitizer'''
 
-    test_filename = 'test/test_setup/data_1S_0A.npz'
+    test_filename = os.path.join(test_folder_path, 'data_1S_0A.npz')
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
@@ -434,7 +436,7 @@ def test_lattice_1S(setup_cte):
 def test_lattice_2S(setup_cte):
     '''Test a lattice with two sensitizers'''
 
-    test_filename = 'test/test_setup/data_2S_0A.npz'
+    test_filename = os.path.join(test_folder_path, 'data_2S_0A.npz')
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
@@ -474,7 +476,7 @@ def test_lattice_2S(setup_cte):
 def test_lattice_1S_1A(setup_cte):
     '''Test a lattice with one sensitizer and one activator'''
 
-    test_filename = 'test/test_setup/data_1S_1A.npz'
+    test_filename = os.path.join(test_folder_path, 'data_1S_1A.npz')
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
@@ -535,7 +537,7 @@ def test_lattice_1S_1A(setup_cte):
 def test_lattice_2S_2A(setup_cte):
     '''Test a lattice with two sensitizers and two activators'''
 
-    test_filename = 'test/test_setup/data_2S_2A.npz'
+    test_filename = os.path.join(test_folder_path, 'data_2S_2A.npz')
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
@@ -727,9 +729,7 @@ def test_random_lattice(setup_cte, params, absorption):
         cte['excitations']['NIR_800']['active'] = True
 
 
-    cte['lattice']['name'] = 'test_setup'
-    folder_path = os.path.join('test', cte['lattice']['name'])
-    full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
+    full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
                                        cte['lattice']['S_conc'], cte['lattice']['A_conc'])
 
     if normal_result:
@@ -811,9 +811,7 @@ def test_get_lifetimes(setup_cte):
     cte['states']['sensitizer_states'] = 2
     cte['states']['activator_states'] = 7
 
-    cte['lattice']['name'] = 'test_setup'
-    folder_path = os.path.join('test', cte['lattice']['name'])
-    full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
+    full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
                                        cte['lattice']['S_conc'], cte['lattice']['A_conc'])
 
     (cte, initial_population, index_S_i, index_A_j,
@@ -837,9 +835,7 @@ def test_wrong_number_states(setup_cte):
     cte['states']['sensitizer_states'] = 2
     cte['states']['activator_states'] = 7
 
-    cte['lattice']['name'] = 'test_setup'
-    folder_path = os.path.join('test', cte['lattice']['name'])
-    full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
+    full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
                                        cte['lattice']['S_conc'], cte['lattice']['A_conc'])
 
     (cte, initial_population, index_S_i, index_A_j,

@@ -5,10 +5,13 @@ Created on Tue Nov  8 13:22:54 2016
 @author: Pedro
 """
 import pytest
+import os
 import numpy as np
 
 import simetuc.simulations as simulations
 from simetuc.util import temp_config_filename
+
+test_folder_path = os.path.dirname(os.path.abspath(__file__))
 
 @pytest.fixture(scope='function')
 def setup_cte():
@@ -151,17 +154,17 @@ def test_sim_dyn1(setup_cte):
 
 def test_sim_dyn2(setup_cte):
     '''Test that the dynamics have the right result for a simple system'''
-    test_filename = 'test/test_setup/data_2S_2A.npz'
+    test_filename = os.path.join(test_folder_path, 'data_2S_2A.npz')
     sim = simulations.Simulations(setup_cte, full_path=test_filename)
 
     solution = sim.simulate_dynamics()
     assert solution.index_A_j == [-1, 2, -1, 11]
     assert solution.index_S_i == [0, -1, 9, -1]
 
-    t_sol = np.load('test/test_simulations/t_sol_2S_2A.npy')
+    t_sol = np.load(os.path.join(test_folder_path, 't_sol_2S_2A.npy'))
     assert np.allclose(t_sol, solution.t_sol)
 
-    y_sol = np.load('test/test_simulations/y_sol_2S_2A.npy')
+    y_sol = np.load(os.path.join(test_folder_path, 'y_sol_2S_2A.npy'))
     assert np.allclose(y_sol, solution.y_sol)
 
 def test_sim_dyn_diff(setup_cte):
@@ -208,7 +211,8 @@ def test_sim_dyn_save_txt(setup_cte):
 def test_sim_no_file_hdf5():
     '''Wrong filename'''
     with pytest.raises(OSError):
-        simulations.DynamicsSolution().load(r'test\test_simulations\wrongFile.hdf5')
+
+        simulations.DynamicsSolution().load(os.path.join(test_folder_path, 'wrongFile.hdf5'))
 
 def test_sim_dyn_no_t_pulse(setup_cte):
     '''Test that the dynamics gives an error if t_pulse is not defined'''
@@ -420,5 +424,5 @@ def test_sim_conc_dep5(setup_cte, recwarn):
 def test_sim_conc_dep_no_file():
     '''Wrong filename'''
     with pytest.raises(OSError):
-        simulations.PowerDependenceSolution().load(r'test\test_simulations\wrongFile.hdf5')
+        simulations.PowerDependenceSolution().load(os.path.join(test_folder_path, 'wrongFile.hdf5'))
 

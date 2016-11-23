@@ -6,13 +6,16 @@ Created on Sat Oct 22 00:10:24 2016
 """
 
 import pytest
+import os
 import numpy as np
 
 import simetuc.settings as settings
 from simetuc.util import temp_config_filename
 
+test_folder_path = os.path.dirname(os.path.abspath(__file__))
+
 def test_standard_config():
-    cte = settings.load('test/test_settings/test_standard_config.txt')
+    cte = settings.load(os.path.join(test_folder_path, 'test_standard_config.txt'))
 
     cte_good = dict([
              ('lattice',
@@ -140,7 +143,7 @@ def test_standard_config():
 def test_non_existing_config():
     with pytest.raises(settings.ConfigError) as excinfo:
         # load non existing file
-        settings.load('test/test_settings/test_non_existing_config.txt')
+        settings.load(os.path.join(test_folder_path, 'test_non_existing_config.txt'))
     assert excinfo.match(r"Error reading file")
     assert excinfo.type == settings.ConfigError
 

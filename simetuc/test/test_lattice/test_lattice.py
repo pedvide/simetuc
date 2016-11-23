@@ -11,6 +11,8 @@ import numpy as np
 
 import simetuc.lattice as lattice
 
+test_folder_path = os.path.dirname(os.path.abspath(__file__))
+
 @pytest.fixture(scope='function')
 def setup_cte():
     '''Load the cte data structure'''
@@ -90,17 +92,17 @@ def test_cte(setup_cte, params):
 
     if normal_result:
 
+        full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
+                                           cte['lattice']['S_conc'], cte['lattice']['A_conc'])
+
         (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
         index_S_i, index_A_j,
         index_S_k, dist_S_k,
         index_S_l, dist_S_l,
         index_A_k, dist_A_k,
-        index_A_l, dist_A_l) = lattice.generate(cte)
+        index_A_l, dist_A_l) = lattice.generate(cte, full_path=full_path)
 
         # remove lattice file
-        folder_path = os.path.join('test', cte['lattice']['name'])
-        full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
-                                           cte['lattice']['S_conc'], cte['lattice']['A_conc'])
         os.remove(full_path)
 
         num_ions = lattice_info['num_total']
@@ -193,24 +195,23 @@ def test_single_atom(setup_cte): # generate lattices with a single S or A
     cte['lattice']['A_conc'] = 50.0
     while not success:
         try:
+            full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
+                                           cte['lattice']['S_conc'], cte['lattice']['A_conc'])
+
             (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
             index_S_i, index_A_j,
             index_S_k, dist_S_k,
             index_S_l, dist_S_l,
             index_A_k, dist_A_k,
-            index_A_l, dist_A_l) = lattice.generate(cte)
+            index_A_l, dist_A_l) = lattice.generate(cte, full_path=full_path)
+
+            # remove lattice file
+            os.remove(full_path)
         except lattice.LatticeError: # no ions were generated, repeat
             pass
         else:
             if len(ion_type) == 1: # only one ion was generated
                 success = True
-
-    # remove lattice file
-    folder_path = os.path.join('test', cte['lattice']['name'])
-    full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
-                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
-    os.remove(full_path)
-
 
     # single S atom
     success = False
@@ -218,20 +219,21 @@ def test_single_atom(setup_cte): # generate lattices with a single S or A
     cte['lattice']['A_conc'] = 0.0
     while not success:
         try:
+            full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
+                                           cte['lattice']['S_conc'], cte['lattice']['A_conc'])
+
             (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
             index_S_i, index_A_j,
             index_S_k, dist_S_k,
             index_S_l, dist_S_l,
             index_A_k, dist_A_k,
-            index_A_l, dist_A_l) = lattice.generate(cte)
+            index_A_l, dist_A_l) = lattice.generate(cte, full_path=full_path)
+
+            # remove lattice file
+            os.remove(full_path)
         except lattice.LatticeError: # no ions were generated, repeat
             pass
         else:
             if len(ion_type) == 1: # only one ion was generated
                 success = True
 
-    # remove lattice file
-    folder_path = os.path.join('test', cte['lattice']['name'])
-    full_path = lattice.make_full_path(folder_path, cte['lattice']['N_uc'],
-                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
-    os.remove(full_path)

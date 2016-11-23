@@ -257,7 +257,7 @@ def make_full_path(folder_path: str, num_uc: int, S_conc: float, A_conc: float) 
 
 
 # @profile
-def generate(cte: Dict, min_im_conv: bool = True) -> Tuple:
+def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tuple:
     '''
     Generates a list of (x,y,z) ion positions and a list with the type of ion (S or A)
     for a lattice with N unit cells and the given concentrations (in percentage) of S and A.
@@ -378,9 +378,11 @@ def generate(cte: Dict, min_im_conv: bool = True) -> Tuple:
         folder = 'latticeData'
 
     # check if folder exists
-    folder_path = os.path.join(folder, lattice_name)
-    os.makedirs(folder_path, exist_ok=True)
-    full_path = make_full_path(folder_path, num_uc, S_conc, A_conc)
+    if full_path is None:
+        folder_path = os.path.join(folder, lattice_name)
+        full_path = make_full_path(folder_path, num_uc, S_conc, A_conc)
+
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
     np.savez(full_path, dist_array=dist_array, ion_type=ion_type,
              doped_lattice=doped_lattice,
              initial_population=initial_population, lattice_info=lattice_info,
