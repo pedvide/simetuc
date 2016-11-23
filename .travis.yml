@@ -16,12 +16,13 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  # Replace dep1 dep2 ... with your dependencies
+  # install dependencies
   - conda config --add channels conda-forge
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION scipy numpy matplotlib ase
-    tqdm pytest pytest-cov PyYAML h5py flake8 python-coveralls mypy-lang
+    tqdm pytest pytest-cov PyYAML h5py flake8 python-coveralls
   - source activate test-environment
   - python setup.py install
+  - pip install mypy-lang
 # command to run tests
 before_script:
   - cd simetuc
