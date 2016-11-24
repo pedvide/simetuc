@@ -219,7 +219,7 @@ def main(ext_args: List[str] = None) -> None:
         _change_console_logger(console_level)
         print('')
 
-    if args.optimize:  # optimize
+    elif args.optimize:  # optimize
         logger.info('Optimizing ET parameters...')
 
         _change_console_logger(logging.WARNING)
@@ -252,6 +252,6 @@ def main(ext_args: List[str] = None) -> None:
         plt.show()
 
 
-#if __name__ == "__main__":
+if __name__ == "__main__":
 #    ext_args = ['config_file.cfg', '-c d']
-#    main(ext_args)
+    main()

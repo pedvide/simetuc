@@ -5,8 +5,8 @@ Simulating Energy Transfer and Upconversion
 
 --------------
 
-|License| |Python version| |Build version| |Build Status| |Coverage
-Status|
+|License| |Python version| |Pypi version| |Anaconda version| |Build
+Status| |Coverage Status|
 
 Installation
 ------------
@@ -47,8 +47,10 @@ license, simetuc is free and open source software.
    :target: https://github.com/pedvide/simetuc/blob/master/LICENSE.txt
 .. |Python version| image:: https://img.shields.io/pypi/pyversions/simetuc.svg
    :target: https://pypi.python.org/pypi/simetuc
-.. |Build version| image:: https://img.shields.io/pypi/v/simetuc.svg
+.. |Pypi version| image:: https://img.shields.io/pypi/v/simetuc.svg
    :target: https://pypi.python.org/pypi/simetuc
+.. |Anaconda version| image:: https://anaconda.org/pedvide/simetuc/badges/version.svg
+   :target: https://anaconda.org/pedvide/simetuc
 .. |Build Status| image:: https://travis-ci.org/pedvide/simetuc.svg?branch=master
    :target: https://travis-ci.org/pedvide/simetuc
 .. |Coverage Status| image:: https://coveralls.io/repos/github/pedvide/simetuc/badge.svg?branch=master

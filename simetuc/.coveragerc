@@ -1,8 +1,6 @@
 [run]
 omit =
     test_*
-    simulations_odeint.py
-    simulations_only_python.py
 
 [report]
 exclude_lines =

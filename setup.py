@@ -8,8 +8,6 @@ Created on Tue Nov  1 16:17:59 2016
 # git tag -a v1.1 -m 'Version 1.1'
 # git push origin --tags
 
-# convert .md (github) to .rst (pypi)
-# pandoc --from=markdown --to=rst --output=README.rst README.md
 
 # build with: python setup.py bdist_wheel sdist
 # upload with: twine upload dist/* --skip-existing

@@ -36,7 +36,7 @@ def cache(function):
     return wrapper
 
 
-def optimize_dynamics(cte: Dict) -> Tuple[float, float, float]:
+def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
     ''' Minimize the error between experimental data and simulation for the settings in cte
     '''
     logger = logging.getLogger(__name__)
