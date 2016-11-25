@@ -12,7 +12,7 @@ Simulating Energy Transfer and Upconversion
 
 
 ## Installation
---------
+
 Python 3.5 is required (it may work with earlier versions, though).
 Installing [Anaconda](https://anaconda.org/) is recommended (preferably 64 bits). 
 
@@ -24,7 +24,7 @@ or
     $ pip install simetuc
 
 ## Features
--------------
+
 * Command line interface program.
     * Run with: `simetuc config_file.txt [options]`
     * See all options below and with: `simetuc -h`
@@ -48,21 +48,20 @@ or
 * All results can be plotted and saved in .hdf5 format.
 
 ## Documentation
--------------
+
 See the powerpoint [presentation](docs/simetuc_presentation).
 
 ## TODO
--------------
+
  - [ ] Add pressure dependene option: Change the distances of the lattice and simulate dynamics or steady-state.
  - [ ] Read experimental data in more formats.
 
 ## Bugs/Requests
--------------
 
 Please use the [GitHub issue tracker](https://github.com/pedvide/simetuc/issues) to submit bugs or request features.
 
 ## License
--------
+
 
 Copyright Pedro Villanueva Delgado, 2016.
 
