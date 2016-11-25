@@ -60,8 +60,13 @@ See the powerpoint [presentation](docs/simetuc_presentation).
 
 Please use the [GitHub issue tracker](https://github.com/pedvide/simetuc/issues) to submit bugs or request features.
 
-## License
+## Acknowledgements
 
+The financial support of the EU FP7 ITN LUMINET (Grant agreement No. 316906) is gratefully acknowledged.
+
+This work was started at the University of Cantabria under Prof. Rafael Valiente and continued at the University of Bern under PD Dr. Karl Krämer.
+
+## License
 
 Copyright Pedro Villanueva Delgado, 2016.
 
