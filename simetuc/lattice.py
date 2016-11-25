@@ -13,6 +13,8 @@ from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import matplotlib.pyplot as plt
+import h5py
+import yaml
 
 import ase
 from ase.spacegroup import crystal
@@ -251,7 +253,7 @@ def _plot_lattice(doped_lattice: np.array, ion_type: np.array) -> None:
 
 def make_full_path(folder_path: str, num_uc: int, S_conc: float, A_conc: float) -> str:
     '''Makes the full path to a lattice in the folder.'''
-    filename = 'data_{}uc_{}S_{}A.npz'.format(int(num_uc), float(S_conc), float(A_conc))
+    filename = 'data_{}uc_{}S_{}A.hdf5'.format(int(num_uc), float(S_conc), float(A_conc))
     full_path = os.path.join(folder_path, filename)
     return full_path
 
@@ -261,12 +263,13 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
     '''
     Generates a list of (x,y,z) ion positions and a list with the type of ion (S or A)
     for a lattice with N unit cells and the given concentrations (in percentage) of S and A.
-    The results are saved in a file called lattice_name/data_Xuc_YS_ZA, where
+    The results are saved in a file called lattice_name/data_Xuc_YS_ZA.hdf5, where
     lattice_name = is the user-defined name of the lattice passed in cte
     X = number of unit cells
     Y = concentration of S
     Z = concentration of A
     min_im_conv=True uses the miminum image convention when calculating distances
+    full_path: will use that path to save the lattice
     '''
     logger = logging.getLogger(__name__)
 
@@ -361,13 +364,13 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
         logger.error('The number of energy states is zero!')
         raise LatticeError('The number of energy states is zero!')
 
-    index_S_i, index_A_j, initial_population = _create_ground_states(ion_type, lattice_info)
+    indices_S_i, indices_A_j, initial_population = _create_ground_states(ion_type, lattice_info)
 
     (index_S_k, index_S_l,
      index_A_k, index_A_l,
      dist_S_k, dist_S_l,
      dist_A_k, dist_A_l) = _create_interaction_matrices(ion_type, dist_array,
-                                                        index_S_i, index_A_j,
+                                                        indices_S_i, indices_A_j,
                                                         lattice_info)
 
     logger.info('Saving data...')
@@ -383,14 +386,28 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
         full_path = make_full_path(folder_path, num_uc, S_conc, A_conc)
 
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
-    np.savez(full_path, dist_array=dist_array, ion_type=ion_type,
-             doped_lattice=doped_lattice,
-             initial_population=initial_population, lattice_info=lattice_info,
-             index_S_i=index_S_i, index_A_j=index_A_j,
-             index_S_k=index_S_k, dist_S_k=dist_S_k,
-             index_S_l=index_S_l, dist_S_l=dist_S_l,
-             index_A_k=index_A_k, dist_A_k=dist_A_k,
-             index_A_l=index_A_l, dist_A_l=dist_A_l)
+    with h5py.File(full_path, mode='w') as file:
+        file.create_dataset('dist_array', data=dist_array, compression='gzip')
+        file.create_dataset('ion_type', data=ion_type, compression='gzip')
+        file.create_dataset('doped_lattice', data=doped_lattice, compression='gzip')
+        file.create_dataset('initial_population', data=initial_population, compression='gzip')
+        # serialze lattice_info as text and store it as an attribute
+        file.attrs['lattice_info'] = yaml.dump(lattice_info)
+
+        file.create_dataset('indices_S_i', data=np.array(indices_S_i), compression='gzip')
+        file.create_dataset('indices_A_j', data=np.array(indices_A_j), compression='gzip')
+
+        file.create_dataset('index_S_k', data=index_S_k, compression='gzip')
+        file.create_dataset('dist_S_k', data=dist_S_k, compression='gzip')
+
+        file.create_dataset('index_S_l', data=index_S_l, compression='gzip')
+        file.create_dataset('dist_S_l', data=dist_S_l, compression='gzip')
+
+        file.create_dataset('index_A_k', data=index_A_k, compression='gzip')
+        file.create_dataset('dist_A_k', data=dist_A_k, compression='gzip')
+
+        file.create_dataset('index_A_l', data=index_A_l, compression='gzip')
+        file.create_dataset('dist_A_l', data=dist_A_l, compression='gzip')
 
     # plot lattice
     if plot_toggle:
@@ -401,7 +418,7 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
     logger.info('Generating lattice finished. Total time: %s.', formatted_time)
 
     return (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
-            index_S_i, index_A_j,
+            indices_S_i, indices_A_j,
             index_S_k, dist_S_k,
             index_S_l, dist_S_l,
             index_A_k, dist_A_k,
@@ -420,8 +437,8 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
 #
-#    cte['lattice']['S_conc'] = 25
-#    cte['lattice']['A_conc'] = 0.3
+#    cte['lattice']['S_conc'] = 1
+#    cte['lattice']['A_conc'] = 1
 #    cte['lattice']['N_uc'] = 5
 ##    cte['states']['sensitizer_states'] = 0
 ##    cte['states']['activator_states'] = 4

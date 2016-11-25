@@ -4,9 +4,7 @@ Created on Fri Nov 18 17:22:18 2016
 
 @author: Pedro
 """
-
 import pytest
-#import numpy as np
 
 import simetuc.optimize as optimize
 
@@ -99,7 +97,7 @@ def setup_cte():
            't_pulse': 1e-08}},
          'ions': {'activators': 113, 'sensitizers': 0, 'total': 113},
          'lattice': {'A_conc': 0.3,
-          'N_uc': 30,
+          'N_uc': 20,
           'S_conc': 0.3,
           'cell_par': [5.9738, 5.9738, 3.5297, 90.0, 90.0, 120.0],
           'name': 'bNaYF4',
@@ -127,7 +125,20 @@ def setup_cte():
     return cte
 
 
-def test_optim1(setup_cte):
-    '''Test that the optimization work'''
+def test_optim1(setup_cte, mocker):
+    '''Test that the optimization works'''
+
+    # mock the simulation by returning an error that goes to 0
+    mocked_opt_dyn = mocker.patch('simetuc.optimize.optim_fun_generator')
+    value = 20
+    def minimize(x):
+        nonlocal value
+        if value != 0:
+            value -= 1
+        return value
+    mocked_opt_dyn.return_value = minimize
 
     optimize.optimize_dynamics(setup_cte)
+
+    assert mocked_opt_dyn.called
+

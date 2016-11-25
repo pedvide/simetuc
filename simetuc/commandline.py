@@ -63,8 +63,8 @@ def parse_args(args: Any) -> argparse.Namespace:
 
     # main options: load config file, lattice, simulate or optimize
     group = parser.add_mutually_exclusive_group(required=True)
-#    group.add_argument('-c', '--config', help='import configuration from file',
-#                        action='store_true')
+    group.add_argument('--config', help='import configuration from file',
+                       action='store_true')
     group.add_argument('-l', '--lattice', help='generate and plot the lattice',
                        action='store_true')
     group.add_argument('-d', '--dynamics', help='simulate dynamics',
@@ -87,8 +87,6 @@ def parse_args(args: Any) -> argparse.Namespace:
                        action="store_true")
     group.add_argument('--save-txt', help='save results in text format',
                        action="store_true")
-    group.add_argument('--save-npz', help='save results in numpy\'s npz format',
-                       action="store_true")
 
     # add plot subcommand
 #    subparsers = parser.add_subparsers(dest="plot")
@@ -98,6 +96,43 @@ def parse_args(args: Any) -> argparse.Namespace:
     parsed_args = parser.parse_args(args)
 
     return parsed_args
+
+
+def _setup_logging(console_level): # pragma: no cover
+    '''Load logging settings from file and apply them.'''
+    # read logging settings from file
+    # use the file located where the package is installed
+    _log_config_file = 'log_config.cfg'
+    # resource_string opens the file and gets it as a string. Works inside .egg too
+    try:
+        _log_config_location = resource_string(__name__, os.path.join('config', _log_config_file))
+    except NotImplementedError:  # pragma: no cover
+        print('ERROR! Logging settings file ({}) not found!'.format(_log_config_file))
+        print('Logging won\'t be available!!')
+        # minimum settings without errors
+        log_settings = {'version': 1}  # type: Dict
+    else:
+        try:
+            log_settings = yaml.safe_load(_log_config_location)
+            # modify logging to console that the user wants
+            log_settings['handlers']['console']['level'] = console_level
+        except OSError:  # pragma: no cover
+            print('ERROR! Logging settings file not found at {}!'.format(_log_config_location))
+            print('Logging won\'t be available!!')
+            log_settings = {'version': 1}  # minimum settings without errors
+        else:
+            os.makedirs('logs', exist_ok=True)
+
+    # load settings and rollover any rotating file handlers
+    # so each execution of this program is logged to a fresh file
+    logging.config.dictConfig(log_settings)
+    logger = logging.getLogger('simetuc')
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, logging.handlers.RotatingFileHandler):  # type: ignore
+            handler.doRollover()  # type: ignore
+
+    logger.debug('Log settings dump:')
+    logger.debug(pprint.pformat(log_settings))
 
 
 def main(ext_args: List[str] = None) -> None:
@@ -124,41 +159,11 @@ def main(ext_args: List[str] = None) -> None:
     if args.no_plot:
         no_plot = True
 
-    # read logging settings from file
-    # use the file located where the package is installed
-    _log_config_file = 'log_config.cfg'
-    # resource_string opens the file and gets it as a string. Works inside .egg too
-    try:
-        _log_config_location = resource_string(__name__, os.path.join('config', _log_config_file))
-    except NotImplementedError:  # pragma: no cover
-        print('ERROR! Logging settings file ({}) not found!'.format(_log_config_file))
-        print('Logging won\'t be available!!')
-        # minimum settings without errors
-        log_settings = {'version': 1}  # type: Dict
-    else:
-        try:
-            log_settings = yaml.safe_load(_log_config_location)
-            # modify logging to console that the user wants
-            log_settings['handlers']['console']['level'] = console_level
-        except OSError:  # pragma: no cover
-            print('ERROR! Logging settings file not found at {}!'.format(_log_config_location))
-            print('Logging won\'t be available!!')
-            log_settings = {'version': 1}  # minimum settings without errors
-
-    # load settings and rollover any rotating file handlers
-    # so each execution of this program is logged to a fresh file
-    os.makedirs('logs', exist_ok=True)
-    logging.config.dictConfig(log_settings)
+    _setup_logging(console_level)
     logger = logging.getLogger('simetuc')
-    for handler in logging.getLogger().handlers:
-        if isinstance(handler, logging.handlers.RotatingFileHandler):  # type: ignore
-            handler.doRollover()  # type: ignore
-
-    logger.debug('Called from cmd with arguments: %s.', sys.argv[1:])
-    logger.debug('Log settings dump:')
-    logger.debug(pprint.pformat(log_settings))
 
     logger.info('Starting program...')
+    logger.debug('Called from cmd with arguments: %s.', args)
 
     # load config file
     logger.info('Loading configuration...')

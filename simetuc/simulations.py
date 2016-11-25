@@ -17,7 +17,6 @@ import pprint
 from typing import Dict, List, Tuple, Iterator, Sequence
 import ctypes
 
-
 import h5py
 import yaml
 
@@ -164,7 +163,7 @@ def _solve_ode(t_arr, fun, fargs, jfun, jargs, initial_population,
                 step += 1
                 pbar_cmd.update(1)
         except UserWarning as err:  # pragma: no cover
-            logger.warning(err)
+            logger.warning(str(err))
             logger.warning('Most likely the ode solver is taking too many steps.')
             logger.warning('Either change your settings or increase "nsteps".')
             logger.warning('The program will continue, but the accuracy of the ' +
@@ -440,21 +439,25 @@ class DynamicsSolution(Solution):
         '''Load the experimental data from the expData/lattice_name folder.
            Two columns of numbers: first is time (seconds), second intensity
         '''
-
-        path = os.path.join('expData', lattice_name, filename)
+        # use absolute path from here
+        if os.path.isdir("expData"):
+            path = os.path.join('expData', lattice_name, filename)
+        elif os.path.isdir(os.path.join('simetuc', 'expData')):
+            path = os.path.join(os.path.join('simetuc', 'expData'), lattice_name, filename)
         try:
             with open(path, 'rt') as file:
                 try:  # TODO: get a better way to read data
                     data = csv.reader(file, delimiter='\t')
                     data = [row for row in data if row[0][0] is not '#']
                     data = np.array(data, dtype=np.float64)
+                    print(path)
                 except ValueError:  # pragma: no cover
                     data = csv.reader(file, delimiter=',')
                     data = [row for row in data if row[0][0] is not '#']
                     data = np.array(data, dtype=np.float64)
     #        data = np.loadtxt(path, usecols=(0, 1)) # 10x slower
         except FileNotFoundError:
-            # exp data dones't exist. not a problem.
+            # exp data doesn't exist. not a problem.
             return 0
 
         if len(data) == 0:

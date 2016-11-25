@@ -12,6 +12,9 @@ import os
 import logging
 from typing import Dict, List, Tuple
 
+import h5py
+import yaml
+
 import numpy as np
 import scipy.sparse
 from scipy.sparse import csr_matrix
@@ -19,19 +22,15 @@ from scipy.sparse import csr_matrix
 import simetuc.lattice as lattice
 
 
-def _load_lattice(filename: str) -> Tuple:
-    '''Loads the filename and returns it along with its associanted lattice_info
+def _load_lattice(filename: str) -> Dict:
+    '''Loads the filename and returns its associanted lattice_info
         Exceptions aren't handled by this function
     '''
+    with h5py.File(filename, mode='r') as file:
+        # deserialze lattice_info
+        lattice_info = yaml.load(file.attrs['lattice_info'])
 
-    # try load the lattice data
-    npzfile = np.load(filename)
-
-    # dict with the total number of ions, sensitizers, activators,
-    # number of S states, A states and total number of states
-    lattice_info = npzfile['lattice_info'][()]
-
-    return (npzfile, lattice_info)
+    return lattice_info
 
 
 #@profile
@@ -441,7 +440,7 @@ def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
             raise FileNotFoundError('Recalculate lattice')
 
         # try load the lattice data from disk
-        npzfile, lattice_info = _load_lattice(filename)
+        lattice_info = _load_lattice(filename)
 
         # check that the number of states is correct
         if (lattice_info['sensitizer_states'] is not cte['states']['sensitizer_states'] or
@@ -449,9 +448,8 @@ def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
             logger.info('Wrong number of states, recalculate lattice...')
             raise FileNotFoundError('Wrong number of states, recalculate lattice...')
 
-    except FileNotFoundError:
+    except OSError:
         logger.info('Creating lattice...')
-
         # don't show the plot
         old_no_plot = cte['no_plot']
         cte['no_plot'] = True
@@ -460,8 +458,7 @@ def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
         cte['no_plot'] = old_no_plot
 
         # load data from disk
-        npzfile, lattice_info = _load_lattice(filename)
-
+        lattice_info = _load_lattice(filename)
         logger.info('Lattice data created.')
     else:
         logger.info('Lattice data found.')
@@ -492,30 +489,23 @@ def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
     # k: other S ion that interacts
     # l: other A ion that interacts
 
-    # index of ion i (Yb) or j (Tm). It links the ion number with the position
-    # of its GS in the solution vector
-    # completely flatten the lists
-    index_S_i = list(itertools.chain.from_iterable(npzfile['index_S_i'].tolist()))
-    index_A_j = list(itertools.chain.from_iterable(npzfile['index_A_j'].tolist()))
+    with h5py.File(filename, mode='r') as file:
+        index_S_i = list(itertools.chain.from_iterable(np.array(file['indices_S_i']).tolist()))
+        index_A_j = list(itertools.chain.from_iterable(np.array(file['indices_A_j']).tolist()))
 
-    # for the ith ion, we find the indices of the energy levels of the ions it interacts with
-    # indices and distances from S number i to another S number k
-    indices_S_k = [np.array(x, dtype=np.int64) for x in npzfile['index_S_k']]  # list of arrays
-    dists_S_k = npzfile['dist_S_k']
+        indices_S_k = [np.array(x, dtype=np.int64) for x in file['index_S_k']]  # list of arrays
+        dists_S_k = np.array(file['dist_S_k'])
 
-    # indices and distances from S number i to an A number l
-    indices_S_l = [np.array(x, dtype=np.int64) for x in npzfile['index_S_l']]  # list of arrays
-    dists_S_l = npzfile['dist_S_l']
+        indices_S_l = [np.array(x, dtype=np.int64) for x in file['index_S_l']]  # list of arrays
+        dists_S_l = np.array(file['dist_S_l'])
 
-    # indices and distances from A number j to an S number k
-    indices_A_k = [np.array(x, dtype=np.int64) for x in npzfile['index_A_k']]  # list of arrays
-    dists_A_k = npzfile['dist_A_k']
+        indices_A_k = [np.array(x, dtype=np.int64) for x in file['index_A_k']]  # list of arrays
+        dists_A_k = np.array(file['dist_A_k'])
 
-    # indices and distances from A number j to an A number l
-    indices_A_l = [np.array(x, dtype=np.int64) for x in npzfile['index_A_l']]  # list of arrays
-    dists_A_l = npzfile['dist_A_l']
+        indices_A_l = [np.array(x, dtype=np.int64) for x in file['index_A_l']]  # list of arrays
+        dists_A_l = np.array(file['dist_A_l'])
 
-    initial_population = npzfile['initial_population']
+        initial_population = np.array(file['initial_population'])
 
     # build rate equations absorption and decay matrices
     logger.info('Building matrices...')
@@ -600,14 +590,13 @@ def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
 #    logger.debug('Called from main.')
 #
 #    import simetuc.settings as settings
-#    cte = settings.load('test/test_settings/test_standard_config.txt')
+#    cte = settings.load('config_file.cfg')
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
 #
-#
 #    (cte, initial_population, index_S_i, index_A_j,
 #     total_abs_matrix, decay_matrix, UC_matrix,
-#     N_indices, jac_indices) = precalculate(cte, test_filename='test/test_setup/data_2S_2A.npz')
+#     N_indices, jac_indices) = precalculate(cte)
 #
 #    UC_matrix = UC_matrix.toarray()
 #    total_abs_matrix = total_abs_matrix.toarray()

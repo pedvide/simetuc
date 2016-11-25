@@ -4,14 +4,22 @@ Created on Tue Nov  8 13:22:54 2016
 
 @author: Pedro
 """
-import pytest
 import os
+
+import pytest
+import h5py
 import numpy as np
 
 import simetuc.simulations as simulations
-from simetuc.util import temp_config_filename
+from simetuc.util import temp_config_filename, temp_bin_filename
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
+
+#@pytest.fixture(scope='function')
+#def temp_filename():
+#    '''Return the name of a temporary file'''
+#    file = tempfile.NamedTemporaryFile(mode='wb', delete=False)
+#    return file.name
 
 @pytest.fixture(scope='function')
 def setup_cte():
@@ -133,18 +141,18 @@ def test_sim(setup_cte):
     '''Test that the simulations work'''
     setup_cte['lattice']['S_conc'] = 0
     sim = simulations.Simulations(setup_cte)
-
     assert sim
 
 def test_sim_dyn1(setup_cte):
     '''Test that the dynamics work'''
     setup_cte['lattice']['S_conc'] = 0
-    sim = simulations.Simulations(setup_cte)
 
-    assert sim.cte == setup_cte
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        assert sim.cte == setup_cte
 
-    solution = sim.simulate_dynamics()
-    assert solution
+        solution = sim.simulate_dynamics()
+        assert solution
 
     solution.total_error
     solution.log_errors()
@@ -154,28 +162,32 @@ def test_sim_dyn1(setup_cte):
 
 def test_sim_dyn2(setup_cte):
     '''Test that the dynamics have the right result for a simple system'''
-    test_filename = os.path.join(test_folder_path, 'data_2S_2A.npz')
+    test_filename = os.path.join(test_folder_path, 'data_2S_2A.hdf5')
     sim = simulations.Simulations(setup_cte, full_path=test_filename)
 
     solution = sim.simulate_dynamics()
-    assert solution.index_A_j == [-1, 2, -1, 11]
-    assert solution.index_S_i == [0, -1, 9, -1]
+    assert solution.index_A_j == [0, -1, -1, 11]
+    assert solution.index_S_i == [-1, 7, 9, -1]
 
-    t_sol = np.load(os.path.join(test_folder_path, 't_sol_2S_2A.npy'))
+    with h5py.File(os.path.join(test_folder_path, 't_sol_2S_2A.hdf5')) as file:
+         t_sol = np.array(file['t_sol'])
     assert np.allclose(t_sol, solution.t_sol)
 
-    y_sol = np.load(os.path.join(test_folder_path, 'y_sol_2S_2A.npy'))
+    with h5py.File(os.path.join(test_folder_path, 'y_sol_2S_2A.hdf5')) as file:
+         y_sol = np.array(file['y_sol'])
     assert np.allclose(y_sol, solution.y_sol)
 
 def test_sim_dyn_diff(setup_cte):
     '''Test that the two dynamics are different'''
     setup_cte['lattice']['S_conc'] = 0
-    sim1 = simulations.Simulations(setup_cte)
-    solution1 = sim1.simulate_dynamics()
+    with temp_bin_filename() as temp_filename:
+        sim1 = simulations.Simulations(setup_cte, full_path=temp_filename)
+        solution1 = sim1.simulate_dynamics()
 
     setup_cte['lattice']['S_conc'] = 0.3
-    sim2 = simulations.Simulations(setup_cte)
-    solution2 = sim2.simulate_dynamics()
+    with temp_bin_filename() as temp_filename:
+        sim2 = simulations.Simulations(setup_cte, full_path=temp_filename)
+        solution2 = sim2.simulate_dynamics()
 
     assert sim1 != sim2
     assert solution1 != solution2
@@ -183,9 +195,9 @@ def test_sim_dyn_diff(setup_cte):
 
 def test_sim_dyn_save_hdf5(setup_cte):
     '''Test that the dynamics solution is saved a loaded correctly'''
-
-    sim = simulations.Simulations(setup_cte)
-    solution = sim.simulate_dynamics()
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        solution = sim.simulate_dynamics()
 
     with temp_config_filename('') as filename:
         solution.save(filename)
@@ -201,9 +213,9 @@ def test_sim_dyn_save_hdf5(setup_cte):
 
 def test_sim_dyn_save_txt(setup_cte):
     '''Test that the dynamics solution is saved a loaded correctly'''
-
-    sim = simulations.Simulations(setup_cte)
-    solution = sim.simulate_dynamics()
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        solution = sim.simulate_dynamics()
 
     with temp_config_filename('') as filename:
         solution.save_txt(filename)
@@ -211,26 +223,25 @@ def test_sim_dyn_save_txt(setup_cte):
 def test_sim_no_file_hdf5():
     '''Wrong filename'''
     with pytest.raises(OSError):
-
         simulations.DynamicsSolution().load(os.path.join(test_folder_path, 'wrongFile.hdf5'))
 
 def test_sim_dyn_no_t_pulse(setup_cte):
     '''Test that the dynamics gives an error if t_pulse is not defined'''
     del setup_cte['excitations']['Vis_473']['t_pulse']
-    sim = simulations.Simulations(setup_cte)
 
-    with pytest.raises(KeyError):
-        sim.simulate_dynamics()
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        with pytest.raises(KeyError):
+            sim.simulate_dynamics()
 
 def test_sim_steady(setup_cte):
     '''Test that the steady state solution is saved a loaded correctly'''
     setup_cte['excitations']['Vis_473']['t_pulse'] = 1e-08
-    sim = simulations.Simulations(setup_cte)
-
-    assert sim.cte == setup_cte
-
-    solution = sim.simulate_steady_state()
-    assert solution
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        assert sim.cte == setup_cte
+        solution = sim.simulate_steady_state()
+        assert solution
 
     solution.log_populations()
     solution.plot()
@@ -248,9 +259,9 @@ def test_sim_steady(setup_cte):
 def test_sim_no_plot(setup_cte, recwarn):
     '''Test that no plot works'''
     setup_cte['no_plot'] = True
-    sim = simulations.Simulations(setup_cte)
-
-    solution = sim.simulate_dynamics()
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        solution = sim.simulate_dynamics()
 
     with pytest.warns(simulations.PlotWarning):
         solution.plot()
@@ -261,12 +272,11 @@ def test_sim_no_plot(setup_cte, recwarn):
 
 def test_sim_power_dep1(setup_cte):
     '''Test that the power dependence works'''
-    sim = simulations.Simulations(setup_cte)
-
-    assert sim.cte == setup_cte
-
-    power_dens_list = np.logspace(1, 5, 5-1+1)
-    solution = sim.simulate_power_dependence(power_dens_list)
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        assert sim.cte == setup_cte
+        power_dens_list = np.logspace(1, 5, 5-1+1)
+        solution = sim.simulate_power_dependence(power_dens_list)
 
     assert solution
 
@@ -284,11 +294,10 @@ def test_sim_power_dep1(setup_cte):
 
 def test_sim_power_dep2(setup_cte, recwarn):
     '''Power dep list is empty'''
-
-    sim = simulations.Simulations(setup_cte)
-
-    power_dens_list = []
-    solution = sim.simulate_power_dependence(power_dens_list)
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        power_dens_list = []
+        solution = sim.simulate_power_dependence(power_dens_list)
 
     with pytest.warns(simulations.PlotWarning):
         solution.plot()
@@ -299,12 +308,11 @@ def test_sim_power_dep2(setup_cte, recwarn):
 
 def test_sim_power_dep3(setup_cte, recwarn):
     '''A plot was requested, but no_plot is set'''
-
     setup_cte['no_plot'] = True
-    sim = simulations.Simulations(setup_cte)
-
-    power_dens_list = np.logspace(1, 2, 3)
-    solution = sim.simulate_power_dependence(power_dens_list)
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        power_dens_list = np.logspace(1, 2, 3)
+        solution = sim.simulate_power_dependence(power_dens_list)
 
     with pytest.warns(simulations.PlotWarning):
         solution.plot()
@@ -315,36 +323,34 @@ def test_sim_power_dep3(setup_cte, recwarn):
 
 def test_sim_power_dep4(setup_cte):
     '''Check save_txt'''
-
     setup_cte['no_plot'] = True
-    sim = simulations.Simulations(setup_cte)
-
-    power_dens_list = np.logspace(1, 2, 3)
-    solution = sim.simulate_power_dependence(power_dens_list)
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        power_dens_list = np.logspace(1, 2, 3)
+        solution = sim.simulate_power_dependence(power_dens_list)
 
     with temp_config_filename('') as filename:
         solution.save_txt(filename)
 
 def test_sim_power_dep5(setup_cte):
     '''Check that the solutions have the right power_dens'''
-
     setup_cte['no_plot'] = True
-    sim = simulations.Simulations(setup_cte)
-
-    power_dens_list = np.logspace(1, 2, 3)
-    solution = sim.simulate_power_dependence(power_dens_list)
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        power_dens_list = np.logspace(1, 2, 3)
+        solution = sim.simulate_power_dependence(power_dens_list)
 
     for num, power_dens in enumerate(power_dens_list):
         solution[num].power_dens == power_dens
 
 def test_sim_conc_dep1(setup_cte):
     '''Test that the concentration dependence works'''
-    sim = simulations.Simulations(setup_cte)
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        assert sim.cte == setup_cte
+        conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
+        solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
 
-    assert sim.cte == setup_cte
-
-    conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
-    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
     assert solution
     solution.plot()
     with temp_config_filename('') as filename:
@@ -357,8 +363,10 @@ def test_sim_conc_dep1(setup_cte):
     assert sol_hdf5 == solution
     sol_hdf5.plot()
 
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
 
-    solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
     assert solution
     solution.plot()
     with temp_config_filename('') as filename:
@@ -373,29 +381,30 @@ def test_sim_conc_dep1(setup_cte):
 
 def test_sim_conc_dep2(setup_cte):
     '''Conc list has only A changing'''
-    sim = simulations.Simulations(setup_cte)
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        conc_list = [(0.0, 0.01), (0.0, 0.1), (0.0, 0.3)]
+        solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
 
-    conc_list = [(0.0, 0.01), (0.0, 0.1), (0.0, 0.3)]
-    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
     assert solution
     solution.plot()
 
 def test_sim_conc_dep3(setup_cte):
     '''Conc list has only S changing'''
-    sim = simulations.Simulations(setup_cte)
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        conc_list = [(0.01, 0.3), (0.1, 0.3), (0.3, 0.3)]
+        solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
 
-    conc_list = [(0.01, 0.3), (0.1, 0.3), (0.3, 0.3)]
-    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
     assert solution
     solution.plot()
 
 def test_sim_conc_dep4(setup_cte, recwarn):
     '''Conc list is empty'''
-
-    sim = simulations.Simulations(setup_cte)
-
-    conc_list = []
-    solution = sim.simulate_concentration_dependence(conc_list)
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        conc_list = []
+        solution = sim.simulate_concentration_dependence(conc_list)
 
     with pytest.warns(simulations.PlotWarning):
         solution.plot()
@@ -408,10 +417,10 @@ def test_sim_conc_dep4(setup_cte, recwarn):
 def test_sim_conc_dep5(setup_cte, recwarn):
     '''A plot was requested, but no_plot is set'''
     setup_cte['no_plot'] = True
-    sim = simulations.Simulations(setup_cte)
-
-    conc_list = [(0.01, 0.3), (0.1, 0.3)]
-    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        conc_list = [(0.01, 0.3), (0.1, 0.3)]
+        solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
 
     with pytest.warns(simulations.PlotWarning):
         solution.plot()

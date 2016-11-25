@@ -8,7 +8,7 @@ Created on Tue Oct 11 15:58:58 2016
 import time
 import logging
 import functools
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List, Callable
 
 import numpy as np
 # pylint: disable=E1101
@@ -35,6 +35,24 @@ def cache(function):
         return f_val
     return wrapper
 
+def optim_fun_generator(sim: simulations.Simulations,
+                        process_list: List[str], x0: np.array) -> Callable:
+    '''Generate the function to be optimize.
+        This function modifies the ET params and return the error
+    '''
+
+    def _update_ET_and_simulate(x):
+        # update ET values if explicitly given
+        for num, process in enumerate(process_list):
+            sim.modify_ET_param_value(process, x[num]*x0[num])  # precondition
+
+        dynamics_sol = sim.simulate_dynamics()
+        total_error = dynamics_sol.total_error
+
+        return total_error
+
+    return _update_ET_and_simulate
+
 
 def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
     ''' Minimize the error between experimental data and simulation for the settings in cte
@@ -51,16 +69,6 @@ def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
             msg = '({}): {:.3e}'.format(format_params, cache.f_val_lst[-1])
             tqdm.tqdm.write(msg)
 
-    def _update_ET_and_simulate(x):
-        # update ET values if explicitly given
-        for num, process in enumerate(process_list):
-            sim.modify_ET_param_value(process, x[num]*x0[num])  # precondition
-
-        dynamics_sol = sim.simulate_dynamics()
-        total_error = dynamics_sol.total_error
-
-        return total_error
-
     @cache
     def fun_optim(x: np.array) -> float:
         ''' Function to optimize.
@@ -71,6 +79,7 @@ def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
 
     def fun_optim_brute(x: np.array) -> float:
         ''' Function to optimize by brute force.
+            No cache.
         '''
         pbar.update(1)
         total_error = _update_ET_and_simulate(x)
@@ -85,13 +94,15 @@ def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
     # read the starting values from the settings
     if 'optimization_processes' in cte and cte['optimization_processes'] is not None:
         # optimize only those ET parameters that the user has selected
-        process_list = np.array([process for process in cte['ET']
-                                 if process in cte['optimization_processes']])
+        process_list = [process for process in cte['ET']
+                        if process in cte['optimization_processes']]
     else:
-        process_list = np.array([process for process in cte['ET']])
+        process_list = [process for process in cte['ET']]
 
     # starting point
     x0 = np.array([cte['ET'][process]['value'] for process in process_list])
+
+    _update_ET_and_simulate = optim_fun_generator(sim, process_list, x0)
 
     tol = 1e-4
     bounds = ((0, 1e10),)*len(x0)
