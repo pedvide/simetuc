@@ -90,16 +90,6 @@ def setup_cte():
                                          ('init_state', [0, 2]),
                                          ('final_state', [3, 5]),
                                          ('ion_exc', ['A', 'A'])]))])),
-             ('experimental_data',
-              [None,
-               None,
-               None,
-               'tau_Tm_3F4_exc_Vis_473.txt',
-               None,
-               'tau_Tm_3H4_exc_Vis_473.txt',
-               None,
-               'tau_Tm_1G4_exc_Vis_473.txt',
-               'tau_Tm_1D2_exc_Vis_473.txt']),
              ('optimization_params', ['CR50']),
              ('decay',
               {'B_pos_value_A': [(1, 0, 1.0),
@@ -849,7 +839,7 @@ def test_wrong_number_states(setup_cte):
     cte = setup_cte
     cte['lattice']['S_conc'] = 1
     cte['lattice']['A_conc'] = 1
-    cte['lattice']['N_uc'] = 5
+    cte['lattice']['N_uc'] = 8
     cte['states']['sensitizer_states'] = 2
     cte['states']['activator_states'] = 7
 

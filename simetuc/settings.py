@@ -769,7 +769,7 @@ def load(filename: str) -> Dict:
     needed_sections = ['lattice', 'states', 'excitations',
                        'sensitizer_decay', 'activator_decay',
                        'sensitizer_branching_ratios', 'activator_branching_ratios']
-    optional_sections = ['experimental_data', 'optimization_processes',
+    optional_sections = ['optimization_processes',
                          'enery_transfer', 'simulation_params', 'power_dependence',
                          'concentration_dependence']
     _check_values(needed_sections, config_cte, optional_values_lst=optional_sections)

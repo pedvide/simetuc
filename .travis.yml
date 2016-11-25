@@ -24,18 +24,19 @@ install:
   - pip install mypy-lang
   - python setup.py install
 
-# command to run tests
+# create graphical display so plots don't fail
 before_script:
   - "export DISPLAY=:99.0"
   - "sh -e /etc/init.d/xvfb start"
   - sleep 3 # give xvfb some time to start
+
 script:
   - pytest -v --cov-report term-missing
   - flake8 --tee
   - mypy -s -p simetuc
 
 after_success:
-  - ls -l
+  - coverage report
   - coveralls
 
 notifications:
