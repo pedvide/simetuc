@@ -14,7 +14,7 @@ Simulating Energy Transfer and Upconversion
 ## Installation
 
 Python 3.5 is required (it may work with earlier versions, though).
-Installing [Anaconda](https://anaconda.org/) is recommended (preferably 64 bits). 
+Installing [Anaconda](https://www.continuum.io/downloads) is recommended (preferably 64 bits). 
 
 
     $ conda install -c pedvide simetuc
