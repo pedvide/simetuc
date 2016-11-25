@@ -1,7 +1,6 @@
 [run]
 source = simetuc
-omit =
-    *test_*
+omit = *test_*
 
 [report]
 exclude_lines =
