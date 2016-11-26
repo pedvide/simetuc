@@ -3,9 +3,10 @@ numpy >=1.11.2 # anaconda
 matplotlib >=1.5.1 # anaconda
 pytest >=3.0.3 # anaconda, only for tests
 pytest-cov # coverage of tests
+pytest-mock # tests
+python-coveralls # coverage
 flake8
 tqdm >=4.8.4 # anaconda
 ase >=3.9.1 # anaconda
 PyYAML >=3.12 # anaconda
 h5py >=2.6 # anaconda
-python-coveralls # coverage

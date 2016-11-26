@@ -440,7 +440,7 @@ class DynamicsSolution(Solution):
            Two columns of numbers: first is time (seconds), second intensity
         '''
         # use absolute path from here
-        if os.path.isdir("expData"):
+        if os.path.isdir("expData"):  # pragma: no cover
             path = os.path.join('expData', lattice_name, filename)
         elif os.path.isdir(os.path.join('simetuc', 'expData')):
             path = os.path.join(os.path.join('simetuc', 'expData'), lattice_name, filename)
@@ -662,7 +662,7 @@ class SolutionList(Sequence[Solution]):
     def save(self, full_path: str = None) -> None:
         '''Save all data from all solutions in a HDF5 file'''
         if full_path is None:  # pragma: no cover
-            full_path = self.solution_list[0].save_file_full_path() + '_' + self._suffix + '.hdf5'
+            full_path = self[0].save_file_full_path() + '_' + self._suffix + '.hdf5'
 
         with h5py.File(full_path, 'w') as file:
             for num, sol in enumerate(self):
@@ -696,7 +696,7 @@ class SolutionList(Sequence[Solution]):
     def save_txt(self, full_path: str = None, mode: str = 'w') -> None:
         '''Save the settings, the time and the average populations to disk as a textfile'''
         if full_path is None:  # pragma: no cover
-            full_path = self.solution_list[0].save_file_full_path() + '.txt'
+            full_path = self[0].save_file_full_path() + '.txt'
         with open(full_path, 'wt') as csvfile:
             csvfile.write('Solution list:\n')
         for sol in self:
@@ -720,7 +720,7 @@ class PowerDependenceSolution(SolutionList):
 
     def __repr__(self) -> str:
         '''Representation of a power dependence list.'''
-        conc = self.solution_list[0].concentration
+        conc = self[0].concentration
         powers = [sol.power_dens for sol in self]
         return '{}(num_solutions={}, conc={}, power_dens={})'.format(self.__class__.__name__,
                                                                      len(self),
@@ -738,7 +738,7 @@ class PowerDependenceSolution(SolutionList):
             warnings.warn(msg, PlotWarning)
             return
 
-        if self.solution_list[0].cte_copy['no_plot']:
+        if self[0].cte_copy['no_plot']:
             logger = logging.getLogger(__name__)
             msg = 'A plot was requested, but no_plot setting is set'
             logger.warning(msg)
@@ -748,7 +748,7 @@ class PowerDependenceSolution(SolutionList):
         sim_data_arr = np.array([np.array(sol.steady_state_populations)
                                  for sol in self])
         power_dens_arr = np.array([sol.power_dens for sol in self])
-        state_labels = self.solution_list[0].state_labels
+        state_labels = self[0].state_labels
 
         Plotter.plot_power_dependence(sim_data_arr, power_dens_arr, state_labels)
 
@@ -772,7 +772,7 @@ class ConcentrationDependenceSolution(SolutionList):
     def __repr__(self) -> str:
         '''Representation of a concentration dependence list.'''
         concs = [sol.concentration for sol in self]
-        power = self.solution_list[0].power_dens
+        power = self[0].power_dens
         return '{}(num_solutions={}, conc={}, power_dens={})'.format(self.__class__.__name__,
                                                                      len(self),
                                                                      concs,
@@ -782,7 +782,7 @@ class ConcentrationDependenceSolution(SolutionList):
         '''Save all data from all solutions in a HDF5 file'''
         # change the name of the saved file and pass it to the super method
         if full_path is None:  # pragma: no cover
-            conc_path = self.solution_list[0].save_file_full_path()
+            conc_path = self[0].save_file_full_path()
             # get only the data_Xuc part
             conc_path = '_'.join(conc_path.split('_')[:2])
             full_path = conc_path + '_' + self._suffix + '.hdf5'
@@ -799,7 +799,7 @@ class ConcentrationDependenceSolution(SolutionList):
             warnings.warn(msg, PlotWarning)
             return
 
-        if self.solution_list[0].cte_copy['no_plot']:
+        if self[0].cte_copy['no_plot']:
             logger = logging.getLogger(__name__)
             msg = 'A plot was requested, but no_plot setting is set'
             logger.warning(msg)
@@ -809,7 +809,7 @@ class ConcentrationDependenceSolution(SolutionList):
         if self.dynamics:
             # plot all decay curves together
             color_list = [c+c for c in 'rgbmyc'*3]
-            for color, sol in zip(color_list, self.solution_list):
+            for color, sol in zip(color_list, self):
                 Plotter.plot_avg_decay_data(sol.t_sol, sol.list_avg_data,
                                             state_labels=sol.state_labels,
                                             show_conc=True, colors=color)
@@ -817,8 +817,8 @@ class ConcentrationDependenceSolution(SolutionList):
             sim_data_arr = np.array([np.array(sol.steady_state_populations)
                                      for sol in self])
 
-            S_states = self.solution_list[0].cte_copy['states']['sensitizer_states']
-            A_states = self.solution_list[0].cte_copy['states']['activator_states']
+            S_states = self[0].cte_copy['states']['sensitizer_states']
+            A_states = self[0].cte_copy['states']['activator_states']
             conc_factor_arr = np.array([([float(sol.concentration[0])]*S_states +
                                          [float(sol.concentration[1])]*A_states)
                                         for sol in self])
@@ -839,7 +839,7 @@ class ConcentrationDependenceSolution(SolutionList):
                 conc_arr = np.array(list(zip(S_conc_l, A_conc_l)))
 
             # plot
-            state_labels = self.solution_list[0].state_labels
+            state_labels = self[0].state_labels
             Plotter.plot_concentration_dependence(sim_data_arr, conc_arr, state_labels)
 
 
@@ -1145,7 +1145,6 @@ class Simulations():
                              rtol=rtol, atol=atol, quiet=self.cte['no_console'])
 
         # relaxation
-
         logger.info('Solving relaxation...')
         t_sol = np.logspace(np.log10(t0_sol), np.log10(tf_sol), N_steps, dtype=np.float64)
         y_sol = _solve_ode(t_sol, _rate_eq, (decay_matrix, UC_matrix, N_indices),

@@ -34,8 +34,13 @@ script:
   - pytest -v --cov-report term-missing
   - flake8 --tee
   - mypy -s -p simetuc
+  - ls -la
+  - ls -la simetuc
+  - cat .coverage
 
 after_success:
+  - coverage report
+  - cd simetuc
   - coverage report
   - coveralls
 
