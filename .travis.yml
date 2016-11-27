@@ -1,8 +1,7 @@
 language: python
 python:
-  - "3.2"
-  - "3.3"
-  - "3.4"
+#  - "3.3" ase does not support python 3.3
+#  - "3.4" fails with tuple expansion in np.savetxt
   - "3.5"
 
 # command to install dependencies
