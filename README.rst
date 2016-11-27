@@ -12,8 +12,8 @@ Installation
 ------------
 
 Python 3.5 is required (it may work with earlier versions, though).
-Installing `Anaconda <https://anaconda.org/>`__ is recommended
-(preferably 64 bits).
+Installing `Anaconda <https://www.continuum.io/downloads>`__ is
+recommended (preferably 64 bits).
 
 ::
 
