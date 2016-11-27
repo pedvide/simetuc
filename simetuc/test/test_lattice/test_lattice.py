@@ -10,6 +10,7 @@ import numpy as np
 # pylint: disable=E1101
 
 import simetuc.lattice as lattice
+from simetuc.util import temp_bin_filename
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -92,18 +93,20 @@ def test_cte(setup_cte, params):
 
     if normal_result:
 
-        full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
-                                           cte['lattice']['S_conc'], cte['lattice']['A_conc'])
+#        full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
+#                                           cte['lattice']['S_conc'], cte['lattice']['A_conc'])
 
-        (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
-        index_S_i, index_A_j,
-        index_S_k, dist_S_k,
-        index_S_l, dist_S_l,
-        index_A_k, dist_A_k,
-        index_A_l, dist_A_l) = lattice.generate(cte, full_path=full_path)
+        with temp_bin_filename() as temp_filename:
+            (dist_array, ion_type, doped_lattice,
+             initial_population, lattice_info,
+             index_S_i, index_A_j,
+             index_S_k, dist_S_k,
+             index_S_l, dist_S_l,
+             index_A_k, dist_A_k,
+             index_A_l, dist_A_l) = lattice.generate(cte, full_path=temp_filename)
 
         # remove lattice file
-        os.remove(full_path)
+#        os.remove(full_path)
 
         num_ions = lattice_info['num_total']
         num_activators = lattice_info['num_activators']
@@ -175,12 +178,14 @@ def test_cte(setup_cte, params):
     else: # tests that result in an exception
 
         with pytest.raises(lattice.LatticeError):
-            (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
-            index_S_i, index_A_j,
-            index_S_k, dist_S_k,
-            index_S_l, dist_S_l,
-            index_A_k, dist_A_k,
-            index_A_l, dist_A_l) = lattice.generate(cte)
+            with temp_bin_filename() as temp_filename:
+                (dist_array, ion_type, doped_lattice,
+                 initial_population, lattice_info,
+                 index_S_i, index_A_j,
+                 index_S_k, dist_S_k,
+                 index_S_l, dist_S_l,
+                 index_A_k, dist_A_k,
+                 index_A_l, dist_A_l) = lattice.generate(cte, full_path=temp_filename)
 
 def test_single_atom(setup_cte): # generate lattices with a single S or A
     cte = setup_cte
@@ -195,18 +200,14 @@ def test_single_atom(setup_cte): # generate lattices with a single S or A
     cte['lattice']['A_conc'] = 50.0
     while not success:
         try:
-            full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
-                                           cte['lattice']['S_conc'], cte['lattice']['A_conc'])
-
-            (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
-            index_S_i, index_A_j,
-            index_S_k, dist_S_k,
-            index_S_l, dist_S_l,
-            index_A_k, dist_A_k,
-            index_A_l, dist_A_l) = lattice.generate(cte, full_path=full_path)
-
-            # remove lattice file
-            os.remove(full_path)
+            with temp_bin_filename() as temp_filename:
+                (dist_array, ion_type, doped_lattice,
+                 initial_population, lattice_info,
+                 index_S_i, index_A_j,
+                 index_S_k, dist_S_k,
+                 index_S_l, dist_S_l,
+                 index_A_k, dist_A_k,
+                 index_A_l, dist_A_l) = lattice.generate(cte, full_path=temp_filename)
         except lattice.LatticeError: # no ions were generated, repeat
             pass
         else:
@@ -219,18 +220,14 @@ def test_single_atom(setup_cte): # generate lattices with a single S or A
     cte['lattice']['A_conc'] = 0.0
     while not success:
         try:
-            full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
-                                           cte['lattice']['S_conc'], cte['lattice']['A_conc'])
-
-            (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
-            index_S_i, index_A_j,
-            index_S_k, dist_S_k,
-            index_S_l, dist_S_l,
-            index_A_k, dist_A_k,
-            index_A_l, dist_A_l) = lattice.generate(cte, full_path=full_path)
-
-            # remove lattice file
-            os.remove(full_path)
+            with temp_bin_filename() as temp_filename:
+                (dist_array, ion_type, doped_lattice,
+                 initial_population, lattice_info,
+                 index_S_i, index_A_j,
+                 index_S_k, dist_S_k,
+                 index_S_l, dist_S_l,
+                 index_A_k, dist_A_k,
+                 index_A_l, dist_A_l) = lattice.generate(cte, full_path=temp_filename)
         except lattice.LatticeError: # no ions were generated, repeat
             pass
         else:

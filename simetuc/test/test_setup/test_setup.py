@@ -14,6 +14,7 @@ import scipy.sparse as sparse
 
 import simetuc.precalculate as precalculate
 import simetuc.lattice as lattice # for the LatticeError exception
+from simetuc.util import temp_bin_filename
 
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
@@ -679,6 +680,8 @@ def idfn(params):
                                             params[3], params[4])
 
 # the tests marked as False will return an exception.
+# Don't repeat parameters so the distributed testing works
+# (two test won't try to access the same lattice file)
 @pytest.mark.parametrize('absorption', ['NIR_980', 'Vis_473', 'NIR_800']) # absorption of S or A
 @pytest.mark.parametrize('params', [(10.5, 5.2, 7, 2, 7, True), # normal
                                     (0.05, 0.0, 40, 2, 7, True), # no A, change S and N_uc
@@ -737,17 +740,17 @@ def test_random_lattice(setup_cte, params, absorption):
         cte['excitations']['NIR_800']['active'] = True
 
 
-    full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
-                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
+#    full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
+#                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
 
     if normal_result:
-
-        (cte, initial_population, index_S_i, index_A_j,
-         total_abs_matrix, decay_matrix, ET_matrix,
-         N_indices, jac_indices) = precalculate.precalculate(cte, full_path=full_path)
+        with temp_bin_filename() as temp_filename:
+            (cte, initial_population, index_S_i, index_A_j,
+             total_abs_matrix, decay_matrix, ET_matrix,
+             N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
 
         # remove lattice file
-        os.remove(full_path)
+#        os.remove(full_path)
 
         # some matrices can grow very large. Make sure it's returned as sparse
         assert sparse.issparse(ET_matrix)
@@ -804,11 +807,12 @@ def test_random_lattice(setup_cte, params, absorption):
             assert np.max(jac_indices[:, 2]) <= num_states-1
 
     else: # tests that result in an exception
-
         with pytest.raises(lattice.LatticeError):
-            (cte, initial_population, index_S_i, index_A_j,
-             absorption_matrix, decay_matrix, ET_matrix,
-             N_indices, jac_indices) = precalculate.precalculate(cte, full_path=full_path)
+            with temp_bin_filename() as temp_filename:
+                (cte, initial_population, index_S_i, index_A_j,
+                 absorption_matrix, decay_matrix, ET_matrix,
+                 N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
+
 
 def test_get_lifetimes(setup_cte):
 
@@ -819,15 +823,10 @@ def test_get_lifetimes(setup_cte):
     cte['states']['sensitizer_states'] = 2
     cte['states']['activator_states'] = 7
 
-    full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
-                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
-
-    (cte, initial_population, index_S_i, index_A_j,
-     total_abs_matrix, decay_matrix, ET_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(cte, full_path=full_path)
-
-    # remove lattice file
-    os.remove(full_path)
+    with temp_bin_filename() as temp_filename:
+        (cte, initial_population, index_S_i, index_A_j,
+         total_abs_matrix, decay_matrix, ET_matrix,
+         N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
 
     tau_list = precalculate.get_lifetimes(cte)
 
@@ -843,18 +842,14 @@ def test_wrong_number_states(setup_cte):
     cte['states']['sensitizer_states'] = 2
     cte['states']['activator_states'] = 7
 
-    full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
-                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
+    with temp_bin_filename() as temp_filename:
+        (cte, initial_population, index_S_i, index_A_j,
+         total_abs_matrix, decay_matrix, ET_matrix,
+         N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
 
-    (cte, initial_population, index_S_i, index_A_j,
-     total_abs_matrix, decay_matrix, ET_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(cte, full_path=full_path)
-
-    #¸ change number of states
+    # change number of states
     cte['states']['activator_states'] = 10
-    (cte, initial_population, index_S_i, index_A_j,
-     total_abs_matrix, decay_matrix, ET_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(cte, full_path=full_path)
-
-    # remove lattice file
-    os.remove(full_path)
+    with temp_bin_filename() as temp_filename:
+        (cte, initial_population, index_S_i, index_A_j,
+         total_abs_matrix, decay_matrix, ET_matrix,
+         N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
