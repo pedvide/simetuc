@@ -11,9 +11,9 @@ Status| |Coverage Status|
 Installation
 ------------
 
-Python 3.5 is required (it may work with earlier versions, though).
-Installing `Anaconda <https://www.continuum.io/downloads>`__ is
-recommended (preferably 64 bits).
+Python 3.5 is required. Installing
+`Anaconda <https://www.continuum.io/downloads>`__ is recommended
+(preferably 64 bits).
 
 ::
 
@@ -73,6 +73,7 @@ TODO
 -  [ ] Add pressure dependene option: Change the distances of the
    lattice and simulate dynamics or steady-state.
 -  [ ] Read experimental data in more formats.
+-  [ ] Add option for average rate equations.
 
 Bugs/Requests
 -------------
@@ -80,6 +81,21 @@ Bugs/Requests
 Please use the `GitHub issue
 tracker <https://github.com/pedvide/simetuc/issues>`__ to submit bugs or
 request features.
+
+Publications
+------------
+
+This software has been described and used in these publications:
+
+-  Villanueva-Delgado, P.; Krämer, K. W. & Valiente, R. `Simulating
+   Energy Transfer and Upconversion in β-NaYF4: Yb3+,
+   Tm3+ <http://pubs.acs.org/doi/10.1021/acs.jpcc.5b06770>`__
+-  Villanueva-Delgado, P.; Krämer, K. W.; Valiente, R.; de Jong, M. &
+   Meijerink, A. `Modeling Blue to UV Upconversion in β-NaYF4:
+   Tm3+ <http://pubs.rsc.org/en/Content/ArticleLanding/2016/CP/C6CP04347J#!divAbstract>`__
+
+If you use this sofware in a scientific publication, please cite the
+appropiate articles above.
 
 Acknowledgements
 ----------------

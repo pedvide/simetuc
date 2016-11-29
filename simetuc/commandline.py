@@ -62,9 +62,9 @@ def parse_args(args: Any) -> argparse.Namespace:
     parser.add_argument(metavar='configFilename', dest='filename', help='configuration filename')
 
     # main options: load config file, lattice, simulate or optimize
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--config', help='import configuration from file',
-                       action='store_true')
+    group = parser.add_mutually_exclusive_group(required=False)
+#    group.add_argument('--config', help='import configuration from file',
+#                       action='store_true')
     group.add_argument('-l', '--lattice', help='generate and plot the lattice',
                        action='store_true')
     group.add_argument('-d', '--dynamics', help='simulate dynamics',
@@ -94,7 +94,6 @@ def parse_args(args: Any) -> argparse.Namespace:
 #    foo_parser.add_argument('-c', '--count')
 
     parsed_args = parser.parse_args(args)
-
     return parsed_args
 
 

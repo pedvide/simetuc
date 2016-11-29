@@ -16,6 +16,7 @@ import os
 import pprint
 from typing import Dict, List, Tuple, Iterator, Sequence
 import ctypes
+from collections import namedtuple
 
 import h5py
 import yaml
@@ -176,6 +177,10 @@ def _solve_ode(t_arr, fun, fargs, jfun, jargs, initial_population,
     return y_arr
 
 
+# namedtuple for the concentration of solutions
+Conc = namedtuple('Concentration', ['S_conc', 'A_conc'])
+
+
 class Solution():
     '''Base class for solutions of rate equation problems'''
 
@@ -212,10 +217,10 @@ class Solution():
 
     def __repr__(self) -> str:
         '''Representation of a solution.'''
-        return '{}(num_states={}, conc={}, power_dens={:.1e})'.format(self.__class__.__name__,
-                                                                      self.y_sol.shape[1],
-                                                                      self.concentration,
-                                                                      self.power_dens)
+        return '{}(num_states={}, {}, power_dens={:.1e})'.format(self.__class__.__name__,
+                                                                 self.y_sol.shape[1],
+                                                                 self.concentration,
+                                                                 self.power_dens)
 
     def _calculate_avg_populations(self) -> List[np.array]:
         '''Returs the average populations of each state. First S then A states.'''
@@ -291,9 +296,10 @@ class Solution():
             return self.cte_copy['excitations'][excitation]['power_dens']
 
     @property
-    def concentration(self) -> Tuple[float, float]:
+    def concentration(self) -> Conc:
         '''Return the tuple (sensitizer, activator) concentration used to obtain this solution.'''
-        return (self.cte_copy['lattice']['S_conc'], self.cte_copy['lattice']['A_conc'])
+        namedtuple('Concentration', ['S_conc', 'A_conc'])
+        return Conc(self.cte_copy['lattice']['S_conc'], self.cte_copy['lattice']['A_conc'])
 
     def add_sim_data(self, t_sol: np.ndarray, y_sol: np.ndarray) -> None:
         '''Add the simulated solution data'''
@@ -773,10 +779,10 @@ class ConcentrationDependenceSolution(SolutionList):
         '''Representation of a concentration dependence list.'''
         concs = [sol.concentration for sol in self]
         power = self[0].power_dens
-        return '{}(num_solutions={}, conc={}, power_dens={})'.format(self.__class__.__name__,
-                                                                     len(self),
-                                                                     concs,
-                                                                     power)
+        return '{}(num_solutions={}, concs={}, power_dens={})'.format(self.__class__.__name__,
+                                                                      len(self),
+                                                                      concs,
+                                                                      power)
 
     def save(self, full_path: str = None) -> None:
         '''Save all data from all solutions in a HDF5 file'''
@@ -812,15 +818,16 @@ class ConcentrationDependenceSolution(SolutionList):
             for color, sol in zip(color_list, self):
                 Plotter.plot_avg_decay_data(sol.t_sol, sol.list_avg_data,
                                             state_labels=sol.state_labels,
-                                            show_conc=True, colors=color)
+                                            concentration=sol.concentration,
+                                            colors=color)
         else:
             sim_data_arr = np.array([np.array(sol.steady_state_populations)
                                      for sol in self])
 
             S_states = self[0].cte_copy['states']['sensitizer_states']
             A_states = self[0].cte_copy['states']['activator_states']
-            conc_factor_arr = np.array([([float(sol.concentration[0])]*S_states +
-                                         [float(sol.concentration[1])]*A_states)
+            conc_factor_arr = np.array([([float(sol.concentration.S_conc)]*S_states +
+                                         [float(sol.concentration.A_conc)]*A_states)
                                         for sol in self])
 
             # multiply the average state populations by the concentration
@@ -828,8 +835,8 @@ class ConcentrationDependenceSolution(SolutionList):
             sim_data_arr *= conc_factor_arr
 
             # if all elements of S_conc_l are equal use A_conc to plot and viceversa
-            S_conc_l = [float(sol.concentration[0]) for sol in self]
-            A_conc_l = [float(sol.concentration[1]) for sol in self]
+            S_conc_l = [float(sol.concentration.S_conc) for sol in self]
+            A_conc_l = [float(sol.concentration.A_conc) for sol in self]
             if S_conc_l.count(S_conc_l[0]) == len(S_conc_l):
                 conc_arr = np.array(A_conc_l)
             elif A_conc_l.count(A_conc_l[0]) == len(A_conc_l):
@@ -855,11 +862,12 @@ class Plotter():
     def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
                             list_exp_data: List[np.array] = None,
                             state_labels: List[str] = None,
-                            atol: float = 1e-15, show_conc: bool = False,
+                            concentration: Conc = None,
+                            atol: float = 1e-15,
                             colors: str = 'rk') -> None:
-        ''' Plot the list of experimental and average simulated data against time in solution.
-            If no_exp is True, no experimental data will be plotted.
-            If show_conc is True, the legend will show the concentrations (it can get long).
+        ''' Plot the list of simulated and experimental data (optional) against time in t_sol.
+            If concentration is given, the legend will show the concentrations
+            along with the state_labels (it can get long).
             colors is a string with two chars. The first is the sim color,
             the second the exp data color.
         '''
@@ -873,13 +881,9 @@ class Plotter():
         list_exp_data = list_exp_data or [None]*num_plots
         state_labels = state_labels or [None]*num_plots
 
-#        if show_conc is True:
-#            S_conc = str(float(solution.cte_copy['lattice']['S_conc']))
-#            S_label = solution.cte_copy['states']['sensitizer_ion_label']
-#            A_conc = str(float(solution.cte_copy['lattice']['A_conc']))
-#            A_label = solution.cte_copy['states']['activator_ion_label']
-#            conc_str = '_' + S_conc + S_label + '_' + A_conc + A_label
-#            state_labels = [label+conc_str for label in state_labels]
+        if concentration is not None:
+            conc_str = '_' + str(concentration.S_conc) + 'S_' + str(concentration.A_conc) + 'A'
+            state_labels = [label+conc_str for label in state_labels]
 
         for num, (sim_data_corr, exp_data, state_label)\
             in enumerate(zip(list_sim_data, list_exp_data, state_labels)):
@@ -1315,40 +1319,36 @@ class Simulations():
 #
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
-##
-##    (cte, initial_population, index_S_i, index_A_j,
-##     total_abs_matrix, decay_matrix,
-##     UC_matrix,
-##     N_indices, jac_indices) = precalculate.precalculate(cte)
-##
+#
+#
 #    sim = Simulations(cte)
-##
+#
 #    solution = sim.simulate_dynamics()
-##    solution.log_errors()
-##
-##    solution = sim.simulate_steady_state()
-###    solution.log_populations()
-##
-##    solution.plot()
-##
-###    solution.save()
-###    new_sol = DynamicsSolution()
-###    new_sol.load('results/bNaYF4/DynamicsSolution.hdf5')
-##
-##    power_dens_list = np.logspace(1, 8, 8-1+1)
-##    solution = sim.simulate_power_dependence(cte['power_dependence'])
-##    solution.plot()
-###    solution.save()
-###    new_sol = PowerDependenceSolution()
-###    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_pow_dep.hdf5')
-###    new_sol.plot()
-##
-##    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
-##    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
-##    solution.plot()
-##    solution.save()
-##
-###    new_sol = ConcentrationDependenceSolution()
-###    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_conc_dep.hdf5')
-###    new_sol.plot()
-##
+#    solution.log_errors()
+#
+#    solution = sim.simulate_steady_state()
+#    solution.log_populations()
+#
+#    solution.plot()
+#
+#    solution.save()
+#    new_sol = DynamicsSolution()
+#    new_sol.load('results/bNaYF4/DynamicsSolution.hdf5')
+#
+#    power_dens_list = np.logspace(1, 8, 8-1+1)
+#    solution = sim.simulate_power_dependence(cte['power_dependence'])
+#    solution.plot()
+#    solution.save()
+#    new_sol = PowerDependenceSolution()
+#    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_pow_dep.hdf5')
+#    new_sol.plot()
+#
+#    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
+#    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
+#    solution.plot()
+#    solution.save()
+#
+#    new_sol = ConcentrationDependenceSolution()
+#    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_conc_dep.hdf5')
+#    new_sol.plot()
+#
