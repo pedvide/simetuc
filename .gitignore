@@ -31,6 +31,13 @@ data*uc*
 # cubby conflicts
 *(conflict at*)*
 
+simetuc/logs/
+simetuc/flake8.txt
+simetuc/results/
+*.old
+simetuc/config_file_TiO.cfg
+
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
@@ -40,8 +47,6 @@ data*uc*
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
-
-simetuc/logs/*.txt*
 
 # Unit test / coverage reports
 htmlcov/
@@ -54,6 +59,7 @@ coverage.xml
 *,cover
 .hypothesis/
 cov_html/
+.benchmarks
 
 # Translations
 *.mo
@@ -148,9 +154,3 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
-
-simetuc/flake8.txt
-simetuc/results/*
-simetuc/test/test_simulations/savedSolution.hdf5
-*.old
-logs/*

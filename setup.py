@@ -99,7 +99,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=['ase>=3.9',
+    install_requires=['ase >=3.9',
                       'matplotlib >=1.5',
                       'numpy >=1.11',
                       'scipy >=0.18',
@@ -112,7 +112,8 @@ setup(
     # for example:
     # $ pip install -e .[dev,test]
     extras_require={
-        'test': ['pytest >=3.0', 'pytest-cov', 'flake8'],
+        'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pytest-xdist',
+                 'pytest-benchmark', 'python-coveralls', 'flake8', 'mypy-lang'],
     },
 
     # If there are data files included in your packages that need to be

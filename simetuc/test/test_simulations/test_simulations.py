@@ -104,7 +104,6 @@ def setup_cte():
            'process': ['Tm(3H6) -> Tm(1G4)'],
            'pump_rate': [0.00093],
            't_pulse': 1e-08}},
-         'ions': {'activators': 113, 'sensitizers': 0, 'total': 113},
          'lattice': {'A_conc': 0.3,
           'N_uc': 30,
           'S_conc': 0.3,
@@ -157,7 +156,7 @@ def test_sim_dyn1(setup_cte):
     solution.plot(state=1)
 
 def test_sim_dyn2(setup_cte):
-    '''Test that the dynamics have the right result for a simple system'''
+    '''Test and benchmark that the dynamics have the right result for a simple system'''
     test_filename = os.path.join(test_folder_path, 'data_2S_2A.hdf5')
     sim = simulations.Simulations(setup_cte, full_path=test_filename)
 
@@ -180,12 +179,15 @@ def test_sim_dyn_diff(setup_cte):
     with temp_bin_filename() as temp_filename:
         sim1 = simulations.Simulations(setup_cte, full_path=temp_filename)
         solution1 = sim1.simulate_dynamics()
+        solution1.total_error
 
+    setup_cte['ions'] = {}
     setup_cte['lattice']['S_conc'] = 0.2
     setup_cte['lattice']['A_conc'] = 0
     with temp_bin_filename() as temp_filename:
         sim2 = simulations.Simulations(setup_cte, full_path=temp_filename)
         solution2 = sim2.simulate_dynamics()
+        solution2.total_error
 
     assert sim1 != sim2
     assert solution1 != solution2
@@ -249,6 +251,7 @@ def test_sim_steady(setup_cte):
 
     solution.log_populations()
     solution.plot()
+    solution.log_populations()  # redo
 
     with temp_config_filename('') as filename:
         solution.save(filename)

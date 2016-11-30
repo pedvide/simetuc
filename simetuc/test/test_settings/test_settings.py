@@ -8,6 +8,7 @@ Created on Sat Oct 22 00:10:24 2016
 import pytest
 import os
 import numpy as np
+import yaml
 
 import simetuc.settings as settings
 from simetuc.util import temp_config_filename
@@ -244,16 +245,19 @@ lattice_values = [('dsa', 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [2/
 (0.3, 0.3, 0.3, -5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [2/3, 1/3, 1/2]]', '[1, 1/2]'), # negative number
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 370, 90, 120, '[[0, 0, 0], [2/3, 1/3, 1/2]]', '[1, 1/2]'), # angle too large
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[]', '[]'), # empty occupancies
+(0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '', ''), # empty occupancies 2
+(0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '0, 0, 0', '[1.1, 1/2]'), # occupancy pos not a list
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0]]', '[1]'), # sites_pos must be list of 3 numbers
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [-1/3, 1/3, 1/2]]', '[1, 1/2]'), # negative number
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [1/3, 1/3, 1/2]]', '[-1, 1/2]'), # negative number
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [1/3, 1/3, 1/2]]', '[1.1, 1/2]'), # occupancy larger than 1
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [4/3, 1/3, 1/2]]', '[1, 1/2]'), # sites_pos larger than 1
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [one/5, 1/3, 1/2]]', '[1, 1/2]'), # sites_pos string
-(0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [1/3, 1/3, 1/2]]', '[1/2]')] # different number of occ.
+(0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [1/3, 1/3, 1/2]]', '[1/2]'), # different number of occ.
+(0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0]]', '[1/2, 0.75]')] # different number of occ. 2
 ids=['text instead of number', 'text instead of number', 'negative number',\
-'angle too large', 'empty occupancies', 'sites_pos: list of 3 numbers', 'negative number',\
-'negative number', 'occupancy larger than 1', 'sites_pos larger than 1', 'sites_pos string', 'different number of occ.']
+'angle too large', 'empty occupancies', 'empty occupancies 2', 'occupancies pos not a list', 'sites_pos: list of 3 numbers', 'negative number',\
+'negative number', 'occupancy larger than 1', 'sites_pos larger than 1', 'sites_pos string', 'different number of occ.', 'different number of occ. 2']
 @pytest.mark.parametrize('lattice_values', lattice_values, ids=ids)
 def test_lattice_config(lattice_values):
     data_format = data_lattice.format(*lattice_values)
@@ -262,6 +266,38 @@ def test_lattice_config(lattice_values):
             settings.load(filename)
     assert excinfo.type == ValueError
 
+data_lattice_occ_ok = '''name: bNaYF4
+N_uc: 8
+# concentration
+S_conc: 0.3
+A_conc: 0.3
+# unit cell
+# distances in Angstrom
+a: 5.9738
+b: 5.9738
+c: 3.5297
+# angles in degree
+alpha: 90.0
+beta: 90.0
+gamma: 120.0
+# the number is also ok for the spacegroup
+spacegroup: P-6
+# info about sites
+sites_pos: {}
+sites_occ: {}
+'''
+# list of tuples of values for sites_pos and sites_occ
+lattice_values = [('[0, 0, 0]', '1'), # one pos and occ
+('[[0, 0, 0]]', '[1]')] # one pos and occ list of lists
+ids=['one pos and occ', 'one pos and occ list of lists']
+@pytest.mark.parametrize('lattice_values', lattice_values, ids=ids)
+def test_lattice_config_ok_occs(lattice_values):
+    data_format = data_lattice_occ_ok.format(*lattice_values)
+    lattice_dict = yaml.load(data_format)
+    parsed_lattice_dict = settings._parse_lattice(lattice_dict)
+    for elem in ['name', 'spacegroup', 'N_uc', 'S_conc',
+                 'A_conc', 'cell_par', 'sites_pos', 'sites_occ']:
+        assert elem in parsed_lattice_dict
 
 data_lattice_ok = '''version: 1
 lattice:
@@ -479,6 +515,17 @@ def test_excitations_config7():
     assert excinfo.match(r"The sections or values")
     assert excinfo.match('power_dens')
     assert excinfo.type == settings.ConfigError
+
+def test_excitations_config8():
+    data_exc = '''Vis_473:
+    active: True
+    power_dens: 1e6 # power density W/cm^2
+    process: Tm(3H6) -> Tm(1G4) # both ion labels are required
+    degeneracy: 13/9
+    pump_rate: 9.3e-4 # cm2/J
+'''
+    exc_dict = yaml.load(data_exc)
+    settings._parse_excitations(exc_dict)
 
 def test_abs_config1():
     data = data_states_ok + '''excitations:

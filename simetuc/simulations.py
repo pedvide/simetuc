@@ -34,7 +34,6 @@ import scipy.interpolate as interpolate
 from tqdm import tqdm
 
 import simetuc.precalculate as precalculate
-import simetuc.lattice as lattice
 
 
 def _rate_eq_pulse(t, y, abs_matrix, decay_matrix, UC_matrix, N_indices):
@@ -192,7 +191,7 @@ class Solution():
         # list of average population for each state
         self._list_avg_data = np.array([])
         # settings
-        self.cte_copy = {}  # type: Dict
+        self.cte = {}  # type: Dict
         # sensitizer and activator indices of their ground states
         self.index_S_i = []  # type: List[int]
         self.index_A_j = []  # type: List[int]
@@ -201,14 +200,14 @@ class Solution():
 
     def __bool__(self) -> bool:
         '''Instance is True if all its data structures have been filled out'''
-        return (self.t_sol.size != 0 and self.y_sol.size != 0 and self.cte_copy != {} and
+        return (self.t_sol.size != 0 and self.y_sol.size != 0 and self.cte != {} and
                 len(self.index_S_i) != 0 and len(self.index_A_j) != 0)
 
     def __eq__(self, other) -> bool:
         '''Two solutions are equal if all its vars are equal or numerically close'''
         return (self.y_sol.shape == other.y_sol.shape and np.allclose(self.t_sol, other.t_sol) and
                 np.allclose(self.y_sol, other.y_sol) and
-                self.cte_copy == other.cte_copy and self.index_S_i == other.index_S_i and
+                self.cte == other.cte and self.index_S_i == other.index_S_i and
                 self.index_A_j == other.index_A_j)
 
     def __ne__(self, other) -> bool:
@@ -225,7 +224,7 @@ class Solution():
     def _calculate_avg_populations(self) -> List[np.array]:
         '''Returs the average populations of each state. First S then A states.'''
 
-        cte = self.cte_copy
+        cte = self.cte
         index_S_i = self.index_S_i
         index_A_j = self.index_A_j
         y_sol = self.y_sol
@@ -255,7 +254,7 @@ class Solution():
 
     def _get_ion_state_labels(self) -> List[str]:
         '''Returns a list of ion_state labels'''
-        cte = self.cte_copy
+        cte = self.cte
         sensitizer_labels = [cte['states']['sensitizer_ion_label'] + '_' + s
                              for s in cte['states']['sensitizer_states_labels']]
         activator_labels = [cte['states']['activator_ion_label'] + '_' + s
@@ -265,13 +264,13 @@ class Solution():
 
     def save_file_full_path(self) -> str:  # pragma: no cover
         '''Return the full path to save a file (without extention).'''
-        lattice_name = self.cte_copy['lattice']['name']
+        lattice_name = self.cte['lattice']['name']
         path = os.path.join('results', lattice_name)
         os.makedirs(path, exist_ok=True)
-        lattice_name = lattice.make_full_path(path, self.cte_copy['lattice']['N_uc'],
-                                              self.cte_copy['lattice']['S_conc'],
-                                              self.cte_copy['lattice']['A_conc'])
-        return os.path.splitext(lattice_name)[0]
+        filename = 'dynamics_{}uc_{}S_{}A'.format(int(self.cte['lattice']['N_uc']),
+                                                  float(self.concentration.S_conc),
+                                                  float(self.concentration.A_conc))
+        return os.path.join(path, filename)
 
     @property
     def state_labels(self) -> List[str]:
@@ -292,14 +291,15 @@ class Solution():
     @property
     def power_dens(self) -> float:
         '''Return the power density used to obtain this solution.'''
-        for excitation in self.cte_copy['excitations'].keys():
-            return self.cte_copy['excitations'][excitation]['power_dens']
+        for excitation in self.cte['excitations'].keys():  # pragma: no branch
+            if self.cte['excitations'][excitation]['active']:
+                return self.cte['excitations'][excitation]['power_dens']
 
     @property
     def concentration(self) -> Conc:
         '''Return the tuple (sensitizer, activator) concentration used to obtain this solution.'''
         namedtuple('Concentration', ['S_conc', 'A_conc'])
-        return Conc(self.cte_copy['lattice']['S_conc'], self.cte_copy['lattice']['A_conc'])
+        return Conc(self.cte['lattice']['S_conc'], self.cte['lattice']['A_conc'])
 
     def add_sim_data(self, t_sol: np.ndarray, y_sol: np.ndarray) -> None:
         '''Add the simulated solution data'''
@@ -313,7 +313,7 @@ class Solution():
 
     def copy_settings(self, cte: Dict) -> None:
         '''Copy the settings related to this solution'''
-        self.cte_copy = copy.deepcopy(cte)
+        self.cte = copy.deepcopy(cte)
 
     def _plot_avg(self) -> None:
         '''Plot the average simulated data (list_avg_data).
@@ -323,7 +323,7 @@ class Solution():
 
     def _plot_state(self, state: int) -> None:
         '''Plot all decays of a state as a function of time.'''
-        if state < self.cte_copy['states']['sensitizer_states']:
+        if state < self.cte['states']['sensitizer_states']:
             indices = self.index_S_i
         else:
             indices = self.index_A_j
@@ -338,7 +338,7 @@ class Solution():
             If state is given, the population of only that state for all ions
             is shown along with the average.
         '''
-        if self.cte_copy['no_plot']:
+        if self.cte['no_plot']:
             logger = logging.getLogger(__name__)
             msg = 'A plot was requested, but no_plot setting is set'
             logger.warning(msg)
@@ -359,8 +359,8 @@ class Solution():
             file.create_dataset("y_sol", data=self.y_sol, compression='gzip')
             file.create_dataset("index_S_i", data=self.index_S_i, compression='gzip')
             file.create_dataset("index_A_j", data=self.index_A_j, compression='gzip')
-            # serialze cte_copy as text and store it as an attribute
-            file.attrs['cte_copy'] = yaml.dump(self.cte_copy)
+            # serialze cte as text and store it as an attribute
+            file.attrs['cte'] = yaml.dump(self.cte)
 
     def save_txt(self, full_path: str = None, mode: str = 'wt') -> None:
         '''Save the settings, the time and the average populations to disk as a textfile'''
@@ -369,13 +369,13 @@ class Solution():
         # print cte
         with open(full_path, mode) as csvfile:
             csvfile.write('Settings:\n')
-            pprint.pprint(self.cte_copy, stream=csvfile)
+            pprint.pprint(self.cte, stream=csvfile)
             csvfile.write('\nData:\n')
         # print t_sol and avg sim data
         header = ('time (s)      ' +
-                  '         '.join(self.cte_copy['states']['sensitizer_states_labels']) +
+                  '         '.join(self.cte['states']['sensitizer_states_labels']) +
                   '         ' +
-                  '         '.join(self.cte_copy['states']['activator_states_labels']))
+                  '         '.join(self.cte['states']['activator_states_labels']))
         with open(full_path, 'ab') as csvfile:
             np.savetxt(csvfile, np.transpose([self.t_sol, *self.list_avg_data]),
                        fmt='%1.4e', delimiter=', ', newline='\r\n', header=header)
@@ -388,8 +388,8 @@ class Solution():
                 self.y_sol = np.array(file['y_sol'])
                 self.index_S_i = list(file['index_S_i'])
                 self.index_A_j = list(file['index_A_j'])
-                # deserialze cte_copy
-                self.cte_copy = yaml.load(file.attrs['cte_copy'])
+                # deserialze cte
+                self.cte = yaml.load(file.attrs['cte'])
         except OSError:
             logger = logging.getLogger(__name__)
             logger.error('File not found! (%s)', full_path)
@@ -539,19 +539,19 @@ class DynamicsSolution(Solution):
         '''Load and return the decay experimental data.'''
         # get filenames from the ion_state labels, excitation and concentrations
         state_labels = self.state_labels
-        active_exc_labels = [label for label, exc_dict in self.cte_copy['excitations'].items()
+        active_exc_labels = [label for label, exc_dict in self.cte['excitations'].items()
                              if exc_dict['active']]
         exc_label = '_'.join(active_exc_labels)
-        S_conc = str(float(self.cte_copy['lattice']['S_conc']))
-        S_label = self.cte_copy['states']['sensitizer_ion_label']
-        A_conc = str(float(self.cte_copy['lattice']['A_conc']))
-        A_label = self.cte_copy['states']['activator_ion_label']
+        S_conc = str(float(self.cte['lattice']['S_conc']))
+        S_label = self.cte['states']['sensitizer_ion_label']
+        A_conc = str(float(self.cte['lattice']['A_conc']))
+        A_label = self.cte['states']['activator_ion_label']
         conc_str = '_' + S_conc + S_label + '_' + A_conc + A_label
         exp_data_filenames = ['decay_' + label + '_exc_' + exc_label + conc_str + '.txt'
                               for label in state_labels]
 
         # if exp data doesn't exist, it's set to zero inside the function
-        list_exp_data = [self._load_exp_data(filename, self.cte_copy['lattice']['name'])
+        list_exp_data = [self._load_exp_data(filename, self.cte['lattice']['name'])
                          for filename in exp_data_filenames]
 
         return list_exp_data
@@ -568,14 +568,10 @@ class DynamicsSolution(Solution):
         '''Log errors'''
         logger = logging.getLogger(__name__)
 
-        # get state labels
-        state_labels = self.state_labels
-
-        # log errors them
-        if state_labels is not None:
-            logger.info('State errors: ')
-            for (label, error) in zip(state_labels, self.errors):
-                logger.info('%s: %.4e', label, error)
+        # log errors
+        logger.info('State errors: ')
+        for (label, error) in zip(self.state_labels, self.errors):
+            logger.info('%s: %.4e', label, error)
         logger.info('Total error: %.4e', self.total_error)
 
     @property
@@ -677,8 +673,8 @@ class SolutionList(Sequence[Solution]):
                 group.create_dataset("y_sol", data=sol.y_sol, compression='gzip')
                 group.create_dataset("index_S_i", data=sol.index_S_i, compression='gzip')
                 group.create_dataset("index_A_j", data=sol.index_A_j, compression='gzip')
-                # serialze cte_copy as text and store it as an attribute
-                group.attrs['cte_copy'] = yaml.dump(sol.cte_copy)
+                # serialze cte as text and store it as an attribute
+                group.attrs['cte'] = yaml.dump(sol.cte)
 
     def load(self, full_path: str) -> None:
         '''Load data from a HDF5 file'''
@@ -690,8 +686,8 @@ class SolutionList(Sequence[Solution]):
                     group = file[group_num]
                     sol.add_sim_data(np.array(group['t_sol']), np.array(group['y_sol']))
                     sol.add_ion_lists(list(group['index_S_i']), list(group['index_A_j']))
-                    # deserialze cte_copy
-                    sol.cte_copy = yaml.load(group.attrs['cte_copy'])
+                    # deserialze cte
+                    sol.cte = yaml.load(group.attrs['cte'])
                     solutions.append(sol)
         except OSError:
             logger = logging.getLogger(__name__)
@@ -744,7 +740,7 @@ class PowerDependenceSolution(SolutionList):
             warnings.warn(msg, PlotWarning)
             return
 
-        if self[0].cte_copy['no_plot']:
+        if self[0].cte['no_plot']:
             logger = logging.getLogger(__name__)
             msg = 'A plot was requested, but no_plot setting is set'
             logger.warning(msg)
@@ -805,7 +801,7 @@ class ConcentrationDependenceSolution(SolutionList):
             warnings.warn(msg, PlotWarning)
             return
 
-        if self[0].cte_copy['no_plot']:
+        if self[0].cte['no_plot']:
             logger = logging.getLogger(__name__)
             msg = 'A plot was requested, but no_plot setting is set'
             logger.warning(msg)
@@ -824,8 +820,8 @@ class ConcentrationDependenceSolution(SolutionList):
             sim_data_arr = np.array([np.array(sol.steady_state_populations)
                                      for sol in self])
 
-            S_states = self[0].cte_copy['states']['sensitizer_states']
-            A_states = self[0].cte_copy['states']['activator_states']
+            S_states = self[0].cte['states']['sensitizer_states']
+            A_states = self[0].cte['states']['activator_states']
             conc_factor_arr = np.array([([float(sol.concentration.S_conc)]*S_states +
                                          [float(sol.concentration.A_conc)]*A_states)
                                         for sol in self])
@@ -1088,9 +1084,9 @@ class Simulations():
                                                                self.cte['lattice']['N_uc'],
                                                                self.cte['states']['energy_states'])
 
-    def modify_ET_param_value(self, process: str, value: float) -> None:
+    def modify_ET_param_value(self, process: str, new_strength: float) -> None:
         '''Modify a ET parameter'''
-        self.cte['ET'][process]['value'] = value
+        self.cte['ET'][process]['value'] = new_strength
 
 #    @profile
     def simulate_dynamics(self) -> DynamicsSolution:
@@ -1114,11 +1110,11 @@ class Simulations():
 
         # initial and final times for excitation and relaxation
         t0 = 0
-        tf = (10*np.max(precalculate.get_lifetimes(cte))).round(8)  # total simulation time
+        tf = (10*np.max(precalculate.get_lifetimes(self.cte))).round(8)  # total simulation time
         t0_p = t0
         # make sure t_pulse exists and get the active one
         try:
-            for exc_dict in self.cte['excitations'].values():
+            for exc_dict in self.cte['excitations'].values():  # pragma: no branch
                 if exc_dict['active']:
                     tf_p = exc_dict['t_pulse']  # pulse width.
                     break
@@ -1171,7 +1167,7 @@ class Simulations():
         dynamics_sol = DynamicsSolution()
         dynamics_sol.add_sim_data(t_sol, y_sol)
         dynamics_sol.add_ion_lists(index_S_i, index_A_j)
-        dynamics_sol.copy_settings(cte)
+        dynamics_sol.copy_settings(self.cte)
 
         return dynamics_sol
 
@@ -1191,6 +1187,9 @@ class Simulations():
          total_abs_matrix, decay_matrix,
          UC_matrix, N_indices, jac_indices) = precalculate.precalculate(self.cte,
                                                                         full_path=self.full_path)
+
+        # update cte
+        self.cte = cte
 
         # initial and final times for excitation and relaxation
         t0 = 0

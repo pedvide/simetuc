@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Nov 18 17:22:18 2016
+Created on Tue Nov  8 13:22:54 2016
 
 @author: Pedro
 """
+import os
+
 import pytest
 import numpy as np
 
-import simetuc.optimize as optimize
 import simetuc.simulations as simulations
+import simetuc.precalculate as precalculate
 
-@pytest.fixture(scope='function')
+
+test_folder_path = os.path.dirname(os.path.abspath(__file__))
+
+@pytest.fixture(scope='module')
 def setup_cte():
     '''Load the cte data structure'''
 
@@ -97,9 +102,8 @@ def setup_cte():
            'process': ['Tm(3H6) -> Tm(1G4)'],
            'pump_rate': [0.00093],
            't_pulse': 1e-08}},
-         'ions': {'activators': 113, 'sensitizers': 0, 'total': 113},
          'lattice': {'A_conc': 0.3,
-          'N_uc': 20,
+          'N_uc': 30,
           'S_conc': 0.3,
           'cell_par': [5.9738, 5.9738, 3.5297, 90.0, 90.0, 120.0],
           'name': 'bNaYF4',
@@ -109,47 +113,65 @@ def setup_cte():
           'spacegroup': 'P-6'},
          'no_console': False,
          'no_plot': False,
-         'optimization_processes': ['CR50'],
-         'simulation_params': {'N_steps': 1000,
-          'N_steps_pulse': 100,
-          'atol': 1e-15,
-          'rtol': 0.001},
          'states': {'activator_ion_label': 'Tm',
           'activator_states': 7,
           'activator_states_labels': ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2'],
-          'energy_states': 791,
           'sensitizer_ion_label': 'Yb',
           'sensitizer_states': 2,
           'sensitizer_states_labels': ['GS', 'ES']}}
 
-    cte['no_console'] = False
-    cte['no_plot'] = True
     return cte
 
+@pytest.fixture(scope='module')
+def setup_benchmark(setup_cte):
+    test_filename = os.path.join(test_folder_path, 'data_240S_108A.hdf5')
 
-def test_optim1(setup_cte, mocker):
-    '''Test that the optimization works'''
+    (cte, initial_population, index_S_i, index_A_j,
+     total_abs_matrix, decay_matrix,
+     UC_matrix,
+     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
 
-    # mock the simulation by returning an error that goes to 0
-    mocked_opt_dyn = mocker.patch('simetuc.optimize.optim_fun_factory')
-    value = 20
-    def minimize(x):
-        nonlocal value
-        if value != 0:
-            value -= 1
-        return value
-    mocked_opt_dyn.return_value = minimize
+    tf = (10*np.max(precalculate.get_lifetimes(cte))).round(8)  # total simulation time
+    tf_p = 10e-9
+    t0_sol = tf_p
+    tf_sol = tf
+    N_steps = 1000
 
-    optimize.optimize_dynamics(setup_cte)
+    rtol = 1e-3
+    atol = 1e-15
 
-    assert mocked_opt_dyn.called
+    # initial conditions after a pulse
+    ic = np.zeros((cte['states']['energy_states']), dtype=np.float64)
+    index_S_i = np.array(index_S_i)
+    index_A_j = np.array(index_A_j)
+    ic[index_S_i[index_S_i != -1]] = 1.0
+    ic[index_A_j[index_A_j != -1]] = 0.99999054943581
+    ic[index_A_j[index_A_j != -1]+1] = 9.19e-12
+    ic[index_A_j[index_A_j != -1]+2] = 2.3e-10
+    ic[index_A_j[index_A_j != -1]+3] = 3.25e-10
+    ic[index_A_j[index_A_j != -1]+5] = 9.45e-06
+    ic[index_A_j[index_A_j != -1]+6] = 0.0
 
-def test_opti_fun_factory(setup_cte):
-    '''Test that the optimization works'''
-    sim = simulations.Simulations(setup_cte)
-    process_list = setup_cte['optimization_processes']
-    x0 = np.array([setup_cte['ET'][process]['value'] for process in process_list])
+    t_sol = np.logspace(np.log10(t0_sol), np.log10(tf_sol), N_steps, dtype=np.float64)
+    args_sol = (t_sol, simulations._rate_eq, (decay_matrix, UC_matrix, N_indices),
+                simulations._jac_rate_eq, (decay_matrix, UC_matrix, jac_indices),
+                ic)
+    kwargs_sol = {'method': 'bdf', 'rtol': rtol, 'atol': atol, 'nsteps': 1000, 'quiet': True}
 
-    _update_ET_and_simulate = optimize.optim_fun_factory(sim, process_list, x0)
-    _update_ET_and_simulate(x0*1.5)
+    return (args_sol, kwargs_sol)
+
+#@pytest.mark.benchmark(group="fast", min_rounds=100)
+#def test_dyn_benchmark_small(setup_cte, benchmark):
+#    '''Benchmark the dynamics for a simple system'''
+#    test_filename = os.path.join(test_folder_path, 'data_2S_2A.hdf5')
+#    sim = simulations.Simulations(setup_cte, full_path=test_filename)
+#    benchmark(sim.simulate_dynamics)
+
+@pytest.mark.skip
+@pytest.mark.benchmark(group="slow")
+def test_benchmark_ode_solve_large(setup_benchmark, benchmark):
+    '''Benchmark the dynamics for a medium-sized system'''
+    benchmark.pedantic(simulations._solve_ode, args=setup_benchmark[0],
+                       kwargs=setup_benchmark[1],
+                       rounds=20, iterations=1)
 

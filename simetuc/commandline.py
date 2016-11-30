@@ -8,6 +8,7 @@ Created on Sun Oct 16 11:53:51 2016
 # TODO: INCLUDE PULSE FREQUENCY IN STEADY STATE FOR NON CW-LASER EXCITATION
 # notTODO: INCLUDE .CIF FILE GENERATION OF LATTICE -> doesn't work with multiple sites...
 # TODO: cooperative sensitization
+# TODO: average rate equations
 
 import sys
 import logging
@@ -37,7 +38,7 @@ from simetuc import DESCRIPTION
 Union  # pylint: disable=W0104
 
 
-def _change_console_logger(level: int) -> None:
+def _change_console_logger(level: int) -> None:  # pragma: no cover
     ''' change the logging level of the console handler '''
     logger = logging.getLogger()
     for handler in logger.handlers:

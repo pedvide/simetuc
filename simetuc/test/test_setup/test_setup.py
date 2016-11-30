@@ -847,9 +847,8 @@ def test_wrong_number_states(setup_cte):
          total_abs_matrix, decay_matrix, ET_matrix,
          N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
 
-    # change number of states
-    cte['states']['activator_states'] = 10
-    with temp_bin_filename() as temp_filename:
+        # change number of states
+        cte['states']['activator_states'] = 10
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
          N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)

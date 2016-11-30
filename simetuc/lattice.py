@@ -251,7 +251,8 @@ def _plot_lattice(doped_lattice: np.array, ion_type: np.array) -> None:
     plt.axis('square')
 
 
-def make_full_path(folder_path: str, num_uc: int, S_conc: float, A_conc: float) -> str:
+def make_full_path(folder_path: str, num_uc: int,
+                   S_conc: float, A_conc: float) -> str: # pragma: no cover
     '''Makes the full path to a lattice in the folder.'''
     filename = 'data_{}uc_{}S_{}A.hdf5'.format(int(num_uc), float(S_conc), float(A_conc))
     full_path = os.path.join(folder_path, filename)
@@ -374,15 +375,9 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
                                                         lattice_info)
 
     logger.info('Saving data...')
-
-    if 'test' in lattice_name:  # save in test folder
-        folder = 'test'
-    else:  # pragma: no cover
-        folder = 'latticeData'
-
     # check if folder exists
-    if full_path is None:
-        folder_path = os.path.join(folder, lattice_name)
+    if full_path is None: # pragma: no cover
+        folder_path = os.path.join('latticeData', lattice_name)
         full_path = make_full_path(folder_path, num_uc, S_conc, A_conc)
 
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -437,9 +432,9 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
 #
-#    cte['lattice']['S_conc'] = 1
+#    cte['lattice']['S_conc'] = 2
 #    cte['lattice']['A_conc'] = 1
-#    cte['lattice']['N_uc'] = 5
+#    cte['lattice']['N_uc'] = 20
 ##    cte['states']['sensitizer_states'] = 0
 ##    cte['states']['activator_states'] = 4
 #

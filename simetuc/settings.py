@@ -132,15 +132,14 @@ def _check_values(needed_values_lst: List[str], present_values_dict: Dict,
     # if present values don't include all needed values
     if not present_values.issuperset(needed_values):
         set_needed_not_present = needed_values - present_values
-        if len(set_needed_not_present) > 0:
-            if section is not None:
-                logger.error('The following values in section "%s" are needed ' +
-                             'but not present in the file:', section)
-            else:
-                logger.error('Sections that are needed but not present in the file:')
-            logger.error(str(set(set_needed_not_present)))
-            raise ConfigError('The sections or values \
-                              {} must be present.'.format(set_needed_not_present))
+        if section is not None:
+            logger.error('The following values in section "%s" are needed ' +
+                         'but not present in the file:', section)
+        else:
+            logger.error('Sections that are needed but not present in the file:')
+        logger.error(str(set(set_needed_not_present)))
+        raise ConfigError('The sections or values \
+                          {} must be present.'.format(set_needed_not_present))
 
     set_extra = present_values - needed_values
     # if there are extra values and they aren't optional
@@ -326,7 +325,15 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
                                alpha_param, beta_param, gamma_param]
 
     # deal with the sites positions and occupancies
-    sites_pos = [tuple(_get_list_floats(tuple_val)) for tuple_val in dict_lattice['sites_pos']]
+    list_sites_pos = dict_lattice['sites_pos']
+    if not isinstance(list_sites_pos, (list, tuple)) or len(list_sites_pos) < 1:
+        msg = 'At least one site is required.'
+        logger.error(msg)
+        raise ValueError(msg)
+    # make sure it's a list of lists
+    if len(list_sites_pos) == 0 or not isinstance(list_sites_pos[0], (list, tuple)):
+        list_sites_pos = [dict_lattice['sites_pos']]
+    sites_pos = [tuple(_get_list_floats(tuple_val)) for tuple_val in list_sites_pos]
     parsed_dict['sites_pos'] = sites_pos
 
     if not all(len(row) == 3 for row in np.array(sites_pos)):
@@ -338,18 +345,16 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
         logger.error(msg)
         raise ValueError(msg)
 
-    sites_occ = _get_list_floats(dict_lattice['sites_occ'])
+    list_sites_occ = dict_lattice['sites_occ']
+    if not isinstance(list_sites_occ, (list, tuple)):
+        list_sites_occ = [dict_lattice['sites_occ']]
+    sites_occ = _get_list_floats(list_sites_occ)
     parsed_dict['sites_occ'] = sites_occ
+
     if not all(0 <= val <= 1 for val in sites_occ):
-        msg = 'Occupancies must be positive numbers less or equal than 1.0.'
+        msg = 'Occupancies must be between 0 and 1.'
         logger.error(msg)
         raise ValueError(msg)
-
-    if len(sites_pos) < 1:
-        msg = 'At least one site is required.'
-        logger.error(msg)
-        raise ValueError(msg)
-
     if not len(sites_pos) == len(sites_occ):
         msg = 'The number of sites must be the same in sites_pos and sites_occ.'
         logger.error(msg)

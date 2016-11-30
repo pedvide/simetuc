@@ -35,7 +35,7 @@ def cache(function):
         return f_val
     return wrapper
 
-def optim_fun_generator(sim: simulations.Simulations,
+def optim_fun_factory(sim: simulations.Simulations,
                         process_list: List[str], x0: np.array) -> Callable:
     '''Generate the function to be optimize.
         This function modifies the ET params and return the error
@@ -102,7 +102,7 @@ def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
     # starting point
     x0 = np.array([cte['ET'][process]['value'] for process in process_list])
 
-    _update_ET_and_simulate = optim_fun_generator(sim, process_list, x0)
+    _update_ET_and_simulate = optim_fun_factory(sim, process_list, x0)
 
     tol = 1e-4
     bounds = ((0, 1e10),)*len(x0)
@@ -113,28 +113,14 @@ def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
         # minimize error. The starting point is preconditioned to be 1
         res = optimize.minimize(fun_optim, np.ones_like(x0), method=method, tol=tol)
 
-    if method == 'L-BFGS-B':  # fails?
+    elif method == 'L-BFGS-B' or method == 'TNC' or method == 'SLSQP':
         pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
         logger.info('ET parameters. RMSD.')
         res = optimize.minimize(fun_optim, np.ones_like(x0), bounds=bounds,
                                 method=method, tol=tol, callback=callback_fun)
         pbar.close()
 
-    if method == 'TNC':  # fails?
-        pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
-        logger.info('ET parameters. RMSD.')
-        res = optimize.minimize(fun_optim, np.ones_like(x0), bounds=bounds,
-                                method=method, tol=tol, callback=callback_fun)
-        pbar.close()
-
-    if method == 'SLSQP':
-        pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
-        logger.info('ET parameters. RMSD.')
-        res = optimize.minimize(fun_optim, np.ones_like(x0), bounds=bounds,
-                                method=method, tol=tol, callback=callback_fun)
-        pbar.close()
-
-    if method == 'basin_hopping':
+    elif method == 'basin_hopping':
         minimizer_kwargs = {"method": "SLSQP"}
 
 #        def accept_test(f_new, x_new, f_old, x_old) :
@@ -146,7 +132,7 @@ def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
                                     niter=10, stepsize=5, T=1e-2, callback=callback_fun)
         pbar.close()
 
-    if method == 'brute':
+    elif method == 'brute':
         rranges = ((1e-2, 6),)*len(x0)
         N_points = 50
         pbar = tqdm.tqdm(desc='Optimizing', total=1+N_points**2,

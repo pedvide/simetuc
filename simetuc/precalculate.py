@@ -450,6 +450,7 @@ def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
 
     except OSError:
         logger.info('Creating lattice...')
+
         # don't show the plot
         old_no_plot = cte['no_plot']
         cte['no_plot'] = True
