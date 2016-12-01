@@ -36,7 +36,7 @@ def cache(function):
     return wrapper
 
 def optim_fun_factory(sim: simulations.Simulations,
-                        process_list: List[str], x0: np.array) -> Callable:
+                      process_list: List[str], x0: np.array) -> Callable:
     '''Generate the function to be optimize.
         This function modifies the ET params and return the error
     '''
@@ -54,7 +54,7 @@ def optim_fun_factory(sim: simulations.Simulations,
     return _update_ET_and_simulate
 
 
-def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
+def optimize_dynamics(cte: Dict, method: str = None) -> Tuple[np.array, float, float]:
     ''' Minimize the error between experimental data and simulation for the settings in cte
     '''
     logger = logging.getLogger(__name__)
@@ -107,7 +107,8 @@ def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
     tol = 1e-4
     bounds = ((0, 1e10),)*len(x0)
 
-    method = 'SLSQP'
+    if method is None:
+        method = 'SLSQP'
 
     if method == 'COBYLA':
         # minimize error. The starting point is preconditioned to be 1
@@ -132,7 +133,7 @@ def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
                                     niter=10, stepsize=5, T=1e-2, callback=callback_fun)
         pbar.close()
 
-    elif method == 'brute':
+    elif method == 'brute_force':
         rranges = ((1e-2, 6),)*len(x0)
         N_points = 50
         pbar = tqdm.tqdm(desc='Optimizing', total=1+N_points**2,
@@ -143,7 +144,7 @@ def optimize_dynamics(cte: Dict) -> Tuple[np.array, float, float]:
         best_x = res[0]*x0
         min_f = res[1]
 
-    if method != 'brute':
+    if method != 'brute_force':
         best_x = res.x*x0
         min_f = res.fun
 

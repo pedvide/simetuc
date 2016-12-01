@@ -275,69 +275,75 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
     # j, j+1, j+2, ... = current Tm
     # k, k+1 = Yb that interacts
     # l, l+1, l+2, ... = Tm that interacts
+
+    # make sure the number of states for A and S are greater or equal than the processes require
+    try:
+        for proc_name, dict_process in dict_ET.items():
+             # discard processes whose states are larger than activator states
+            if dict_process['value'] != 0 and dict_process['type'] == 'AA':
+                if np.any(np.array(dict_process['indices']) > activator_states):
+                    raise lattice.LatticeError
+            elif dict_process['value'] != 0 and dict_process['type'] == 'AS':
+                if np.any(np.array(dict_process['indices'][::2]) > activator_states) or\
+                    np.any(np.array(dict_process['indices'][1::2]) > sensitizer_states):
+                    raise lattice.LatticeError
+            elif dict_process['value'] != 0 and dict_process['type'] == 'SS':
+                if np.any(np.array(dict_process['indices']) > sensitizer_states):
+                    raise lattice.LatticeError
+            elif dict_process['value'] != 0 and dict_process['type'] == 'SA':
+                if np.any(np.array(dict_process['indices'][::2]) > activator_states) or\
+                    np.any(np.array(dict_process['indices'][1::2]) > sensitizer_states):
+                    raise lattice.LatticeError
+    except lattice.LatticeError:
+        msg = ('The number of A or S states is lower ' +
+               'than required by process {}.').format(proc_name)
+        logging.getLogger(__name__).error(msg)
+        raise lattice.LatticeError(msg)
+
     num_A = num_S = 0
     for num in range(num_total_ions):
         if index_A_j[num] != -1 and activator_states != 0:  # Tm ions
             index_j = index_A_j[num]  # position of ion num on the solution vector
-
             # add all A-A ET processes
-            for process in dict_ET:
-                if dict_ET[process]['value'] != 0 and dict_ET[process]['type'] == 'AA':
+            for proc_name, dict_process in dict_ET.items():
+                if dict_process['value'] != 0 and dict_process['type'] == 'AA':
                     # reshape to (n,) from (n,1)
                     indices_l = indices_A_l[num_A].reshape((len(indices_A_l[num_A]),))
                     dists_l = dists_A_l[num_A]
-
-                    # discard processes whose states are larger than activator states
-                    if np.any(np.array(dict_ET[process]['indices']) > activator_states):
-                        continue
                     add_ET_process(index_j, indices_l, dists_l,
-                                   dict_ET[process]['value'],
-                                   dict_ET[process]['mult'],
-                                   *dict_ET[process]['indices'])
+                                   dict_process['value'],
+                                   dict_process['mult'],
+                                   *dict_process['indices'])
             # add all A-S ET processes
-            if sensitizer_states != 0:
-                for process in dict_ET:
-                    if dict_ET[process]['value'] != 0 and dict_ET[process]['type'] == 'AS':
-                        indices_k = indices_A_k[num_A].reshape((len(indices_A_k[num_A]),))
-                        dists_k = dists_A_k[num_A]
-                        # discard processes whose states are larger than the number of states
-                        if np.any(np.array(dict_ET[process]['indices'][::2]) > activator_states) or\
-                            np.any(np.array(dict_ET[process]['indices'][1::2]) > sensitizer_states):
-                            continue
-                        add_ET_process(index_j, indices_k, dists_k,
-                                       dict_ET[process]['value'],
-                                       dict_ET[process]['mult'],
-                                       *dict_ET[process]['indices'])
+            for proc_name, dict_process in dict_ET.items():
+                if dict_process['value'] != 0 and dict_process['type'] == 'AS':
+                    indices_k = indices_A_k[num_A].reshape((len(indices_A_k[num_A]),))
+                    dists_k = dists_A_k[num_A]
+                    add_ET_process(index_j, indices_k, dists_k,
+                                   dict_process['value'],
+                                   dict_process['mult'],
+                                   *dict_process['indices'])
             num_A += 1
         if index_S_i[num] != -1 and sensitizer_states != 0:  # Yb ions
             index_i = index_S_i[num]  # position of ion num on the solution vector
-
             # add all S-S ET processes
-            for process in dict_ET:
-                if dict_ET[process]['value'] != 0 and dict_ET[process]['type'] == 'SS':
+            for proc_name, dict_process in dict_ET.items():
+                if dict_process['value'] != 0 and dict_process['type'] == 'SS':
                     indices_k = indices_S_k[num_S].reshape((len(indices_S_k[num_S]),))
                     dists_k = dists_S_k[num_S]
-                    # discard processes whose states are larger than activator states
-                    if np.any(np.array(dict_ET[process]['indices']) > sensitizer_states):
-                        continue
                     add_ET_process(index_i, indices_k, dists_k,
-                                   dict_ET[process]['value'],
-                                   dict_ET[process]['mult'],
-                                   *dict_ET[process]['indices'])
+                                   dict_process['value'],
+                                   dict_process['mult'],
+                                   *dict_process['indices'])
             # add all S-A ET processes
-            if activator_states != 0:
-                for process in dict_ET:
-                    if dict_ET[process]['value'] != 0 and dict_ET[process]['type'] == 'SA':
-                        indices_l = indices_S_l[num_S].reshape((len(indices_S_l[num_S]),))
-                        dists_l = dists_S_l[num_S]
-                        # discard processes whose states are larger than the number of states
-                        if np.any(np.array(dict_ET[process]['indices'][::2]) > activator_states) or\
-                            np.any(np.array(dict_ET[process]['indices'][1::2]) > sensitizer_states):
-                            continue
-                        add_ET_process(index_i, indices_l, dists_l,
-                                       dict_ET[process]['value'],
-                                       dict_ET[process]['mult'],
-                                       *dict_ET[process]['indices'])
+            for proc_name, dict_process in dict_ET.items():
+                if dict_process['value'] != 0 and dict_process['type'] == 'SA':
+                    indices_l = indices_S_l[num_S].reshape((len(indices_S_l[num_S]),))
+                    dists_l = dists_S_l[num_S]
+                    add_ET_process(index_i, indices_l, dists_l,
+                                   dict_process['value'],
+                                   dict_process['mult'],
+                                   *dict_process['indices'])
             num_S += 1
 
     # clear all extra terms

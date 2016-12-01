@@ -12,12 +12,13 @@ import logging
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
-import matplotlib.pyplot as plt
 import h5py
 import yaml
 
 import ase
 from ase.spacegroup import crystal
+
+import simetuc.plotter as plotter
 
 
 class LatticeError(Exception):
@@ -223,34 +224,6 @@ def _create_interaction_matrices(ion_type: np.array, dist_array: np.array,
             dist_S_k, dist_S_l, dist_A_k, dist_A_l)
 
 
-def _plot_lattice(doped_lattice: np.array, ion_type: np.array) -> None:
-    from mpl_toolkits.mplot3d import proj3d
-
-    def orthogonal_proj(zfront, zback):  # pragma: no cover
-        '''
-        This code sets the 3d projection to orthogonal so the plots are easier to see
-        http://stackoverflow.com/questions/23840756/how-to-disable-perspective-in-mplot3d
-        '''
-        a = (zfront+zback)/(zfront-zback)
-        b = -2*(zfront*zback)/(zfront-zback)
-        return np.array([[1, 0, 0, 0],
-                         [0, 1, 0, 0],
-                         [0, 0, a, b],
-                         [0, 0, -0.0001, zback]])
-    proj3d.persp_transformation = orthogonal_proj
-    fig = plt.figure()
-    axis = fig.add_subplot(111, projection='3d')
-    # axis=Axes3D(fig)
-    colors = ['b' if ion else 'r' for ion in ion_type]
-
-    axis.scatter(doped_lattice[:, 0], doped_lattice[:, 1],
-                 doped_lattice[:, 2], c=colors, marker='o')
-    axis.set_xlabel('X (Å)')
-    axis.set_ylabel('Y (Å)')
-    axis.set_zlabel('Z (Å)')
-    plt.axis('square')
-
-
 def make_full_path(folder_path: str, num_uc: int,
                    S_conc: float, A_conc: float) -> str: # pragma: no cover
     '''Makes the full path to a lattice in the folder.'''
@@ -406,7 +379,7 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
 
     # plot lattice
     if plot_toggle:
-        _plot_lattice(doped_lattice, ion_type)
+        plotter.plot_lattice(doped_lattice, ion_type)
 
     elapsed_time = time.time()-start_time
     formatted_time = time.strftime("%Mm %Ss", time.localtime(elapsed_time))

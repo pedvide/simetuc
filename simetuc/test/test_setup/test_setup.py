@@ -685,7 +685,7 @@ def idfn(params):
 @pytest.mark.parametrize('absorption', ['NIR_980', 'Vis_473', 'NIR_800']) # absorption of S or A
 @pytest.mark.parametrize('params', [(10.5, 5.2, 7, 2, 7, True), # normal
                                     (0.05, 0.0, 40, 2, 7, True), # no A, change S and N_uc
-                                    (5.0, 0.0, 10, 2, 7, True), #c
+                                    (5.0, 0.0, 10, 2, 7, True), #
                                     (20.0, 0.0, 8, 2, 7, True), #
                                     (100.0, 0.0, 5, 2, 7, True), #
                                     (0.0, 0.05, 40, 2, 7, True), # no S, change A and N_uc
@@ -700,14 +700,15 @@ def idfn(params):
                                     (-25.0, 0.0, 10, 2, 7, False), # negative S
                                     (0.0, -50.0, 20, 2, 7, False), # negative A
                                     (125.0, 10.0, 5, 2, 7, False), # too much S
+                                    (0.0, 50.0, 0, 2, 7, False), # no N_uc
                                     (0.0, 50.0, -20, 2, 7, False), # negative N_uc
                                     # TEST NUMBER OF ENERGY STATES
-                                    (5.0, 5.0, 10, 5, 0, True), # no A_states
-                                    (10.0, 1.0, 8, 0, 4, True), # no S_states
+                                    (5.0, 5.0, 10, 2, 0, False), # no A_states
+                                    (10.0, 1.0, 8, 0, 7, False), # no S_states
                                     (6.0, 6.0, 5, 0, 0, False), # no S_states, A_states
-                                    (5.0, 5.0, 10, 15, 0, True), # no A_states
-                                    (10.0, 1.0, 8, 0, 12, True), # no S_states
-                                    (6.0, 6.0, 0, 0, 0, False)], # no S_states, A_states
+                                    (5.0, 5.0, 10, 2, 1, False), # low A_states
+                                    (5.0, 5.0, 8, 1, 7, False), # low S_states
+                                    (6.0, 6.0, 5, 10, 10, True)], # high S_states, A_states
                          ids=idfn)
 def test_random_lattice(setup_cte, params, absorption):
     '''Test a lattice with a random number of A and S
@@ -739,18 +740,11 @@ def test_random_lattice(setup_cte, params, absorption):
         cte['excitations']['Vis_473']['active'] = False
         cte['excitations']['NIR_800']['active'] = True
 
-
-#    full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
-#                                       cte['lattice']['S_conc'], cte['lattice']['A_conc'])
-
     if normal_result:
         with temp_bin_filename() as temp_filename:
             (cte, initial_population, index_S_i, index_A_j,
              total_abs_matrix, decay_matrix, ET_matrix,
              N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
-
-        # remove lattice file
-#        os.remove(full_path)
 
         # some matrices can grow very large. Make sure it's returned as sparse
         assert sparse.issparse(ET_matrix)

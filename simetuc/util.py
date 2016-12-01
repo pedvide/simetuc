@@ -7,6 +7,7 @@ Created on Wed Nov 23 16:45:32 2016
 import tempfile
 from contextlib import contextmanager
 import os
+from collections import namedtuple
 
 
 # http://stackoverflow.com/a/11892712
@@ -34,3 +35,7 @@ def temp_bin_filename():
     temp.close()
     yield temp.name
     os.unlink(temp.name)  # delete file
+
+
+# namedtuple for the concentration of solutions
+Conc = namedtuple('Concentration', ['S_conc', 'A_conc'])

@@ -126,8 +126,9 @@ def setup_cte():
     cte['no_plot'] = True
     return cte
 
-
-def test_optim1(setup_cte, mocker):
+@pytest.mark.parametrize('method', [None, 'COBYLA', 'L-BFGS-B',
+                                    'TNC', 'SLSQP', 'brute_force'])
+def test_optim1(setup_cte, mocker, method):
     '''Test that the optimization works'''
 
     # mock the simulation by returning an error that goes to 0
@@ -140,16 +141,19 @@ def test_optim1(setup_cte, mocker):
         return value
     mocked_opt_dyn.return_value = minimize
 
-    optimize.optimize_dynamics(setup_cte)
+    optimize.optimize_dynamics(setup_cte, method)
 
     assert mocked_opt_dyn.called
 
-def test_opti_fun_factory(setup_cte):
+def test_opti_fun_factory(setup_cte, mocker):
     '''Test that the optimization works'''
+    mocked_dyn = mocker.patch('simetuc.simulations.Simulations.simulate_dynamics')
     sim = simulations.Simulations(setup_cte)
     process_list = setup_cte['optimization_processes']
     x0 = np.array([setup_cte['ET'][process]['value'] for process in process_list])
 
     _update_ET_and_simulate = optimize.optim_fun_factory(sim, process_list, x0)
     _update_ET_and_simulate(x0*1.5)
+
+    assert mocked_dyn.called
 

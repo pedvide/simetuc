@@ -229,7 +229,11 @@ def main(ext_args: List[str] = None) -> None:
 
         _change_console_logger(logging.WARNING)
 
-        best_x, min_f, total_time = optimize.optimize_dynamics(cte)
+        if not 'optimize_method' in cte:
+            method = None
+        else:
+            method = cte['optimize_method']
+        best_x, min_f, total_time = optimize.optimize_dynamics(cte, method)
         print('')
 
         _change_console_logger(console_level)
