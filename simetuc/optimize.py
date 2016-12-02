@@ -59,7 +59,7 @@ def optimize_dynamics(cte: Dict, method: str = None) -> Tuple[np.array, float, f
     '''
     logger = logging.getLogger(__name__)
 
-    def callback_fun(Xi):
+    def callback_fun(Xi, *args):
         ''' This function is called after every minimization step
             It prints the current parameters and error from the cache
         '''
@@ -163,17 +163,17 @@ def optimize_dynamics(cte: Dict, method: str = None) -> Tuple[np.array, float, f
     return (best_x, min_f, total_time)
 
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.WARNING,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#
-#    logger.debug('Called from cmd.')
-#
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
-#
-#    cte['no_console'] = False
-#    cte['no_plot'] = True
-#
-#    optimize_dynamics(cte)
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.WARNING,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+
+    logger.debug('Called from cmd.')
+
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')
+
+    cte['no_console'] = False
+    cte['no_plot'] = True
+
+    optimize_dynamics(cte, method='basin_hopping')

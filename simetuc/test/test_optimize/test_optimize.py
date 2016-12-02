@@ -127,7 +127,7 @@ def setup_cte():
     return cte
 
 @pytest.mark.parametrize('method', [None, 'COBYLA', 'L-BFGS-B',
-                                    'TNC', 'SLSQP', 'brute_force'])
+                                    'TNC', 'SLSQP', 'brute_force', 'basin_hopping'])
 def test_optim1(setup_cte, mocker, method):
     '''Test that the optimization works'''
 
@@ -142,6 +142,25 @@ def test_optim1(setup_cte, mocker, method):
     mocked_opt_dyn.return_value = minimize
 
     optimize.optimize_dynamics(setup_cte, method)
+
+    assert mocked_opt_dyn.called
+
+def test_optim_no_dict_params(setup_cte, mocker):
+    '''Test that the optimization works without the optimization params being present in cte'''
+
+    # mock the simulation by returning an error that goes to 0
+    mocked_opt_dyn = mocker.patch('simetuc.optimize.optim_fun_factory')
+    value = 20
+    def minimize(x):
+        nonlocal value
+        if value != 0:
+            value -= 1
+        return value
+    mocked_opt_dyn.return_value = minimize
+
+    del setup_cte['optimization_processes']
+
+    optimize.optimize_dynamics(setup_cte, method='SLSQP')
 
     assert mocked_opt_dyn.called
 

@@ -107,7 +107,8 @@ def _calculate_distances(atoms: ase.Atoms, min_im_conv: bool = True) -> np.array
     return dist_array
 
 
-def _create_ground_states(ion_type: np.array, lattice_info: Dict):
+def create_ground_states(ion_type: np.array,
+                         lattice_info: Dict) -> Tuple[np.array, np.array, np.array]:
     '''Returns two arrays with the position of the sensitizers' and activators'
        ground states in the total simulation population index.
        It also returns an array with the initial populations, that is
@@ -148,9 +149,9 @@ def _create_ground_states(ion_type: np.array, lattice_info: Dict):
     return (index_S_i, index_A_j, initial_population)
 
 
-def _create_interaction_matrices(ion_type: np.array, dist_array: np.array,
-                                 index_S_i: np.array, index_A_j: np.array,
-                                 lattice_info: dict) -> Tuple[List[np.array], List[np.array],
+def create_interaction_matrices(ion_type: np.array, dist_array: np.array,
+                                index_S_i: np.array, index_A_j: np.array,
+                                lattice_info: dict) -> Tuple[List[np.array], List[np.array],
                                                               List[np.array], List[np.array],
                                                               List[np.array], List[np.array],
                                                               List[np.array], List[np.array]]:
@@ -233,7 +234,8 @@ def make_full_path(folder_path: str, num_uc: int,
 
 
 # @profile
-def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tuple:
+def generate(cte: Dict, min_im_conv: bool = True,
+             full_path: str = None, no_save: bool = False) -> Tuple:
     '''
     Generates a list of (x,y,z) ion positions and a list with the type of ion (S or A)
     for a lattice with N unit cells and the given concentrations (in percentage) of S and A.
@@ -244,6 +246,7 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
     Z = concentration of A
     min_im_conv=True uses the miminum image convention when calculating distances
     full_path: will use that path to save the lattice
+    no_save: don't save the data, just return it'
     '''
     logger = logging.getLogger(__name__)
 
@@ -268,6 +271,12 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
         logger.error('They must be between 0% and 100%, and their sum too.')
         raise LatticeError('Wrong ion concentrations.')
 
+    num_S_states = cte['states']['sensitizer_states']
+    num_A_states = cte['states']['activator_states']
+    if (S_conc != 0 and num_S_states == 0) or (A_conc != 0 and num_A_states == 0):
+        logger.error('The number of states of each ion cannot be zero.')
+        raise LatticeError('Wrong number of states.')
+
     start_time = time.time()
 
     logger.info('Generating lattice %s...', lattice_name)
@@ -291,12 +300,13 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
     num_doped_atoms = len(atoms)
     num_A = np.count_nonzero(ion_type)
     num_S = num_doped_atoms-num_A
+    num_states = num_S_states*num_S + num_A_states*num_A
 
-    if num_doped_atoms == 0:
-        logger.error('No doped ions generated, the lattice or' +
-                     ' the concentrations are too small!')
-        raise LatticeError('No doped ions generated, the lattice or' +
-                           ' the concentrations are too small!')
+    if num_doped_atoms == 0 or num_states == 0:
+        msg = ('No doped ions generated: the lattice or' +
+               ' the concentrations are too small, or the number of energy states is zero!')
+        logger.error(msg)
+        raise LatticeError(msg)
 
     logger.info('Total number of S+A: %d, (%.2f%%).',
                 num_doped_atoms, num_doped_atoms/num_atoms*100)
@@ -319,11 +329,6 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
     logger.info('Time to calculate distances: %s.', formatted_time)
 
     logger.info('Calculating parameters...')
-
-    num_S_states = cte['states']['sensitizer_states']
-    num_A_states = cte['states']['activator_states']
-    num_states = num_S_states*num_S + num_A_states*num_A
-
     # number of ions
     lattice_info = {}
     lattice_info['num_total'] = num_doped_atoms
@@ -334,48 +339,45 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
     lattice_info['sensitizer_states'] = num_S_states
     lattice_info['activator_states'] = num_A_states
 
-    if num_states == 0:
-        logger.error('The number of energy states is zero!')
-        raise LatticeError('The number of energy states is zero!')
-
-    indices_S_i, indices_A_j, initial_population = _create_ground_states(ion_type, lattice_info)
+    indices_S_i, indices_A_j, initial_population = create_ground_states(ion_type, lattice_info)
 
     (index_S_k, index_S_l,
      index_A_k, index_A_l,
      dist_S_k, dist_S_l,
-     dist_A_k, dist_A_l) = _create_interaction_matrices(ion_type, dist_array,
-                                                        indices_S_i, indices_A_j,
-                                                        lattice_info)
+     dist_A_k, dist_A_l) = create_interaction_matrices(ion_type, dist_array,
+                                                       indices_S_i, indices_A_j,
+                                                       lattice_info)
 
-    logger.info('Saving data...')
-    # check if folder exists
-    if full_path is None: # pragma: no cover
-        folder_path = os.path.join('latticeData', lattice_name)
-        full_path = make_full_path(folder_path, num_uc, S_conc, A_conc)
+    if not no_save:
+        logger.info('Saving data...')
+        # check if folder exists
+        if full_path is None: # pragma: no cover
+            folder_path = os.path.join('latticeData', lattice_name)
+            full_path = make_full_path(folder_path, num_uc, S_conc, A_conc)
 
-    os.makedirs(os.path.dirname(full_path), exist_ok=True)
-    with h5py.File(full_path, mode='w') as file:
-        file.create_dataset('dist_array', data=dist_array, compression='gzip')
-        file.create_dataset('ion_type', data=ion_type, compression='gzip')
-        file.create_dataset('doped_lattice', data=doped_lattice, compression='gzip')
-        file.create_dataset('initial_population', data=initial_population, compression='gzip')
-        # serialze lattice_info as text and store it as an attribute
-        file.attrs['lattice_info'] = yaml.dump(lattice_info)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with h5py.File(full_path, mode='w') as file:
+            file.create_dataset('dist_array', data=dist_array, compression='gzip')
+            file.create_dataset('ion_type', data=ion_type, compression='gzip')
+            file.create_dataset('doped_lattice', data=doped_lattice, compression='gzip')
+            file.create_dataset('initial_population', data=initial_population, compression='gzip')
+            # serialze lattice_info as text and store it as an attribute
+            file.attrs['lattice_info'] = yaml.dump(lattice_info)
 
-        file.create_dataset('indices_S_i', data=np.array(indices_S_i), compression='gzip')
-        file.create_dataset('indices_A_j', data=np.array(indices_A_j), compression='gzip')
+            file.create_dataset('indices_S_i', data=np.array(indices_S_i), compression='gzip')
+            file.create_dataset('indices_A_j', data=np.array(indices_A_j), compression='gzip')
 
-        file.create_dataset('index_S_k', data=index_S_k, compression='gzip')
-        file.create_dataset('dist_S_k', data=dist_S_k, compression='gzip')
+            file.create_dataset('index_S_k', data=index_S_k, compression='gzip')
+            file.create_dataset('dist_S_k', data=dist_S_k, compression='gzip')
 
-        file.create_dataset('index_S_l', data=index_S_l, compression='gzip')
-        file.create_dataset('dist_S_l', data=dist_S_l, compression='gzip')
+            file.create_dataset('index_S_l', data=index_S_l, compression='gzip')
+            file.create_dataset('dist_S_l', data=dist_S_l, compression='gzip')
 
-        file.create_dataset('index_A_k', data=index_A_k, compression='gzip')
-        file.create_dataset('dist_A_k', data=dist_A_k, compression='gzip')
+            file.create_dataset('index_A_k', data=index_A_k, compression='gzip')
+            file.create_dataset('dist_A_k', data=dist_A_k, compression='gzip')
 
-        file.create_dataset('index_A_l', data=index_A_l, compression='gzip')
-        file.create_dataset('dist_A_l', data=dist_A_l, compression='gzip')
+            file.create_dataset('index_A_l', data=index_A_l, compression='gzip')
+            file.create_dataset('dist_A_l', data=dist_A_l, compression='gzip')
 
     # plot lattice
     if plot_toggle:
@@ -393,27 +395,27 @@ def generate(cte: Dict, min_im_conv: bool = True, full_path: str = None) -> Tupl
             index_A_l, dist_A_l)
 
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.INFO,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#
-#    logger.debug('Called from main.')
-#
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
-#
-#    cte['lattice']['S_conc'] = 2
-#    cte['lattice']['A_conc'] = 1
-#    cte['lattice']['N_uc'] = 20
-##    cte['states']['sensitizer_states'] = 0
-##    cte['states']['activator_states'] = 4
-#
-#    (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
-#     index_S_i, index_A_j,
-#     index_S_k, dist_S_k,
-#     index_S_l, dist_S_l,
-#     index_A_k, dist_A_k,
-#     index_A_l, dist_A_l) = generate(cte)
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+
+    logger.debug('Called from main.')
+
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')
+    cte['no_console'] = False
+    cte['no_plot'] = False
+
+    cte['lattice']['S_conc'] = 2
+    cte['lattice']['A_conc'] = 1
+    cte['lattice']['N_uc'] = 20
+#    cte['states']['sensitizer_states'] = 0
+#    cte['states']['activator_states'] = 4
+
+    (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
+     index_S_i, index_A_j,
+     index_S_k, dist_S_k,
+     index_S_l, dist_S_l,
+     index_A_k, dist_A_k,
+     index_A_l, dist_A_l) = generate(cte)

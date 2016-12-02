@@ -128,8 +128,8 @@ def setup_benchmark(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix,
-     UC_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
+     UC_matrix, N_indices,
+     jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
 
     tf = (10*np.max(precalculate.get_lifetimes(cte))).round(8)  # total simulation time
     tf_p = 10e-9

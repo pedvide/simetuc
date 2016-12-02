@@ -159,10 +159,9 @@ def plot_power_dependence(sim_data_arr: np.ndarray, power_dens_arr: np.ndarray,
         plt.legend(loc="best")
         plt.xlabel('Power density / W/cm^2')
 
-        if slopes is not None:
-            for i, txt in enumerate(slopes[num]):
-                axis.annotate(txt, (power_dens_arr[i], sim_data[i]), xytext=(5, -7),
-                              xycoords='data', textcoords='offset points')
+        for i, txt in enumerate(slopes[num]):
+            axis.annotate(txt, (power_dens_arr[i], sim_data[i]), xytext=(5, -7),
+                          xycoords='data', textcoords='offset points')
 
 
 def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray,

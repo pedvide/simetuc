@@ -14,7 +14,6 @@ import os
 import pprint
 from typing import Dict, List, Tuple, Iterator, Sequence
 
-
 import h5py
 import yaml
 
@@ -305,7 +304,7 @@ class DynamicsSolution(Solution):
                     data = csv.reader(file, delimiter='\t')
                     data = [row for row in data if row[0][0] is not '#']
                     data = np.array(data, dtype=np.float64)
-                    print(path)
+                    # print(path)
                 except ValueError:  # pragma: no cover
                     data = csv.reader(file, delimiter=',')
                     data = [row for row in data if row[0][0] is not '#']
@@ -726,20 +725,25 @@ class Simulations():
         self.cte['ET'][process]['value'] = new_strength
 
 #    @profile
-    def simulate_dynamics(self) -> DynamicsSolution:
+    def simulate_dynamics(self, average: bool = False) -> DynamicsSolution:
         ''' Simulates the absorption, decay and energy transfer processes contained in cte
             Returns a DynamicsSolution instance
+            average=True solves an average rate equation problem instead of the microscopic one.
         '''
         logger = logging.getLogger(__name__)
 
         start_time = time.time()
         logger.info('Starting simulation...')
 
+        setup_func = precalculate.setup_microscopic_eqs
+        if average:
+            setup_func = precalculate.setup_average_eqs
+
         # get matrices of interaction, initial conditions, abs, decay, etc
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
-         UC_matrix,
-         N_indices, jac_indices) = precalculate.precalculate(self.cte, full_path=self.full_path)
+         UC_matrix, N_indices,
+         jac_indices) = setup_func(self.cte, full_path=self.full_path)
 #        initial_population = np.asfortranarray(initial_population, dtype=np.float64)
 
         # update cte
@@ -820,8 +824,8 @@ class Simulations():
         # get matrices of interaction, initial conditions, abs, decay, etc
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
-         UC_matrix, N_indices, jac_indices) = precalculate.precalculate(self.cte,
-                                                                        full_path=self.full_path)
+         UC_matrix, N_indices,
+         jac_indices) = precalculate.setup_microscopic_eqs(self.cte, full_path=self.full_path)
 
         # update cte
         self.cte = cte
@@ -937,24 +941,27 @@ class Simulations():
         return conc_dep_solution
 
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.INFO,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#
-#    logger.info('Called from cmd.')
-#
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
-#
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
-#
-#
-#    sim = Simulations(cte)
-#
-#    solution = sim.simulate_dynamics()
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+
+    logger.info('Called from cmd.')
+
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')
+
+    cte['no_console'] = False
+    cte['no_plot'] = False
+
+
+    sim = Simulations(cte)
+
+    solution = sim.simulate_dynamics()
 #    solution.log_errors()
+
+    solution_avg = sim.simulate_dynamics(average=True)
+#    solution_avg.log_errors()
 #
 #    solution = sim.simulate_steady_state()
 #    solution.log_populations()

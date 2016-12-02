@@ -59,45 +59,14 @@ def _create_absorption_matrix(abs_sensitizer: np.array, abs_activator: np.array,
     diag_list = [elem for elem in diag_list if elem is not None]
 
     absorption_matrix = scipy.sparse.block_diag(diag_list, format='csr', dtype=np.float64)
-
-#    # list of data, row_ind, col_ind
-#    data = np.zeros((4*num_total_ions,), dtype=np.float32)
-#    col_ind = np.zeros_like(data, dtype=np.uint32)
-#    row_ptr = np.zeros_like(col_ind)
-#    index = 0
-#    for block in diag_list:
-#        block_len = block.shape[0]
-#        if len(block.data) != 0:
-#            print(block_len, len(block.data))
-#            print(index, index+len(block.data))
-#            print(col_ind[index:index+len(block.data)])
-#            col_ind[index:index+len(block.data)] = block.indices+index
-#            row_ptr[index:index+len(block.indptr)] = block.indptr
-#            data[index:index+len(block.data)] = block.data
-#        index += block_len
-#
-##    data = data[:index]
-##    col_ind = col_ind[:index]
-##    row_ptr = row_ptr[:index]
-#
-#    absorption_matrix_good = scipy.sparse.block_diag(diag_list, format='csr')
-#    data_good = absorption_matrix_good.data
-#    col_ind_good = absorption_matrix_good.indices
-#    row_ptr_good = absorption_matrix_good.indptr
-#
-#    absorption_matrix = scipy.sparse.csr_matrix((data, col_ind, row_ptr),
-#                                                shape=(total_states, total_states))
-
     return absorption_matrix
 
 
-def _setup_absorption(cte: Dict,
-                      index_S_i: List[int], index_A_j: List[int]) -> scipy.sparse.csr_matrix:
+def _create_total_absorption_matrix(sensitizer_states: int, activator_states: int,
+                                    num_energy_states: int,
+                                    excitations_dict: Dict, index_S_i: List[int],
+                                    index_A_j: List[int]) -> scipy.sparse.csr_matrix:
     '''Returns the total absorption matrix'''
-
-    num_energy_states = cte['states']['energy_states']
-    sensitizer_states = cte['states']['sensitizer_states']
-    activator_states = cte['states']['activator_states']
 
     # list absorption matrices: a list of abs_matrix that are active
     # (multiplied by the power density)
@@ -105,7 +74,7 @@ def _setup_absorption(cte: Dict,
                                                 num_energy_states), dtype=np.float64)
 
     # for each excitation
-    for current_exc_dict in cte['excitations'].values():
+    for current_exc_dict in excitations_dict.values():
 
         # if the current excitation is not active jump to the next one
         if current_exc_dict['active'] is False:
@@ -122,7 +91,7 @@ def _setup_absorption(cte: Dict,
             final_state = current_exc_dict['final_state'][num]
             ion_exc = current_exc_dict['ion_exc'][num]
 
-            if ion_exc == 'S' and cte['states']['sensitizer_states']:
+            if ion_exc == 'S' and sensitizer_states:
                 if init_state < sensitizer_states and final_state < sensitizer_states:
                     abs_sensitizer[init_state, init_state] = -pump_rate
                     abs_sensitizer[init_state, final_state] = +degeneracy*pump_rate
@@ -130,7 +99,7 @@ def _setup_absorption(cte: Dict,
                     abs_sensitizer[final_state, final_state] = -degeneracy*pump_rate
                     abs_sensitizer *= power_dens  # multiply by the power density
 
-            elif ion_exc == 'A' and cte['states']['activator_states']:
+            elif ion_exc == 'A' and activator_states:
                 if init_state < activator_states and final_state < activator_states:
                     abs_activator[init_state, init_state] = -pump_rate
                     abs_activator[init_state, final_state] = +degeneracy*pump_rate
@@ -146,16 +115,75 @@ def _setup_absorption(cte: Dict,
     return total_abs_matrix
 
 
+def _create_branching_ratios(sensitizer_states: int, activator_states: int,
+                             decay_dict: Dict) -> Tuple[np.array, np.array]:
+    '''Create the branching ratio matrices.'''
+    # branching ratios given directly by the user
+    B_sensitizer = np.zeros((sensitizer_states, sensitizer_states), dtype=np.float64)
+    B_activator = np.zeros((activator_states, activator_states), dtype=np.float64)
+    B_pos_value_S = decay_dict['B_pos_value_S']
+    B_pos_value_A = decay_dict['B_pos_value_A']
+
+    try:
+        for pos_i, pos_f, value in B_pos_value_S:
+            # discard processes with indices higher than sensitizer_states
+            if pos_i < sensitizer_states and pos_f < sensitizer_states:
+                B_sensitizer[pos_i, pos_f] = value
+        for pos_i, pos_f, value in B_pos_value_A:
+            # discard processes with indices higher than activator_states
+            if pos_i < activator_states and pos_f < activator_states:
+                B_activator[pos_i, pos_f] = value
+    # this shouldn't happen
+    except IndexError as err:  # pragma: no cover
+        logging.getLogger(__name__).error('Wrong number of states!')
+        logging.getLogger(__name__).error(str(err))
+        raise
+
+    # discard branching ratios to the ground state
+    if sensitizer_states > 0:
+        B_sensitizer[:, 0] = 0
+    if activator_states > 0:
+        B_activator[:, 0] = 0
+
+    return (B_sensitizer, B_activator)
+
+def _create_decay_vectors(sensitizer_states: int, activator_states: int,
+                          decay_dict: Dict) -> Tuple[np.array, np.array]:
+    '''Create the decay vectors.'''
+
+    k_sensitizer = np.zeros((sensitizer_states, ), dtype=np.float64)
+    k_activator = np.zeros((activator_states, ), dtype=np.float64)
+    # list of tuples of state and decay rate
+    pos_value_S = decay_dict['pos_value_S']
+    pos_value_A = decay_dict['pos_value_A']
+    try:
+        for pos, value in pos_value_S:
+            if pos < sensitizer_states:
+                k_sensitizer[pos] = value
+        for pos, value in pos_value_A:
+            if pos < activator_states:
+                k_activator[pos] = value
+    # this shouldn't happen
+    except IndexError as err:  # pragma: no cover
+        logging.getLogger(__name__).debug('Wrong number of states!')
+        raise
+
+    return (k_sensitizer, k_activator)
+
 #@profile
-def _create_decay_matrix(B_sensitizer: np.array, B_activator: np.array,
-                         k_sensitizer: np.array, k_activator: np.array,
+def _create_decay_matrix(sensitizer_states: int, activator_states: int, decay_dict: Dict,
                          index_S_i: List[int], index_A_j: List[int]) -> scipy.sparse.csr_matrix:
     '''Returns the decay matrix'''
 
-    num_total_ions = len(index_A_j)
+    # branching ratios
+    B_sensitizer, B_activator = _create_branching_ratios(sensitizer_states,
+                                                         activator_states,
+                                                         decay_dict)
 
-    activator_states = len(k_activator)
-    sensitizer_states = len(k_sensitizer)
+    # decay constants
+    k_sensitizer, k_activator = _create_decay_vectors(sensitizer_states,
+                                                      activator_states,
+                                                      decay_dict)
 
     # final decay matrix
     if sensitizer_states > 0:
@@ -183,10 +211,11 @@ def _create_decay_matrix(B_sensitizer: np.array, B_activator: np.array,
         elif index_A_j[num] != -1:
             return decay_activator
 
-    diag_list = [get_block(i) for i in range(num_total_ions)]
-    diag_list = [elem for elem in diag_list if elem is not None]
+    num_total_ions = len(index_A_j)
+    diag_list = (get_block(i) for i in range(num_total_ions))
+    diag_list_clean = [elem for elem in diag_list if elem is not None]
 
-    decay_matrix = scipy.sparse.block_diag(diag_list, format='csr', dtype=np.float64)
+    decay_matrix = scipy.sparse.block_diag(diag_list_clean, format='csr', dtype=np.float64)
 
     return decay_matrix
 
@@ -252,12 +281,15 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
         uc_index_indep += 4*len(indices_ions)
         uc_index += len(indices_ions)
 
-    num_total_ions = len(index_A_j)
+    num_S_atoms = np.count_nonzero(np.array(index_S_i) != -1)
+    num_A_atoms = np.count_nonzero(np.array(index_A_j) != -1)
+    num_total_ions = num_S_atoms + num_A_atoms
+    num_energy_states = sensitizer_states*num_S_atoms + activator_states*num_A_atoms
 
-    temp1 = np.array(index_S_i)
-    temp2 = np.array(index_A_j)
-    num_energy_states = (sensitizer_states*len(temp1[temp1 != -1]) +
-                         activator_states*len(temp2[temp2 != -1]))
+    if num_energy_states <= 2:
+        ET_matrix = csr_matrix(np.zeros((num_energy_states, 0), dtype=np.float64))
+        N_indices = np.column_stack(([], []))
+        return (ET_matrix, N_indices)
 
     num_et_processes = 10*(sum(len(arr) for arr in indices_S_k) +
                            sum(len(arr) for arr in indices_S_l) +
@@ -280,17 +312,17 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
     try:
         for proc_name, dict_process in dict_ET.items():
              # discard processes whose states are larger than activator states
-            if dict_process['value'] != 0 and dict_process['type'] == 'AA':
+            if not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'AA':
                 if np.any(np.array(dict_process['indices']) > activator_states):
                     raise lattice.LatticeError
-            elif dict_process['value'] != 0 and dict_process['type'] == 'AS':
+            elif not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'AS':
                 if np.any(np.array(dict_process['indices'][::2]) > activator_states) or\
                     np.any(np.array(dict_process['indices'][1::2]) > sensitizer_states):
                     raise lattice.LatticeError
-            elif dict_process['value'] != 0 and dict_process['type'] == 'SS':
+            elif not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'SS':
                 if np.any(np.array(dict_process['indices']) > sensitizer_states):
                     raise lattice.LatticeError
-            elif dict_process['value'] != 0 and dict_process['type'] == 'SA':
+            elif not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'SA':
                 if np.any(np.array(dict_process['indices'][::2]) > activator_states) or\
                     np.any(np.array(dict_process['indices'][1::2]) > sensitizer_states):
                     raise lattice.LatticeError
@@ -306,7 +338,7 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
             index_j = index_A_j[num]  # position of ion num on the solution vector
             # add all A-A ET processes
             for proc_name, dict_process in dict_ET.items():
-                if dict_process['value'] != 0 and dict_process['type'] == 'AA':
+                if not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'AA':
                     # reshape to (n,) from (n,1)
                     indices_l = indices_A_l[num_A].reshape((len(indices_A_l[num_A]),))
                     dists_l = dists_A_l[num_A]
@@ -316,7 +348,7 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
                                    *dict_process['indices'])
             # add all A-S ET processes
             for proc_name, dict_process in dict_ET.items():
-                if dict_process['value'] != 0 and dict_process['type'] == 'AS':
+                if not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'AS':
                     indices_k = indices_A_k[num_A].reshape((len(indices_A_k[num_A]),))
                     dists_k = dists_A_k[num_A]
                     add_ET_process(index_j, indices_k, dists_k,
@@ -328,7 +360,7 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
             index_i = index_S_i[num]  # position of ion num on the solution vector
             # add all S-S ET processes
             for proc_name, dict_process in dict_ET.items():
-                if dict_process['value'] != 0 and dict_process['type'] == 'SS':
+                if not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'SS':
                     indices_k = indices_S_k[num_S].reshape((len(indices_S_k[num_S]),))
                     dists_k = dists_S_k[num_S]
                     add_ET_process(index_i, indices_k, dists_k,
@@ -337,7 +369,7 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
                                    *dict_process['indices'])
             # add all S-A ET processes
             for proc_name, dict_process in dict_ET.items():
-                if dict_process['value'] != 0 and dict_process['type'] == 'SA':
+                if not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'SA':
                     indices_l = indices_S_l[num_S].reshape((len(indices_S_l[num_S]),))
                     dists_l = dists_S_l[num_S]
                     add_ET_process(index_i, indices_l, dists_l,
@@ -358,6 +390,7 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
     ET_matrix = csr_matrix((v_index, (i_index, j_index)),
                            shape=(num_energy_states, uc_index),
                            dtype=np.float64)
+#    ET_matrix.eliminate_zeros()
     N_indices = np.column_stack((N_index_I, N_index_J))
 
     return (ET_matrix, N_indices)
@@ -399,11 +432,11 @@ def get_lifetimes(cte: Dict) -> List[float]:
 
 
 #@profile
-def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
-                ) -> Tuple[Dict, np.array, List[int], List[int],
-                           scipy.sparse.csr_matrix, scipy.sparse.csr_matrix,
-                           scipy.sparse.csr_matrix, np.array, np.array]:
-    '''Setups all data structures necessary for simulations.py to work
+def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = None
+                         ) -> Tuple[Dict, np.array, List[int], List[int],
+                                    scipy.sparse.csr_matrix, scipy.sparse.csr_matrix,
+                                    scipy.sparse.csr_matrix, np.array, np.array]:
+    '''Setups all data structures necessary for the microscopic rate equations
         As arguments it gets the cte dict (that can be read from a file with settings.py)
         It returns the updated cte, initial conditions vector,
         index_Yb_i, index_Tm_j arrays that check that the ion exists at that position
@@ -424,7 +457,7 @@ def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
     num_uc = cte['lattice']['N_uc']
     lattice_name = cte['lattice']['name']
 
-    logger.info('Starting setup.')
+    logger.info('Starting microscopic rate equations setup.')
     logger.info('Lattice: %s.', lattice_name)
     logger.info('Size: %sx%sx%s unit cells.', num_uc, num_uc, num_uc)
     logger.info('Concentrations: %.2f%% Sensitizer, %.2f%% Activator.', S_conc, A_conc)
@@ -475,14 +508,13 @@ def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
     cte['ions']['sensitizers'] = lattice_info['num_sensitizers']
     cte['ions']['activators'] = lattice_info['num_activators']
 
-    cte['states']['energy_states'] = lattice_info['energy_states']
+    num_energy_states = cte['states']['energy_states'] = lattice_info['energy_states']
     sensitizer_states = cte['states']['sensitizer_states'] = lattice_info['sensitizer_states']
     activator_states = cte['states']['activator_states'] = lattice_info['activator_states']
 
     num_total_ions = cte['ions']['total']
     num_sensitizers = cte['ions']['sensitizers']
     num_activators = cte['ions']['activators']
-    num_energy_states = cte['states']['energy_states']
 
     logger.info('Number of ions: %d, sensitizers: %d, activators: %d.',
                 num_total_ions, num_sensitizers, num_activators)
@@ -500,80 +532,36 @@ def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
         index_S_i = list(itertools.chain.from_iterable(np.array(file['indices_S_i']).tolist()))
         index_A_j = list(itertools.chain.from_iterable(np.array(file['indices_A_j']).tolist()))
 
-        indices_S_k = [np.array(x, dtype=np.int64) for x in file['index_S_k']]  # list of arrays
+        # S interact with S
+        indices_S_k = [np.array(x, dtype=np.int64) for x in file['index_S_k']]
         dists_S_k = np.array(file['dist_S_k'])
 
-        indices_S_l = [np.array(x, dtype=np.int64) for x in file['index_S_l']]  # list of arrays
+        # S interact with A
+        indices_S_l = [np.array(x, dtype=np.int64) for x in file['index_S_l']]
         dists_S_l = np.array(file['dist_S_l'])
 
-        indices_A_k = [np.array(x, dtype=np.int64) for x in file['index_A_k']]  # list of arrays
+        # A interact with S
+        indices_A_k = [np.array(x, dtype=np.int64) for x in file['index_A_k']]
         dists_A_k = np.array(file['dist_A_k'])
 
-        indices_A_l = [np.array(x, dtype=np.int64) for x in file['index_A_l']]  # list of arrays
+        # A interact with A
+        indices_A_l = [np.array(x, dtype=np.int64) for x in file['index_A_l']]
         dists_A_l = np.array(file['dist_A_l'])
 
         initial_population = np.array(file['initial_population'])
 
-    # build rate equations absorption and decay matrices
+
     logger.info('Building matrices...')
 
     logger.info('Absorption and decay matrices...')
-
-    total_abs_matrix = _setup_absorption(cte, index_S_i, index_A_j)
-
-    # decay matrix
-    # branching ratios given directly by the user
-    B_sensitizer = np.zeros((sensitizer_states, sensitizer_states), dtype=np.float64)
-    B_activator = np.zeros((activator_states, activator_states), dtype=np.float64)
-    B_pos_value_S = cte['decay']['B_pos_value_S']
-    B_pos_value_A = cte['decay']['B_pos_value_A']
-
-    try:
-        for pos_i, pos_f, value in B_pos_value_S:
-            # discard processes with indices higher than sensitizer_states
-            if pos_i < sensitizer_states and pos_f < sensitizer_states:
-                B_sensitizer[pos_i, pos_f] = value
-        for pos_i, pos_f, value in B_pos_value_A:
-            # discard processes with indices higher than activator_states
-            if pos_i < activator_states and pos_f < activator_states:
-                B_activator[pos_i, pos_f] = value
-    # this shouldn't happen
-    except IndexError as err:  # pragma: no cover
-        logger.error('Wrong number of states!')
-        logger.error(str(err))
-        raise
-
-    # discard branching ratios to the ground state
-    if sensitizer_states > 0:
-        B_sensitizer[:, 0] = 0
-    if activator_states > 0:
-        B_activator[:, 0] = 0
-
-    # decay constants
-    k_sensitizer = np.zeros((sensitizer_states, ), dtype=np.float64)
-    k_activator = np.zeros((activator_states, ), dtype=np.float64)
-    # list of tuples of state and decay rate
-    pos_value_S = cte['decay']['pos_value_S']
-    pos_value_A = cte['decay']['pos_value_A']
-    try:
-        for pos, value in pos_value_S:
-            if pos < sensitizer_states:
-                k_sensitizer[pos] = value
-        for pos, value in pos_value_A:
-            if pos < activator_states:
-                k_activator[pos] = value
-    # this shouldn't happen
-    except IndexError as err:  # pragma: no cover
-        logger.debug('Wrong number of states!')
-        raise
-
-    decay_matrix = _create_decay_matrix(B_sensitizer, B_activator,
-                                        k_sensitizer, k_activator,
-                                        index_S_i, index_A_j)
+    total_abs_matrix = _create_total_absorption_matrix(sensitizer_states, activator_states,
+                                                       num_energy_states, cte['excitations'],
+                                                       index_S_i, index_A_j)
+    decay_matrix = _create_decay_matrix(sensitizer_states, activator_states,
+                                        cte['decay'], index_S_i, index_A_j)
 
     # ET matrices
     logger.info('Energy transfer matrices...')
-
     ET_matrix, N_indices = _create_ET_matrices(index_S_i, index_A_j, cte['ET'],
                                                indices_S_k, indices_S_l,
                                                indices_A_k, indices_A_l,
@@ -584,27 +572,157 @@ def precalculate(cte: Dict, gen_lattice: bool = False, full_path: str = None
     jac_indices = _calculate_jac_matrices(N_indices)
 
     logger.info('Number of interactions: %d.', N_indices.shape[0])
-    logger.info('Setup finished. Total time: %.2fs.', time.time()-start_time)
 
+    logger.info('Setup finished. Total time: %.2fs.', time.time()-start_time)
     return (cte, initial_population, index_S_i, index_A_j,
             total_abs_matrix, decay_matrix, ET_matrix, N_indices, jac_indices)
 
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.INFO,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#    logger.debug('Called from main.')
-#
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
-#
-#    (cte, initial_population, index_S_i, index_A_j,
-#     total_abs_matrix, decay_matrix, UC_matrix,
-#     N_indices, jac_indices) = precalculate(cte)
-#
-#    UC_matrix = UC_matrix.toarray()
-#    total_abs_matrix = total_abs_matrix.toarray()
-#    decay_matrix = decay_matrix.toarray()
+def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = None
+                     ) -> Tuple[Dict, np.array, List[int], List[int],
+                                scipy.sparse.csr_matrix, scipy.sparse.csr_matrix,
+                                scipy.sparse.csr_matrix, np.array, np.array]:
+    '''Setups all data structures necessary for the average rate equations
+        As arguments it gets the cte dict (that can be read from a file with settings.py)
+        It returns the updated cte, initial conditions vector,
+        index_Yb_i, index_Tm_j arrays that check that the ion exists at that position
+        Abs, Decay, ET_matrix, and N_index matrices for the ODE solver function
+        and also jac_indices for the jacobian
+
+        gen_lattice=True will generate a lattice even if it already exists
+        full_path=True will load a specific lattice from that path.
+    '''
+    logger = logging.getLogger(__name__)
+
+    start_time = time.time()
+
+    # convert to float
+    S_conc = float(cte['lattice']['S_conc'])
+    A_conc = float(cte['lattice']['A_conc'])
+
+    lattice_name = cte['lattice']['name']
+
+    logger.info('Starting setup.')
+    logger.info('Lattice: %s.', lattice_name)
+    logger.info('Concentrations: %.2f%% Sensitizer, %.2f%% Activator.', S_conc, A_conc)
+
+    cte['ions'] = {}
+    num_sensitizers = cte['ions']['sensitizers'] = 1 if S_conc != 0 else 0
+    num_activators = cte['ions']['activators'] = 1 if A_conc != 0 else 0
+    num_total_ions = cte['ions']['total'] = num_sensitizers + num_activators
+
+    sensitizer_states = cte['states']['sensitizer_states']
+    activator_states = cte['states']['activator_states']
+    num_energy_states = cte['states']['energy_states'] = (num_sensitizers*sensitizer_states +
+                                                          num_activators*activator_states)
+    lattice_info = {}
+    lattice_info['num_total'] = num_total_ions
+    lattice_info['num_activators'] = num_activators
+    lattice_info['num_sensitizers'] = num_sensitizers
+    # save number of states so this lattice is only used with the right settings
+    lattice_info['energy_states'] = num_energy_states
+    lattice_info['sensitizer_states'] = sensitizer_states
+    lattice_info['activator_states'] = activator_states
+
+    if num_total_ions == 0:
+        msg = 'No ions generated, the concentrations are too small!'
+        logger.error(msg)
+        raise lattice.LatticeError(msg)
+
+    # discard the results, but it does a lot of error checking
+    # don't show the plot
+    old_no_plot = cte['no_plot']
+    cte['no_plot'] = True
+    # generate lattice, data will be saved to disk
+    lattice.generate(cte, no_save=True)
+    cte['no_plot'] = old_no_plot
+
+    logger.info('Number of ions: %d, sensitizers: %d, activators: %d.',
+                num_total_ions, num_sensitizers, num_activators)
+    logger.info('Number of states: %d.', num_energy_states)
+
+    logger.info('Calculating parameters...')
+    # list of ion types. 0=S, 1=A
+    if num_sensitizers:
+        if num_activators:
+            lst = [0, 1]
+        else:
+            lst = [0]
+    else:
+        lst = [1]
+    ion_type = np.array(lst)
+
+    # distance array
+    dist_array = np.ones((num_total_ions, num_total_ions))
+
+    (indices_S_i, indices_A_j,
+     initial_population) = lattice.create_ground_states(ion_type, lattice_info)
+
+    (indices_S_k, indices_S_l,
+     indices_A_k, indices_A_l,
+     dists_S_k, dists_S_l,
+     dists_A_k, dists_A_l) = lattice.create_interaction_matrices(ion_type, dist_array,
+                                                                 indices_S_i, indices_A_j,
+                                                                 lattice_info)
+    indices_S_k = [np.array(x, dtype=np.int64) for x in indices_S_k]
+    dists_S_k = np.array(dists_S_k)
+    indices_S_l = [np.array(x, dtype=np.int64) for x in indices_S_l]
+    dists_S_l = np.array(dists_S_l)
+    indices_A_k = [np.array(x, dtype=np.int64) for x in indices_A_k]
+    dists_A_k = np.array(dists_A_k)
+    indices_A_l = [np.array(x, dtype=np.int64) for x in indices_A_l]
+    dists_A_l = np.array(dists_A_l)
+
+    logger.info('Building matrices...')
+    logger.info('Absorption and decay matrices...')
+    total_abs_matrix = _create_total_absorption_matrix(sensitizer_states, activator_states,
+                                                       num_energy_states, cte['excitations'],
+                                                       indices_S_i, indices_A_j)
+    decay_matrix = _create_decay_matrix(sensitizer_states, activator_states, cte['decay'],
+                                        indices_S_i, indices_A_j)
+
+    # ET matrices
+    logger.info('Energy transfer matrices...')
+    ET_matrix, N_indices = _create_ET_matrices(indices_S_i, indices_A_j, cte['ET'],
+                                               indices_S_k, indices_S_l,
+                                               indices_A_k, indices_A_l,
+                                               dists_S_k, dists_S_l,
+                                               dists_A_k, dists_A_l,
+                                               sensitizer_states, activator_states)
+    # clean emtpy columns in the matrix due to energy migration
+    ET_matrix = ET_matrix.toarray()
+    emtpy_indices = [ind for ind in range(N_indices.shape[0]) if np.allclose(ET_matrix[:,ind], 0)]
+    ET_matrix = csr_matrix(np.delete(ET_matrix, np.array(emtpy_indices), axis=1))
+    N_indices = np.delete(N_indices, np.array(emtpy_indices), axis=0)
+
+    jac_indices = _calculate_jac_matrices(N_indices)
+
+    logger.info('Number of interactions: %d.', N_indices.shape[0])
+
+    logger.info('Setup finished. Total time: %.2fs.', time.time()-start_time)
+    return (cte, initial_population, indices_S_i, indices_A_j,
+            total_abs_matrix, decay_matrix, ET_matrix, N_indices, jac_indices)
+
+
+
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+    logger.debug('Called from main.')
+
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')
+    cte['no_console'] = False
+    cte['no_plot'] = False
+
+    cte['lattice']['S_conc'] = 0.0
+    cte['lattice']['A_conc'] = 0.0
+
+    (cte, initial_population, index_S_i, index_A_j,
+     total_abs_matrix, decay_matrix, UC_matrix,
+     N_indices, jac_indices) = setup_microscopic_eqs(cte)
+
+    UC_matrix = UC_matrix.toarray()
+    total_abs_matrix = total_abs_matrix.toarray()
+    decay_matrix = decay_matrix.toarray()

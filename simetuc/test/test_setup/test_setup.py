@@ -156,7 +156,7 @@ def test_lattice_1A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -202,7 +202,7 @@ def test_lattice_1A_ESA(setup_cte): # use the ESA processes in NIR_800 excitatio
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -212,7 +212,7 @@ def test_lattice_1A_ESA(setup_cte): # use the ESA processes in NIR_800 excitatio
     setup_cte['excitations']['Vis_473']['active'] = True
     setup_cte['excitations']['NIR_800']['active'] = False
 
-    assert  np.all(initial_population == np.array([1, 0, 0, 0, 0, 0, 0]))
+    assert np.all(initial_population == np.array([1, 0, 0, 0, 0, 0, 0]))
 
     assert np.all(index_S_i == np.array([-1]))
     assert np.all(index_A_j == np.array([0]))
@@ -262,7 +262,7 @@ def test_lattice_1A_two_color(setup_cte): # use two color excitation
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -319,7 +319,7 @@ def test_lattice_2A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -402,7 +402,7 @@ def test_lattice_1S(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -434,7 +434,7 @@ def test_lattice_2S(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -476,7 +476,7 @@ def test_lattice_1S_1A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -554,7 +554,7 @@ def test_lattice_2S_2A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.precalculate(setup_cte, full_path=test_filename)
+     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -679,38 +679,21 @@ def idfn(params):
     return '{}S_{}A_{}Nuc_{}Ss_{}As'.format(params[0], params[1], params[2],
                                             params[3], params[4])
 
-# the tests marked as False will return an exception.
-# Don't repeat parameters so the distributed testing works
-# (two test won't try to access the same lattice file)
+@pytest.mark.parametrize('problem', ['setup_microscopic_eqs', 'setup_average_eqs']) # micro or average problem?
 @pytest.mark.parametrize('absorption', ['NIR_980', 'Vis_473', 'NIR_800']) # absorption of S or A
-@pytest.mark.parametrize('params', [(10.5, 5.2, 7, 2, 7, True), # normal
-                                    (0.05, 0.0, 40, 2, 7, True), # no A, change S and N_uc
-                                    (5.0, 0.0, 10, 2, 7, True), #
-                                    (20.0, 0.0, 8, 2, 7, True), #
-                                    (100.0, 0.0, 5, 2, 7, True), #
-                                    (0.0, 0.05, 40, 2, 7, True), # no S, change A and N_uc
-                                    (0.0, 0.5, 20, 2, 7, True), #
-                                    (0.0, 20.0, 6, 2, 7, True), #
-                                    (0.0, 100.0, 3, 2, 7, True), #
-                                    # TEST NEGATIVE AND EXCESSIVE CONCS AND N_UC
-                                    (0.0, 0.0, 10, 2, 7, False), # no S or A
-                                    (25.0, 100.0, 10, 2, 7, False), # too much S+A
-                                    (0.0, 0.0, 0, 2, 7, False), # no S, A, N_uc
-                                    (25.0, 100.0, 0, 2, 7, False), # too much S+A, no N_uc
-                                    (-25.0, 0.0, 10, 2, 7, False), # negative S
-                                    (0.0, -50.0, 20, 2, 7, False), # negative A
-                                    (125.0, 10.0, 5, 2, 7, False), # too much S
-                                    (0.0, 50.0, 0, 2, 7, False), # no N_uc
-                                    (0.0, 50.0, -20, 2, 7, False), # negative N_uc
-                                    # TEST NUMBER OF ENERGY STATES
-                                    (5.0, 5.0, 10, 2, 0, False), # no A_states
-                                    (10.0, 1.0, 8, 0, 7, False), # no S_states
-                                    (6.0, 6.0, 5, 0, 0, False), # no S_states, A_states
-                                    (5.0, 5.0, 10, 2, 1, False), # low A_states
-                                    (5.0, 5.0, 8, 1, 7, False), # low S_states
-                                    (6.0, 6.0, 5, 10, 10, True)], # high S_states, A_states
+@pytest.mark.parametrize('params', [(10.5, 5.2, 7, 2, 7), # normal
+                                    (0.05, 0.0, 40, 2, 7), # no A, change S and N_uc
+                                    (5.0, 0.0, 10, 2, 7), #
+                                    (20.0, 0.0, 8, 2, 7), #
+                                    (100.0, 0.0, 5, 2, 7), #
+                                    (0.0, 0.05, 40, 2, 7), # no S, change A and N_uc
+                                    (0.0, 0.5, 20, 2, 7), #
+                                    (0.0, 20.0, 6, 2, 7), #
+                                    (0.0, 100.0, 3, 2, 7), #
+                                    (6.0, 6.0, 5, 10, 10) # high S_states, A_states
+                                    ],
                          ids=idfn)
-def test_random_lattice(setup_cte, params, absorption):
+def test_random_lattice(setup_cte, params, absorption, problem):
     '''Test a lattice with a random number of A and S
         This test may depend on the functioning of the lattice module
         if the lattices need to be generated so it\'s not really a unit test
@@ -724,8 +707,6 @@ def test_random_lattice(setup_cte, params, absorption):
     cte['lattice']['N_uc'] = params[2]
     cte['states']['sensitizer_states'] = params[3]
     cte['states']['activator_states'] = params[4]
-    # True for normal results, False for exception
-    normal_result = params[5]
 
     if absorption == 'NIR_980': # sensitizer absorbs
         cte['excitations']['NIR_980']['active'] = True
@@ -740,73 +721,121 @@ def test_random_lattice(setup_cte, params, absorption):
         cte['excitations']['Vis_473']['active'] = False
         cte['excitations']['NIR_800']['active'] = True
 
-    if normal_result:
+    setup_func = precalculate.setup_microscopic_eqs
+    if problem == 'setup_average_eqs':
+        setup_func = precalculate.setup_average_eqs
+
+    with temp_bin_filename() as temp_filename:
+        (cte, initial_population, index_S_i, index_A_j,
+         total_abs_matrix, decay_matrix, ET_matrix,
+         N_indices, jac_indices) = setup_func(cte, full_path=temp_filename)
+
+    # some matrices can grow very large. Make sure it's returned as sparse
+    assert sparse.issparse(ET_matrix)
+    assert sparse.issparse(total_abs_matrix)
+    assert sparse.issparse(decay_matrix)
+
+    assert cte['ions']['total'] == cte['ions']['activators'] + cte['ions']['sensitizers']
+    num_ions = cte['ions']['total']
+
+    assert cte['states']['energy_states'] == cte['ions']['activators']*cte['states']['activator_states'] +\
+                                                cte['ions']['sensitizers']*cte['states']['sensitizer_states']
+    num_states = cte['states']['energy_states']
+    num_interactions = N_indices.shape[0]
+
+    assert initial_population.shape == (num_states, )
+
+    assert len(index_S_i) == num_ions
+    assert min(index_S_i) >= -1
+    assert max(index_S_i) <= num_states-1
+
+    assert len(index_A_j) == num_ions
+    assert min(index_A_j) >= -1
+    assert max(index_A_j) <= num_states-1
+
+    assert total_abs_matrix.shape == (num_states, num_states)
+    # sum of all rows is zero for each column
+    assert np.allclose(np.sum(total_abs_matrix, axis=0), 0.0)
+
+    assert decay_matrix.shape == (num_states, num_states)
+    # sum of all rows is zero for each column
+    assert np.allclose(np.sum(decay_matrix, axis=0), 0.0)
+    # decay matrix is upper triangular
+    assert np.allclose(decay_matrix.todense(), np.triu(decay_matrix.todense()))
+
+    assert ET_matrix.shape == (num_states, num_interactions)
+    # sum of all rows is zero for each column
+    assert np.allclose(np.sum(ET_matrix, axis=0), 0.0)
+    # each column has 4 nonzero values
+    assert ET_matrix.getnnz() == 4*num_interactions
+    assert np.all([col.getnnz() == 4 for col in ET_matrix.T])
+
+    assert N_indices.shape == (num_interactions, 2)
+    if num_interactions != 0: # np.min and np.max don't work with empty arrays
+        assert np.min(N_indices) >= 0
+        assert np.max(N_indices) <= num_states-1
+
+    assert jac_indices.shape == (2*num_interactions, 3)
+    if num_interactions != 0: # np.min and np.max don't work with empty arrays
+        assert np.min(jac_indices) >= 0
+        # first column has interaction number
+        assert np.max(jac_indices[:, 0]) <= num_interactions-1
+        # second and third have pupulation indices
+        assert np.max(jac_indices[:, 1]) <= num_states-1
+        assert np.max(jac_indices[:, 2]) <= num_states-1
+
+@pytest.mark.parametrize('problem', ['setup_microscopic_eqs', 'setup_average_eqs']) # micro or average problem?
+@pytest.mark.parametrize('absorption', ['NIR_980', 'Vis_473', 'NIR_800']) # absorption of S or A
+@pytest.mark.parametrize('params', [# TEST NEGATIVE AND EXCESSIVE CONCS AND N_UC
+                                    (0.0, 0.0, 10, 2, 7), # no S or A
+                                    (25.0, 100.0, 10, 2, 7), # too much S+A
+                                    (0.0, 0.0, 0, 2, 7), # no S, A, N_uc
+                                    (25.0, 100.0, 0, 2, 7), # too much S+A, no N_uc
+                                    (-25.0, 0.0, 10, 2, 7), # negative S
+                                    (0.0, -50.0, 20, 2, 7), # negative A
+                                    (125.0, 10.0, 5, 2, 7), # too much S
+                                    (0.0, 50.0, 0, 2, 7), # no N_uc
+                                    (0.0, 50.0, -20, 2, 7), # negative N_uc
+                                    # TEST NUMBER OF ENERGY STATES
+                                    (5.0, 5.0, 10, 2, 0), # no A_states
+                                    (10.0, 1.0, 8, 0, 7), # no S_states
+                                    (6.0, 6.0, 5, 0, 0), # no S_states, A_states
+                                    (5.0, 0.0, 10, 5, 0), # no A_states, no A_conc
+                                    (0.0, 1.0, 8, 0, 4), # no S_states, no S_conc
+                                    (5.0, 5.0, 10, 2, 1), # low A_states
+                                    (5.0, 5.0, 8, 1, 7)], # low S_states
+                         ids=idfn)
+def test_random_wrong_lattice(setup_cte, params, absorption, problem):
+    cte = setup_cte
+
+    cte['lattice']['S_conc'] = params[0]
+    cte['lattice']['A_conc'] = params[1]
+    cte['lattice']['N_uc'] = params[2]
+    cte['states']['sensitizer_states'] = params[3]
+    cte['states']['activator_states'] = params[4]
+
+    setup_func = precalculate.setup_microscopic_eqs
+    if problem == 'setup_average_eqs':
+        setup_func = precalculate.setup_average_eqs
+
+    if absorption == 'NIR_980': # sensitizer absorbs
+        cte['excitations']['NIR_980']['active'] = True
+        cte['excitations']['Vis_473']['active'] = False
+        cte['excitations']['NIR_800']['active'] = False
+    elif absorption == 'Vis_473': # activator absorbs, normal GSA
+        cte['excitations']['NIR_980']['active'] = False
+        cte['excitations']['Vis_473']['active'] = True
+        cte['excitations']['NIR_800']['active'] = False
+    elif absorption == 'NIR_800': # activator absorbs, ESA
+        cte['excitations']['NIR_980']['active'] = False
+        cte['excitations']['Vis_473']['active'] = False
+        cte['excitations']['NIR_800']['active'] = True
+
+    with pytest.raises(lattice.LatticeError):
         with temp_bin_filename() as temp_filename:
             (cte, initial_population, index_S_i, index_A_j,
-             total_abs_matrix, decay_matrix, ET_matrix,
-             N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
-
-        # some matrices can grow very large. Make sure it's returned as sparse
-        assert sparse.issparse(ET_matrix)
-        assert sparse.issparse(total_abs_matrix)
-        assert sparse.issparse(decay_matrix)
-
-        assert cte['ions']['total'] == cte['ions']['activators'] + cte['ions']['sensitizers']
-        num_ions = cte['ions']['total']
-
-        assert cte['states']['energy_states'] == cte['ions']['activators']*cte['states']['activator_states'] +\
-                                                    cte['ions']['sensitizers']*cte['states']['sensitizer_states']
-        num_states = cte['states']['energy_states']
-        num_interactions = N_indices.shape[0]
-
-        assert initial_population.shape == (num_states, )
-
-        assert len(index_S_i) == num_ions
-        assert min(index_S_i) >= -1
-        assert max(index_S_i) <= num_states-1
-
-        assert len(index_A_j) == num_ions
-        assert min(index_A_j) >= -1
-        assert max(index_A_j) <= num_states-1
-
-        assert total_abs_matrix.shape == (num_states, num_states)
-        # sum of all rows is zero for each column
-        assert np.allclose(np.sum(total_abs_matrix, axis=0), 0.0)
-
-        assert decay_matrix.shape == (num_states, num_states)
-        # sum of all rows is zero for each column
-        assert np.allclose(np.sum(decay_matrix, axis=0), 0.0)
-        # decay matrix is upper triangular
-        assert np.allclose(decay_matrix.todense(), np.triu(decay_matrix.todense()))
-
-        assert ET_matrix.shape == (num_states, num_interactions)
-        # sum of all rows is zero for each column
-        assert np.allclose(np.sum(ET_matrix, axis=0), 0.0)
-        # each column has 4 nonzero values
-        assert ET_matrix.getnnz() == 4*num_interactions
-        assert np.all([col.getnnz() == 4 for col in ET_matrix.T])
-
-        assert N_indices.shape == (num_interactions, 2)
-        if num_interactions != 0: # np.min and np.max don't work with empty arrays
-            assert np.min(N_indices) >= 0
-            assert np.max(N_indices) <= num_states-1
-
-        assert jac_indices.shape == (2*num_interactions, 3)
-        if num_interactions != 0: # np.min and np.max don't work with empty arrays
-            assert np.min(jac_indices) >= 0
-            # first column has interaction number
-            assert np.max(jac_indices[:, 0]) <= num_interactions-1
-            # second and third have pupulation indices
-            assert np.max(jac_indices[:, 1]) <= num_states-1
-            assert np.max(jac_indices[:, 2]) <= num_states-1
-
-    else: # tests that result in an exception
-        with pytest.raises(lattice.LatticeError):
-            with temp_bin_filename() as temp_filename:
-                (cte, initial_population, index_S_i, index_A_j,
-                 absorption_matrix, decay_matrix, ET_matrix,
-                 N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
-
+             absorption_matrix, decay_matrix, ET_matrix,
+             N_indices, jac_indices) = setup_func(setup_cte, full_path=temp_filename)
 
 def test_get_lifetimes(setup_cte):
 
@@ -820,7 +849,7 @@ def test_get_lifetimes(setup_cte):
     with temp_bin_filename() as temp_filename:
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
-         N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
+         N_indices, jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
 
     tau_list = precalculate.get_lifetimes(cte)
 
@@ -839,10 +868,10 @@ def test_wrong_number_states(setup_cte):
     with temp_bin_filename() as temp_filename:
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
-         N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
+         N_indices, jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
 
         # change number of states
         cte['states']['activator_states'] = 10
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
-         N_indices, jac_indices) = precalculate.precalculate(cte, full_path=temp_filename)
+         N_indices, jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)

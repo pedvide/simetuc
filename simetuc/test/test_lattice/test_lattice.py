@@ -69,12 +69,14 @@ def idfn(params):
                                     (0.0, -50.0, 20, 2, 7, False), # negative A
                                     (125.0, 50.0, 5, 2, 7, False), # too much S
                                     (0.0, 50.0, -20, 2, 7, False), # negative N_uc
-                                    (0.03, 0.0, 1, 2, 7, False), # most likely no doped ions created
+                                    (0.0003, 0.0, 1, 2, 7, False), # most likely no doped ions created
                                     # TEST NUMBER OF ENERGY STATES
-                                    (5.0, 5.0, 10, 5, 0, True), # no A_states
-                                    (10.0, 1.0, 8, 0, 4, True), # no S_states
+                                    (5.0, 5.0, 10, 5, 0, False), # no A_states
+                                    (5.0, 0.0, 10, 5, 0, True), # no A_states, no A_conc
+                                    (10.0, 1.0, 8, 0, 4, False), # no S_states
+                                    (0.0, 1.0, 8, 0, 4, True), # no S_states, no S_conc
                                     (6.0, 6.0, 5, 0, 0, False), # no S_states, A_states
-                                    (5.0, 5.0, 10, 15, 0, True)], # no A_states
+                                    (5.0, 5.0, 10, 15, 0, False)], # no A_states
                          ids=idfn)
 def test_cte(setup_cte, params):
     '''Test a lattice with different concentrations of S and A; different number of unit cells;
@@ -92,10 +94,6 @@ def test_cte(setup_cte, params):
     normal_result = params[5]
 
     if normal_result:
-
-#        full_path = lattice.make_full_path(test_folder_path, cte['lattice']['N_uc'],
-#                                           cte['lattice']['S_conc'], cte['lattice']['A_conc'])
-
         with temp_bin_filename() as temp_filename:
             (dist_array, ion_type, doped_lattice,
              initial_population, lattice_info,
@@ -104,9 +102,6 @@ def test_cte(setup_cte, params):
              index_S_l, dist_S_l,
              index_A_k, dist_A_k,
              index_A_l, dist_A_l) = lattice.generate(cte, full_path=temp_filename)
-
-        # remove lattice file
-#        os.remove(full_path)
 
         num_ions = lattice_info['num_total']
         num_activators = lattice_info['num_activators']
@@ -186,6 +181,7 @@ def test_cte(setup_cte, params):
                  index_S_l, dist_S_l,
                  index_A_k, dist_A_k,
                  index_A_l, dist_A_l) = lattice.generate(cte, full_path=temp_filename)
+
 
 def test_single_atom(setup_cte): # generate lattices with a single S or A
     cte = setup_cte
