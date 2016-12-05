@@ -110,6 +110,7 @@ def setup_cte():
          'no_console': False,
          'no_plot': False,
          'optimization_processes': ['CR50'],
+         'optimize_method': 'SLSQP',
          'simulation_params': {'N_steps': 1000,
           'N_steps_pulse': 100,
           'atol': 1e-15,
@@ -163,6 +164,7 @@ def test_optim_no_dict_params(setup_cte, mocker):
     optimize.optimize_dynamics(setup_cte, method='SLSQP')
 
     assert mocked_opt_dyn.called
+
 
 def test_opti_fun_factory(setup_cte, mocker):
     '''Test that the optimization works'''

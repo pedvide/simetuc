@@ -1088,6 +1088,17 @@ def test_ET_config7():
     assert excinfo.match(r"Label missing in")
     assert excinfo.type == settings.ConfigError
 
+def test_ET_config8(): # ok
+    data = data_branch_ok + '''enery_transfer:
+    CR50:
+        process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
+        multipolarity: 6
+        strength: 1e3
+        strength_avg: 1e1
+'''
+    with temp_config_filename(data) as filename:
+            settings.load(filename)
+
 data_ET_ok = '''version: 1 # mandatory, only 1 is supported at the moment
 lattice:
 # all fields here are mandatory
@@ -1336,6 +1347,15 @@ def test_conc_dep_config4(): # negative number
             settings.load(filename)
     assert excinfo.match(r"Negative value in list")
     assert excinfo.type == ValueError
+
+def test_optim_method(): # ok
+    data = data_ET_ok + '''optimize_method: COBYLA'''
+
+    with temp_config_filename(data) as filename:
+        cte = settings.load(filename)
+
+    assert cte['optimize_method'] == 'COBYLA'
+
 
 # test extra value in section lattice
 def test_extra_value(recwarn):

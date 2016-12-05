@@ -5,6 +5,11 @@ Created on Mon Nov 23 16:07:21 2015
 @author: Villanueva
 """
 # pylint: disable=E1101
+# TODO: build csr matrices directly using the native: data, indices, indptr.
+# now (internally) we build a coo and then it's transformed into csr,
+# this goes over the elements and tries to sum duplicates,
+# which we don't have (note: not for the ET matrix, but maybe we have for the abs or decay?).
+# This wastes time.
 
 import time
 import itertools
@@ -652,7 +657,7 @@ def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = Non
         lst = [1]
     ion_type = np.array(lst)
 
-    # distance array
+    # distance array, 1 A distance
     dist_array = np.ones((num_total_ions, num_total_ions))
 
     (indices_S_i, indices_A_j,
@@ -683,7 +688,12 @@ def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = Non
 
     # ET matrices
     logger.info('Energy transfer matrices...')
-    ET_matrix, N_indices = _create_ET_matrices(indices_S_i, indices_A_j, cte['ET'],
+    # use the avg value if present
+    ET_dict = cte['ET'].copy()
+    for proc_name, dict_process in ET_dict.items():
+        if 'value_avg' in dict_process:
+            dict_process['value'] = dict_process['value_avg']
+    ET_matrix, N_indices = _create_ET_matrices(indices_S_i, indices_A_j, ET_dict,
                                                indices_S_k, indices_S_l,
                                                indices_A_k, indices_A_l,
                                                dists_S_k, dists_S_l,

@@ -74,7 +74,7 @@ def idfn(params):
                                     (5.0, 5.0, 10, 5, 0, False), # no A_states
                                     (5.0, 0.0, 10, 5, 0, True), # no A_states, no A_conc
                                     (10.0, 1.0, 8, 0, 4, False), # no S_states
-                                    (0.0, 1.0, 8, 0, 4, True), # no S_states, no S_conc
+                                    (0.0, 5.0, 10, 0, 4, True), # no S_states, no S_conc
                                     (6.0, 6.0, 5, 0, 0, False), # no S_states, A_states
                                     (5.0, 5.0, 10, 15, 0, False)], # no A_states
                          ids=idfn)

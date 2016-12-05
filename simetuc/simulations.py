@@ -27,6 +27,7 @@ from tqdm import tqdm
 
 import simetuc.precalculate as precalculate
 import simetuc.odesolver as odesolver
+#import simetuc.odesolver_assimulo as odesolver  # warning: it's slower!
 import simetuc.plotter as plotter
 from simetuc.util import Conc
 
@@ -36,7 +37,7 @@ class Solution():
 
     def __init__(self, t_sol: np.array, y_sol: np.array,
                  index_S_i: List[int], index_A_j: List[int],
-                 cte: Dict) -> None:
+                 cte: Dict, average: bool = False) -> None:
         # simulation time
         self.t_sol = t_sol
         # population of each state of each ion
@@ -50,6 +51,12 @@ class Solution():
         self.index_A_j = index_A_j
         # state labels
         self._state_labels = []  # type: List[str]
+
+        # average or microscopic rate equations?
+        self.average = average
+
+        # The first is the sim color, the second the exp data color.
+        self.cte['colors'] = 'bk' if average else 'rk'
 
     def __bool__(self) -> bool:
         '''Instance is True if all its data structures have been filled out'''
@@ -89,7 +96,7 @@ class Solution():
                 population = np.sum([y_sol[:, index_S_i[i]+state]
                                      for i in range(cte['ions']['total'])
                                      if index_S_i[i] != -1], 0)/cte['ions']['sensitizers']
-                sim_data_Sensitizer.append(population.clip(0))
+                sim_data_Sensitizer.append(population.clip(0).reshape((y_sol.shape[0],)))
         else:
             sim_data_Sensitizer = cte['states']['sensitizer_states']*[np.zeros((y_sol.shape[0],))]
         # average population of the ground and excited states of A
@@ -99,7 +106,7 @@ class Solution():
                 population = np.sum([y_sol[:, index_A_j[i]+state]
                                      for i in range(cte['ions']['total'])
                                      if index_A_j[i] != -1], 0)/cte['ions']['activators']
-                sim_data_Activator.append(population.clip(0))
+                sim_data_Activator.append(population.clip(0).reshape((y_sol.shape[0],)))
         else:
             sim_data_Activator = cte['states']['activator_states']*[np.zeros((y_sol.shape[0],))]
 
@@ -157,7 +164,8 @@ class Solution():
         '''Plot the average simulated data (list_avg_data).
             Override to plot other lists of averaged data or experimental data.
         '''
-        plotter.plot_avg_decay_data(self.t_sol, self.list_avg_data, state_labels=self.state_labels)
+        plotter.plot_avg_decay_data(self.t_sol, self.list_avg_data,
+                                    state_labels=self.state_labels, colors=self.cte['colors'])
 
     def _plot_state(self, state: int) -> None:
         '''Plot all decays of a state as a function of time.'''
@@ -245,8 +253,9 @@ class SteadyStateSolution(Solution):
 
     def __init__(self, t_sol: np.array, y_sol: np.array,
                  index_S_i: List[int], index_A_j: List[int],
-                 cte: Dict) -> None:
-        super(SteadyStateSolution, self).__init__(t_sol, y_sol, index_S_i, index_A_j, cte)
+                 cte: Dict, average: bool = False) -> None:
+        super(SteadyStateSolution, self).__init__(t_sol, y_sol, index_S_i, index_A_j,
+                                                  cte, average=average)
         self._final_populations = np.array([])
 
     def _calculate_final_populations(self) -> List[float]:
@@ -278,8 +287,9 @@ class DynamicsSolution(Solution):
 
     def __init__(self, t_sol: np.array, y_sol: np.array,
                  index_S_i: List[int], index_A_j: List[int],
-                 cte: Dict) -> None:
-        super(DynamicsSolution, self).__init__(t_sol, y_sol, index_S_i, index_A_j, cte)
+                 cte: Dict, average: bool = False) -> None:
+        super(DynamicsSolution, self).__init__(t_sol, y_sol, index_S_i, index_A_j,
+                                               cte, average=average)
 
         self._list_exp_data = []  # type: List[np.array]
         self._list_avg_data_ofs = []  # type: List[np.array]
@@ -410,7 +420,8 @@ class DynamicsSolution(Solution):
         '''
         plotter.plot_avg_decay_data(self.t_sol, self.list_avg_data_ofs,
                                     state_labels=self.state_labels,
-                                    list_exp_data=self.list_exp_data)
+                                    list_exp_data=self.list_exp_data,
+                                    colors=self.cte['colors'])
 
     def log_errors(self) -> None:
         '''Log errors'''
@@ -551,9 +562,8 @@ class SolutionList(Sequence[Solution]):
         for sol in self:
             sol.save_txt(full_path, 'at')
 
-    def plot(self, no_exp: bool = False) -> None:
+    def plot(self) -> None:
         '''Interface of plot.
-            If no_exp is True, no experimental data is plotted.
         '''
         raise NotImplementedError
 
@@ -576,9 +586,8 @@ class PowerDependenceSolution(SolutionList):
                                                                      conc,
                                                                      powers)
 
-    def plot(self, no_exp: bool = False) -> None:
+    def plot(self) -> None:
         '''Plot the power dependence of the emission for all states.
-            If no_exp is True, no experimental data is plotted.
         '''
         if len(self) == 0:  # nothing to plot
             logger = logging.getLogger(__name__)
@@ -637,9 +646,8 @@ class ConcentrationDependenceSolution(SolutionList):
             full_path = conc_path + '_' + self._suffix + '.hdf5'
         super(ConcentrationDependenceSolution, self).save(full_path)
 
-    def plot(self, no_exp: bool = False) -> None:
+    def plot(self) -> None:
         '''Plot the concentration dependence of the emission for all states.
-           If no_exp is True, no experimental data is plotted.
         '''
         if len(self) == 0:  # nothing to plot
             logger = logging.getLogger(__name__)
@@ -778,27 +786,17 @@ class Simulations():
         # excitation pulse
         logger.info('Solving excitation pulse...')
         t_pulse = np.linspace(t0_p, tf_p, N_steps_pulse, dtype=np.float64)
-        y_pulse = odesolver.solve_ode(t_pulse, odesolver.rate_eq_pulse,
-                                      (total_abs_matrix, decay_matrix, UC_matrix, N_indices),
-                                      odesolver.jac_rate_eq_pulse,
-                                      (total_abs_matrix, decay_matrix, UC_matrix, jac_indices),
-                                      initial_population.transpose(), method='adams',
-                                      rtol=rtol, atol=atol, quiet=self.cte['no_console'])
+        y_pulse = odesolver.solve_pulse(t_pulse, initial_population.transpose(),
+                                        total_abs_matrix, decay_matrix,
+                                        UC_matrix, N_indices, jac_indices,
+                                        rtol=rtol, atol=atol, quiet=self.cte['no_console'])
 
         # relaxation
         logger.info('Solving relaxation...')
         t_sol = np.logspace(np.log10(t0_sol), np.log10(tf_sol), N_steps, dtype=np.float64)
-        y_sol = odesolver.solve_ode(t_sol, odesolver.rate_eq,
-                                    (decay_matrix, UC_matrix, N_indices),
-                                    odesolver.jac_rate_eq,
-                                    (decay_matrix, UC_matrix, jac_indices),
-                                    y_pulse[-1, :], rtol=rtol, atol=atol,
-                                    nsteps=1000, quiet=self.cte['no_console'])
-#        function = _rate_eq_dll(decay_matrix, UC_matrix, N_indices)
-#        y_sol = _solve_ode(t_sol, function, (),
-#                           _jac_rate_eq, (decay_matrix, UC_matrix, jac_indices),
-#                           y_pulse[-1, :], rtol=rtol, atol=atol,
-#                           nsteps=1000, quiet=self.cte['no_console'])
+        y_sol = odesolver.solve_relax(t_sol, y_pulse[-1, :], decay_matrix,
+                                      UC_matrix, N_indices, jac_indices,
+                                      rtol=rtol, atol=atol, quiet=self.cte['no_console'])
 
         formatted_time = time.strftime("%Mm %Ss", time.localtime(time.time()-start_time_ODE))
         logger.info('Equations solved! Total time: %s.', formatted_time)
@@ -807,12 +805,20 @@ class Simulations():
         logger.info('Simulation finished! Total time: %s.', formatted_time)
 
         # store solution and settings
-        dynamics_sol = DynamicsSolution(t_sol, y_sol, index_S_i, index_A_j, self.cte)
+        dynamics_sol = DynamicsSolution(t_sol, y_sol, index_S_i, index_A_j,
+                                        self.cte, average=average)
         return dynamics_sol
 
-    def simulate_steady_state(self) -> SteadyStateSolution:
+    def simulate_avg_dynamics(self) -> DynamicsSolution:
+        '''Simulates the dynamics of a average rate equations system,
+            it calls simulate_dynamics
+        '''
+        return self.simulate_dynamics(average=True)
+
+    def simulate_steady_state(self, average: bool = False) -> SteadyStateSolution:
         ''' Simulates the steady state of the problem
             Returns a SteadyStateSolution instance
+            average=True solves an average rate equation problem instead of the microscopic one.
         '''
         logger = logging.getLogger(__name__)
 
@@ -821,11 +827,15 @@ class Simulations():
         start_time = time.time()
         logger.info('Starting simulation...')
 
+        setup_func = precalculate.setup_microscopic_eqs
+        if average:
+            setup_func = precalculate.setup_average_eqs
+
         # get matrices of interaction, initial conditions, abs, decay, etc
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
          UC_matrix, N_indices,
-         jac_indices) = precalculate.setup_microscopic_eqs(self.cte, full_path=self.full_path)
+         jac_indices) = setup_func(self.cte, full_path=self.full_path)
 
         # update cte
         self.cte = cte
@@ -846,12 +856,10 @@ class Simulations():
         # steady state
         logger.info('Solving steady state...')
         t_pulse = np.linspace(t0_p, tf_p, N_steps_pulse)
-        y_pulse = odesolver.solve_ode(t_pulse, odesolver.rate_eq_pulse,
-                                      (total_abs_matrix, decay_matrix, UC_matrix, N_indices),
-                                      odesolver.jac_rate_eq_pulse,
-                                      (total_abs_matrix, decay_matrix, UC_matrix, jac_indices),
-                                      initial_population.transpose(), nsteps=1000,
-                                      rtol=rtol, atol=atol, quiet=cte['no_console'])
+        y_pulse = odesolver.solve_pulse(t_pulse, initial_population.transpose(),
+                                        total_abs_matrix, decay_matrix,
+                                        UC_matrix, N_indices, jac_indices, nsteps=1000,
+                                        rtol=rtol, atol=atol, quiet=self.cte['no_console'])
 
         logger.info('Equations solved! Total time: %.2fs.', time.time()-start_time_ODE)
 
@@ -860,13 +868,22 @@ class Simulations():
         logger.info('Simulation finished! Total time: %s.', formatted_time)
 
         # store solution and settings
-        steady_sol = SteadyStateSolution(t_pulse, y_pulse, index_S_i, index_A_j, cte)
+        steady_sol = SteadyStateSolution(t_pulse, y_pulse, index_S_i, index_A_j,
+                                         cte, average=average)
         return steady_sol
 
-    def simulate_power_dependence(self, power_dens_list: List[float]) -> PowerDependenceSolution:
+    def simulate_avg_steady_state(self) -> SteadyStateSolution:
+        '''Simulates the steady state of an average rate equations system,
+            it calls simulate_steady_state
+        '''
+        return self.simulate_steady_state(average=True)
+
+    def simulate_power_dependence(self, power_dens_list: List[float],
+                                  average: bool = False) -> PowerDependenceSolution:
         ''' Simulates the power dependence.
             power_dens_list can be a list, tuple or a numpy array
             Returns a PowerDependenceSolution instance
+            average=True solves an average rate equation problem instead of the microscopic one.
         '''
         logger = logging.getLogger(__name__)
         logger.info('Simulating power dependence curves...')
@@ -885,7 +902,7 @@ class Simulations():
             for excitation in self.cte['excitations'].keys():
                 self.cte['excitations'][excitation]['power_dens'] = power_dens
             # calculate steady state populations
-            steady_sol = self.simulate_steady_state()
+            steady_sol = self.simulate_steady_state(average=average)
             solutions.append(steady_sol)
 
         total_time = time.time()-start_time
@@ -898,12 +915,13 @@ class Simulations():
         return power_dep_solution
 
     def simulate_concentration_dependence(self, concentration_list: List[Tuple[float, float]],
-                                          dynamics: bool = False
+                                          dynamics: bool = False, average: bool = False
                                          ) -> ConcentrationDependenceSolution:
         ''' Simulates the concentration dependence of the emission
             concentration_list must be a list of tuples
             If dynamics is True, the dynamics is simulated instead of the steady state
             Returns a ConcentrationDependenceSolution instance
+            average=True solves an average rate equation problem instead of the microscopic one.
         '''
         logger = logging.getLogger(__name__)
         logger.info('Simulating power dependence curves...')
@@ -926,9 +944,9 @@ class Simulations():
             cte['lattice']['A_conc'] = concs[1]
             # simulate
             if dynamics:
-                sol = self.simulate_dynamics()  # type: Solution
+                sol = self.simulate_dynamics(average=average)  # type: Solution
             else:
-                sol = self.simulate_steady_state()  # pylint: disable=R0204
+                sol = self.simulate_steady_state(average=average)  # pylint: disable=R0204
             solutions.append(sol)
 
         total_time = time.time()-start_time
@@ -958,15 +976,20 @@ if __name__ == "__main__":
     sim = Simulations(cte)
 
     solution = sim.simulate_dynamics()
-#    solution.log_errors()
+    solution.log_errors()
+    solution.plot()
 
-    solution_avg = sim.simulate_dynamics(average=True)
-#    solution_avg.log_errors()
+    solution_avg = sim.simulate_avg_dynamics()
+    solution_avg.plot()
+    solution_avg.log_errors()
 #
 #    solution = sim.simulate_steady_state()
 #    solution.log_populations()
-#
 #    solution.plot()
+#
+#    solution_avg = sim.simulate_avg_steady_state()
+#    solution_avg.log_populations()
+#    solution_avg.plot()
 #
 #    solution.save()
 #    new_sol = DynamicsSolution.load('results/bNaYF4/DynamicsSolution.hdf5')

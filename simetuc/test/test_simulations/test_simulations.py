@@ -184,6 +184,15 @@ def test_sim_dyn3(setup_cte):
     with pytest.raises(ValueError):
         solution.plot(state=10)
 
+def test_sim_dyn4(setup_cte):
+    '''Test average dynamics.'''
+    setup_cte['lattice']['S_conc'] = 0
+
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        solution = sim.simulate_avg_dynamics()
+        assert solution
+
 def test_sim_dyn_diff(setup_cte):
     '''Test that the two dynamics are different'''
     setup_cte['lattice']['S_conc'] = 0
@@ -208,7 +217,7 @@ def test_sim_dyn_diff(setup_cte):
 def test_sim_dyn_save_hdf5(setup_cte, mocker):
     '''Test that the dynamics solution is saved a loaded correctly'''
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver.solve_ode')
+        mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
         # allocate 2x so that we're safe. Also make the num_points 1000.
         mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
@@ -250,7 +259,7 @@ def test_sim_dyn_no_t_pulse(setup_cte):
         with pytest.raises(KeyError):
             sim.simulate_dynamics()
 
-def test_sim_steady(setup_cte):
+def test_sim_steady1(setup_cte):
     '''Test that the steady state solution is saved a loaded correctly'''
     setup_cte['excitations']['Vis_473']['t_pulse'] = 1e-08
     with temp_bin_filename() as temp_filename:
@@ -271,6 +280,14 @@ def test_sim_steady(setup_cte):
     assert sol_hdf5 == solution
     sol_hdf5.plot()
 
+def test_sim_steady2(setup_cte):
+    '''Test average steady state'''
+    setup_cte['excitations']['Vis_473']['t_pulse'] = 1e-08
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        solution = sim.simulate_avg_steady_state()
+        assert solution
+
 def test_sim_no_plot(setup_cte, recwarn):
     '''Test that no plot works'''
     setup_cte['no_plot'] = True
@@ -288,7 +305,7 @@ def test_sim_no_plot(setup_cte, recwarn):
 def test_sim_power_dep1(setup_cte, mocker):
     '''Test that the power dependence works'''
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver.solve_ode')
+        mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
         # allocate 2x so that we're safe. Also make the num_points 1000.
         mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
@@ -331,7 +348,7 @@ def test_sim_power_dep3(setup_cte, recwarn, mocker):
     '''A plot was requested, but no_plot is set'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver.solve_ode')
+        mocked = mocker.patch('simetuc.odesolver._solve_ode')
         mocked.return_value = np.random.random((10, 10))
 
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
@@ -350,7 +367,7 @@ def test_sim_power_dep4(setup_cte, mocker):
     '''Check save_txt'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver.solve_ode')
+        mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
         # allocate 2x so that we're safe. Also make the num_points 1000.
         mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
@@ -367,7 +384,7 @@ def test_sim_power_dep5(setup_cte, mocker):
     '''Check that the solutions have the right power_dens'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver.solve_ode')
+        mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
         # allocate 2x so that we're safe. Also make the num_points 1000.
         mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
@@ -383,7 +400,7 @@ def test_sim_power_dep5(setup_cte, mocker):
 def test_sim_conc_dep1(setup_cte, mocker):
     '''Test that the concentration dependence works'''
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver.solve_ode')
+        mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
         # allocate 2x so that we're safe. Also make the num_points 1000.
         mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
@@ -408,7 +425,7 @@ def test_sim_conc_dep1(setup_cte, mocker):
 def test_sim_conc_dep2(setup_cte, mocker):
     '''Test that the concentration dependence works'''
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver.solve_ode')
+        mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
         # allocate 2x so that we're safe. Also make the num_points 1000.
         mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
@@ -434,7 +451,7 @@ def test_sim_conc_dep2(setup_cte, mocker):
 def test_sim_conc_dep3(setup_cte, mocker):
     '''Conc list has only A changing'''
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver.solve_ode')
+        mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
         # allocate 2x so that we're safe. Also make the num_points 1000.
         mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
@@ -450,7 +467,7 @@ def test_sim_conc_dep3(setup_cte, mocker):
 def test_sim_conc_dep4(setup_cte, mocker):
     '''Conc list has only S changing'''
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver.solve_ode')
+        mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
         # allocate 2x so that we're safe. Also make the num_points 1000.
         mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
@@ -482,7 +499,7 @@ def test_sim_conc_dep6(setup_cte, recwarn, mocker):
     '''A plot was requested, but no_plot is set'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver.solve_ode')
+        mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
         # allocate 2x so that we're safe. Also make the num_points 1000.
         mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))

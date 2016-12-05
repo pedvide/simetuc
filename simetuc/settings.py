@@ -588,6 +588,11 @@ def _parse_ET(cte: Dict) -> Dict:
         process = _get_string_value(value, 'process')
         mult = _get_int_value(value, 'multipolarity')
         strength = _get_float_value(value, 'strength')
+        # if it doesn't exist, set to 0
+        if 'strength_avg' in value:
+            strength_avg = _get_float_value(value, 'strength_avg')
+        else:
+            strength_avg = None
 
         # get the ions and states labels involved
         # find all patterns of "spaces,letters,spaces(spaces,letters,spaces)"
@@ -622,6 +627,8 @@ def _parse_ET(cte: Dict) -> Dict:
         ET_dict[name]['indices'] = list_indices
         ET_dict[name]['mult'] = mult
         ET_dict[name]['value'] = strength
+        if strength_avg is not None:
+            ET_dict[name]['value_avg'] = strength_avg
         ET_dict[name]['type'] = ET_type
 
     return ET_dict
@@ -743,6 +750,11 @@ def _parse_conc_dependence(user_list: Tuple[List[float], List[float]] = None
     return conc_list
 
 
+def _parse_optim_method(optim_val: str) -> str:
+    '''Parse and return the optimization method.'''
+    return str(optim_val)
+
+
 def load(filename: str) -> Dict:
     ''' Load filename and extract the settings for the simulations
         If mandatory values are missing, errors are logged
@@ -776,7 +788,7 @@ def load(filename: str) -> Dict:
                        'sensitizer_branching_ratios', 'activator_branching_ratios']
     optional_sections = ['optimization_processes',
                          'enery_transfer', 'simulation_params', 'power_dependence',
-                         'concentration_dependence']
+                         'concentration_dependence', 'optimize_method']
     _check_values(needed_sections, config_cte, optional_values_lst=optional_sections)
 
     cte = {}  # type: Dict
@@ -855,6 +867,11 @@ def load(filename: str) -> Dict:
     # not mandatory -> check
     if 'concentration_dependence' in config_cte:
         cte['conc_dependence'] = _parse_conc_dependence(config_cte['concentration_dependence'])
+
+    # OPTIMIZE METHOD
+    # not mandatory -> check
+    if 'optimize_method' in config_cte:
+        cte['optimize_method'] = _parse_optim_method(config_cte['optimize_method'])
 
     # log cte
     # use pretty print

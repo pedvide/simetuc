@@ -8,7 +8,6 @@ Created on Sun Oct 16 11:53:51 2016
 # TODO: INCLUDE PULSE FREQUENCY IN STEADY STATE FOR NON CW-LASER EXCITATION
 # notTODO: INCLUDE .CIF FILE GENERATION OF LATTICE -> doesn't work with multiple sites...
 # TODO: cooperative sensitization
-# TODO: average rate equations
 
 import sys
 import logging
@@ -16,7 +15,7 @@ import logging.config
 import argparse
 # nice debug printing of settings
 import pprint
-import time
+import datetime
 import os
 from pkg_resources import resource_string
 from typing import Any, Union, List
@@ -59,12 +58,14 @@ def parse_args(args: Any) -> argparse.Namespace:
     group.add_argument("-q", "--quiet", help='show only errors', action="store_true")
     # no plot
     parser.add_argument("--no-plot", help='don\'t show plots', action="store_true")
+    parser.add_argument("--average", help=('use average rate equations' +
+                                           ' instead of microscopic'), action="store_true")
     # config file
     parser.add_argument(metavar='configFilename', dest='filename', help='configuration filename')
 
     # main options: load config file, lattice, simulate or optimize
-    group = parser.add_mutually_exclusive_group(required=False)
-#    group.add_argument('--config', help='import configuration from file',
+    group = parser.add_mutually_exclusive_group()
+#    group.add_argument('--config', help='import and validate configuration file',
 #                       action='store_true')
     group.add_argument('-l', '--lattice', help='generate and plot the lattice',
                        action='store_true')
@@ -77,7 +78,7 @@ def parse_args(args: Any) -> argparse.Namespace:
     group.add_argument('-c', '--conc-dep', dest='conc_dependence',
                        metavar='d', nargs='?', const='s',
                        help=('simulate concentration dependence of' +
-                             'steady state (default) or dynamics (d)'),
+                             ' the steady state (default) or dynamics (d)'),
                        action='store')
     group.add_argument('-o', '--optimize', help='optimize the energy transfer parameters',
                        action='store_true')
@@ -86,7 +87,7 @@ def parse_args(args: Any) -> argparse.Namespace:
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument('--save', help='save results in HDF5 format (recommended)',
                        action="store_true")
-    group.add_argument('--save-txt', help='save results in text format',
+    group.add_argument('--save-txt', help='save (some) results in text format',
                        action="store_true")
 
     # add plot subcommand
@@ -98,7 +99,7 @@ def parse_args(args: Any) -> argparse.Namespace:
     return parsed_args
 
 
-def _setup_logging(console_level): # pragma: no cover
+def _setup_logging(console_level):
     '''Load logging settings from file and apply them.'''
     # read logging settings from file
     # use the file located where the package is installed
@@ -127,7 +128,7 @@ def _setup_logging(console_level): # pragma: no cover
     # so each execution of this program is logged to a fresh file
     logging.config.dictConfig(log_settings)
     logger = logging.getLogger('simetuc')
-    for handler in logging.getLogger().handlers:
+    for handler in logging.getLogger().handlers:   # pragma: no cover
         if isinstance(handler, logging.handlers.RotatingFileHandler):  # type: ignore
             handler.doRollover()  # type: ignore
 
@@ -182,13 +183,13 @@ def main(ext_args: List[str] = None) -> None:
     elif args.dynamics:  # simulate dynamics
         logger.info('Simulating dynamics...')
         sim = simulations.Simulations(cte)
-        solution = sim.simulate_dynamics()
+        solution = sim.simulate_dynamics(average=args.average)
         solution.log_errors()
 
     elif args.steady_state:  # simulate steady state
         logger.info('Simulating steady state...')
         sim = simulations.Simulations(cte)
-        solution = sim.simulate_steady_state()
+        solution = sim.simulate_steady_state(average=args.average)
         solution.log_populations()
 
     elif args.power_dependence:  # simulate power dependence
@@ -199,7 +200,7 @@ def main(ext_args: List[str] = None) -> None:
         # change the logging level of the console handler
         # so it only prints warnings to screen while calculating all solutions
         _change_console_logger(logging.WARNING)
-        solution = sim.simulate_power_dependence(power_dens_list)
+        solution = sim.simulate_power_dependence(power_dens_list, average=args.average)
         # restore old level value
         _change_console_logger(console_level)
         print('')
@@ -219,7 +220,8 @@ def main(ext_args: List[str] = None) -> None:
         # change the logging level of the console handler
         # so it only prints warnings to screen while calculating all solutions
         _change_console_logger(logging.WARNING)
-        solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics)
+        solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics,
+                                                         average=args.average)
         # restore old level value
         _change_console_logger(console_level)
         print('')
@@ -227,20 +229,22 @@ def main(ext_args: List[str] = None) -> None:
     elif args.optimize:  # optimize
         logger.info('Optimizing ET parameters...')
 
-        _change_console_logger(logging.WARNING)
+        method = cte.get('optimize_method', None)
+        logger.info('Optimization method: %s.', method)
 
-        if not 'optimize_method' in cte:
-            method = None
-        else:
-            method = cte['optimize_method']
-        best_x, min_f, total_time = optimize.optimize_dynamics(cte, method)
-        print('')
+        _change_console_logger(logging.WARNING)
+        start_time = datetime.datetime.now()
+        best_x, min_f = optimize.optimize_dynamics(cte, method, average=args.average)
 
         _change_console_logger(console_level)
+        print('\n')  # jump to the line after the progress bar
 
-        formatted_time = time.strftime("%Mm %Ss", time.localtime(total_time))
+        total_time = datetime.datetime.now() - start_time
+        hours, remainder = divmod(total_time.total_seconds(), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        formatted_time = '{:.0f}h {:02.0f}m {:02.0f}s'.format(hours, minutes, seconds)
         logger.info('Minimum reached! Total time: %s.', formatted_time)
-        logger.info('Minimum value: %d at %s', min_f, np.array_str(best_x, precision=5))
+        logger.info('Minimum value: %g at %s', min_f, np.array_str(best_x, precision=4))
 
     # save results to disk
     if solution is not None and (args.save or args.save_txt):
@@ -254,7 +258,7 @@ def main(ext_args: List[str] = None) -> None:
 
     # show all plots
     # the user needs to close the window to exit the program
-    if not cte['no_plot']:  # pragma: no cover
+    if not cte['no_plot']:
         if solution is not None:
             solution.plot()
         logger.info('Close the plot window to exit.')

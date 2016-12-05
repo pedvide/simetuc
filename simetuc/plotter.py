@@ -37,8 +37,6 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
     num_rows = 3
     num_cols = int(np.ceil(num_plots/3))
 
-    t_sol *= 1000  # convert to ms
-
     # optional lists default to list of None
     list_exp_data = list_exp_data or [None]*num_plots
     state_labels = state_labels or [None]*num_plots
@@ -62,7 +60,7 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
         # no exp data: either a GS or simply no exp data available
         if exp_data is 0 or exp_data is None:
             # nonposy='clip': clip non positive values to a very small positive number
-            plt.semilogy(t_sol, sim_data, sim_color, label=state_label, nonposy='clip')
+            plt.semilogy(t_sol*1000, sim_data, sim_color, label=state_label, nonposy='clip')
             plt.yscale('log', nonposy='clip')
             plt.axis('tight')
             # add some white space above and below
@@ -77,14 +75,14 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
                     # last time it changes
                     max_index = change_indices[-1]
                     # show simData until it falls below atol
-                    plt.xlim(xmax=t_sol[max_index])
+                    plt.xlim(xmax=t_sol[max_index]*1000)
             min_y = min(*plt.ylim())
             max_y = max(*plt.ylim())
             plt.ylim(ymin=min_y, ymax=max_y)
         else:  # exp data available
             # convert exp_data time to ms
             plt.semilogy(exp_data[:, 0]*1000, exp_data[:, 1]*np.max(sim_data),
-                         exp_color, t_sol, sim_data, sim_color, label=state_label)
+                         exp_color, t_sol*1000, sim_data, sim_color, label=state_label)
             plt.axis('tight')
             plt.ylim(ymax=plt.ylim()[1]*1.2)  # add some white space on top
             plt.xlim(xmax=exp_data[-1, 0]*1000)  # don't show beyond expData

@@ -104,6 +104,7 @@ setup(
                       'numpy >=1.11',
                       'scipy >=0.18',
                       'tqdm >=4.8',
+                      'colorama',
                       'PyYAML >=3.12',
                       'h5py >=2.6'],
 

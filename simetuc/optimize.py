@@ -5,7 +5,7 @@ Created on Tue Oct 11 15:58:58 2016
 @author: Pedro
 """
 
-import time
+import datetime
 import logging
 import functools
 from typing import Dict, Tuple, List, Callable
@@ -36,7 +36,8 @@ def cache(function):
     return wrapper
 
 def optim_fun_factory(sim: simulations.Simulations,
-                      process_list: List[str], x0: np.array) -> Callable:
+                      process_list: List[str], x0: np.array,
+                      average: bool = False) -> Callable:
     '''Generate the function to be optimize.
         This function modifies the ET params and return the error
     '''
@@ -46,7 +47,7 @@ def optim_fun_factory(sim: simulations.Simulations,
         for num, process in enumerate(process_list):
             sim.modify_ET_param_value(process, x[num]*x0[num])  # precondition
 
-        dynamics_sol = sim.simulate_dynamics()
+        dynamics_sol = sim.simulate_dynamics(average=average)
         total_error = dynamics_sol.total_error
 
         return total_error
@@ -54,8 +55,10 @@ def optim_fun_factory(sim: simulations.Simulations,
     return _update_ET_and_simulate
 
 
-def optimize_dynamics(cte: Dict, method: str = None) -> Tuple[np.array, float, float]:
+def optimize_dynamics(cte: Dict, method: str = None,
+                      average: bool = False) -> Tuple[np.array, float]:
     ''' Minimize the error between experimental data and simulation for the settings in cte
+        average = True -> optimize average rate equations instead of microscopic ones
     '''
     logger = logging.getLogger(__name__)
 
@@ -89,7 +92,7 @@ def optimize_dynamics(cte: Dict, method: str = None) -> Tuple[np.array, float, f
 
     sim = simulations.Simulations(cte)
 
-    start_time = time.time()
+    start_time = datetime.datetime.now()
 
     # read the starting values from the settings
     if 'optimization_processes' in cte and cte['optimization_processes'] is not None:
@@ -102,13 +105,15 @@ def optimize_dynamics(cte: Dict, method: str = None) -> Tuple[np.array, float, f
     # starting point
     x0 = np.array([cte['ET'][process]['value'] for process in process_list])
 
-    _update_ET_and_simulate = optim_fun_factory(sim, process_list, x0)
+    _update_ET_and_simulate = optim_fun_factory(sim, process_list, x0, average=average)
 
     tol = 1e-4
     bounds = ((0, 1e10),)*len(x0)
 
     if method is None:
         method = 'SLSQP'
+
+    logger.info('Optimization method: %s.', method)
 
     if method == 'COBYLA':
         # minimize error. The starting point is preconditioned to be 1
@@ -148,19 +153,16 @@ def optimize_dynamics(cte: Dict, method: str = None) -> Tuple[np.array, float, f
         best_x = res.x*x0
         min_f = res.fun
 
-    print('\n\n')
-    logger.info(res)
+    logger.debug(res)
 
-#    lattice_name = cte['lattice']['name']
-#    path = os.path.join('results', lattice_name, 'minimize_results')
-#    np.savez(path, res=res, cte=cte, best_x=best_x)  # save results
-
-    total_time = time.time()-start_time
-    formatted_time = time.strftime("%Hh %Mm %Ss", time.localtime(total_time))
+    total_time = datetime.datetime.now() - start_time
+    hours, remainder = divmod(total_time.total_seconds(), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    formatted_time = '{:.0f}h {:02.0f}m {:02.0f}s'.format(hours, minutes, seconds)
     logger.info('Minimum reached! Total time: %s.', formatted_time)
     logger.info('Minimum value: %s', np.array_str(np.array(min_f), precision=5))
 
-    return (best_x, min_f, total_time)
+    return best_x, min_f
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ scipy >=0.18.1 # anaconda
 numpy >=1.11.2 # anaconda
 matplotlib >=1.5.1 # anaconda
 tqdm >=4.8.4 # anaconda
+colorama # so tqdm works well in windows
 ase >=3.9.1 # anaconda
 PyYAML >=3.12 # anaconda
 h5py >=2.6 # anaconda

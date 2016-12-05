@@ -46,6 +46,7 @@ or
     * Simulate the power dependence of each emission.
     * Simulate the concentration dependence of the dynamics or the steady state.
 * All results can be plotted and saved in .hdf5 format.
+* For all options --average uses standard average rate equations instead of microscopic ones.
 
 ## Documentation
 
@@ -53,9 +54,10 @@ See the powerpoint [presentation](docs/simetuc_presentation).
 
 ## TODO
 
- - [ ] Add pressure dependene option: Change the distances of the lattice and simulate dynamics or steady-state.
+ - [ ] Add pressure dependence option: Change the distances of the lattice and simulate dynamics or steady-state.
  - [ ] Read experimental data in more formats.
- - [ ] Add option for average rate equations.
+ - [ ] Add cooperative sensitization.
+ - [ ] Include pulse frequency for steady state simulations using a non cw laser
 
 ## Bugs/Requests
 

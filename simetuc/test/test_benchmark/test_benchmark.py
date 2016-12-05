@@ -10,6 +10,7 @@ import pytest
 import numpy as np
 
 import simetuc.simulations as simulations
+import simetuc.odesolver as odesolver
 import simetuc.precalculate as precalculate
 
 
@@ -171,7 +172,7 @@ def setup_benchmark(setup_cte):
 @pytest.mark.benchmark(group="slow")
 def test_benchmark_ode_solve_large(setup_benchmark, benchmark):
     '''Benchmark the dynamics for a medium-sized system'''
-    benchmark.pedantic(simulations._solve_ode, args=setup_benchmark[0],
+    benchmark.pedantic(odesolver._solve_ode, args=setup_benchmark[0],
                        kwargs=setup_benchmark[1],
                        rounds=20, iterations=1)
 

@@ -11,13 +11,15 @@ import os
 import numpy as np
 
 import simetuc.commandline as commandline
+from simetuc.util import temp_config_filename
 
 
 config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_standard_config.cfg')
 
 @pytest.fixture(scope='function')
 def no_logging(mocker):
-    mocker.patch('simetuc.commandline._setup_logging')
+    mocker.patch('simetuc.commandline.logging')
+    mocker.patch('os.makedirs')
 
 def test_cli_help(no_logging):
     '''Test that the help works'''
@@ -54,7 +56,7 @@ def test_cli_main_options(option, mocker, no_logging):
     mocked_sim = mocker.patch('simetuc.simulations.Simulations')
     mocked_lattice = mocker.patch('simetuc.lattice.generate')
     mocked_opt = mocker.patch('simetuc.optimize.optimize_dynamics')
-    mocked_opt.return_value = (np.array([1.0]), 0.0, 2.0)
+    mocked_opt.return_value = (np.array([1.0]), 0.0)
 
     ext_args = [config_file, '--no-plot', option]
     commandline.main(ext_args)
@@ -75,6 +77,13 @@ def test_cli_conc_dep_dyn(mocker, no_logging):
     commandline.main(ext_args)
     assert mocked_sim.call_count == 1
 
+def test_cli_plot_dyn(mocker, no_logging):
+    '''Test that not using no-plot works'''
+    mocked_sim = mocker.patch('simetuc.simulations.Simulations')
+    ext_args = [config_file, '-d']
+    commandline.main(ext_args)
+    assert mocked_sim.call_count == 1
+
 def test_cli_save(mocker, no_logging):
     '''Test that the save works'''
     mocked_sim = mocker.patch('simetuc.simulations.Simulations')
@@ -88,3 +97,19 @@ def test_cli_save_txt(mocker, no_logging):
     ext_args = [config_file, '--no-plot', '--save-txt', '-d']
     commandline.main(ext_args)
     assert mocked_sim.call_count == 1
+
+def test_cli_optim_method(mocker, no_logging):
+    '''Test that the optimization works with the optimization method'''
+
+    mocked_opt = mocker.patch('simetuc.optimize.optimize_dynamics')
+    mocked_opt.return_value = (np.array([1.0]), 0.0)
+
+    # add optim method to config file
+    with open(config_file, 'rt') as file:
+        config_content = file.read()
+    data = config_content + '''optimize_method: SLSQP'''
+
+    with temp_config_filename(data) as new_config_file:
+        ext_args = [new_config_file, '--no-plot', '-o']
+        commandline.main(ext_args)
+        assert mocked_opt.call_count == 1
