@@ -16,12 +16,16 @@ Simulating Energy Transfer and Upconversion
 Python 3.5 is required.
 Installing [Anaconda](https://www.continuum.io/downloads) is recommended; it works with Windows (64/32 bits), Linux (64/32 bits) and Mac (64 bits).
 
+After installing Anaconda execute the following command at the command prompt (cmd.exe for Windows, shell for Linux and Mac):
 
-    $ conda install -c pedvide simetuc
+
+    conda install -c pedvide simetuc
 
 or
 
-    $ pip install simetuc
+    pip install simetuc
+    
+That will download and install all necessary files.
 
 ## Features
 
