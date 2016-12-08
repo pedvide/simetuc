@@ -32,19 +32,29 @@ That will download and install all necessary files.
 * Command line interface program.
     * Run with: `simetuc config_file.txt [options]`
     * See all options below and with: `simetuc -h`
-* The simulations are controlled by a configuration textfile that includes:
+* The simulations are controlled by a configuration text file that the user can edit with the parameters adecuate to its system of study. It includes:
     * Information about the host lattice.
-    * Energy states.
-    * Absorption and excitation.
+    * Energy states labels.
+    * Absorption and excitation (including ESA).
     * Decay (including branching ratios).
     * Energy transfer.
     * Other setings for the power and concentration dependence or optimization.
-* See the example configuration file in the simetuc folder.
-* Add experimental data as two column text data, separated by tabs or spaces.
+* <i>simetuc</i> works with any sensitizer and activator ion kind.
+    * The examples are given for the Yb-Tm system.
+* All kinds of energy tranfer processes are supported:
+    * Energy migration.
+    * Upconversion (ETU).
+    * Downconversion.
+    * Cross-relaxation.
+    * Cooperative processes will be supported soon.
+    * Energy tranfer from sensitizers to activators
+    * Back transfer from activators to sensitizers.
+* See the example [configuration file](simetuc/config_file.cfg) in the simetuc folder.
+* Add decay experimental data as two column text data, separated by tabs or spaces.
 * Different options:
-    * Lattice creation.
+    * Create the lattice.
     * Simulate the dynamics (rise and decay).
-    * Optimization of the energy transfer parameters.
+    * Optimize the energy transfer parameters.
         * Minimize the deviation between experiment and simulation.
     * Simulate the steady state.
     * Simulate the power dependence of each emission.
