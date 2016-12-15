@@ -1,4 +1,4 @@
-# simetuc
+﻿# simetuc
 Simulating Energy Transfer and Upconversion
 
 ------
@@ -18,13 +18,12 @@ Installing [Anaconda](https://www.continuum.io/downloads) is recommended; it wor
 
 After installing Anaconda execute the following command at the command prompt (cmd.exe for Windows, shell for Linux and Mac):
 
-
     conda install -c pedvide simetuc
 
 or
 
     pip install simetuc
-    
+
 That will download and install all necessary files.
 
 ## Features
@@ -46,7 +45,7 @@ That will download and install all necessary files.
     * Upconversion (ETU).
     * Downconversion.
     * Cross-relaxation.
-    * Cooperative processes will be supported soon.
+    * Cooperative processes.
     * Energy tranfer from sensitizers to activators
     * Back transfer from activators to sensitizers.
 * See the example [configuration file](simetuc/config_file.cfg) in the simetuc folder.
@@ -70,7 +69,7 @@ See the powerpoint [presentation](docs/simetuc_presentation).
 
  - [ ] Add pressure dependence option: Change the distances of the lattice and simulate dynamics or steady-state.
  - [ ] Read experimental data in more formats.
- - [ ] Add cooperative sensitization.
+ - [x] Add cooperative sensitization (work in progress).
  - [ ] Include pulse frequency for steady state simulations using a non cw laser
 
 ## Bugs/Requests

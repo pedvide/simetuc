@@ -15,6 +15,7 @@ import time
 import itertools
 import os
 import logging
+import numba
 from typing import Dict, List, Tuple
 
 import h5py
@@ -169,7 +170,7 @@ def _create_decay_vectors(sensitizer_states: int, activator_states: int,
             if pos < activator_states:
                 k_activator[pos] = value
     # this shouldn't happen
-    except IndexError as err:  # pragma: no cover
+    except IndexError:  # pragma: no cover
         logging.getLogger(__name__).debug('Wrong number of states!')
         raise
 
@@ -259,31 +260,34 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
         # this tells python to use the outer uc_index variable
         # the other outer variables (x_index, N_index_X, ...) are mutable and
         # are modified without problems
-        nonlocal uc_index, uc_index_indep
+        nonlocal uc_index
 
         indices_ions = indices_ions[indices_ions != -1]
         dist_ions = dist_ions[indices_ions != -1]
 
-        i_vec_1 = np.repeat(np.array([index_ion+ii_state], dtype=np.uint64), len(indices_ions))
-        i_vec_2 = np.repeat(np.array([index_ion+if_state], dtype=np.uint64), len(indices_ions))
-        i_vec_3 = indices_ions+fi_state
-        i_vec_4 = indices_ions+ff_state
-        # interweave i_vec_Xs
-        i_index[uc_index_indep:uc_index_indep+4*len(indices_ions)] = \
-            np.ravel(np.column_stack((i_vec_1, i_vec_2, i_vec_3, i_vec_4)))
+        # len(indices_ions): number of interactions that we add at once
 
-        temp = np.arange(uc_index, uc_index+len(indices_ions))
-        j_index[uc_index_indep:uc_index_indep+4*len(indices_ions)] = \
-            np.ravel(np.column_stack((temp, temp, temp, temp)))
+        # state numbers for GS of ion1, ES ion1, GS ion2 and ES ion2
+        # repeat the current ion's initial and final states
+        ii_states = np.repeat(np.array([index_ion+ii_state], dtype=np.uint32), len(indices_ions))
+        if_states = np.repeat(np.array([index_ion+if_state], dtype=np.uint32), len(indices_ions))
+        # calculate the interacting ions' initial and final states
+        fi_states = np.uint32(indices_ions+fi_state)
+        ff_states = np.uint32(indices_ions+ff_state)
+        # rows: interweave i_vec_Xs
+        i_index.append(np.ravel(np.column_stack((ii_states, if_states, fi_states, ff_states))))
 
-        temp = dist_ions**(-mult)*strength
-        v_index[uc_index_indep:uc_index_indep+4*len(indices_ions)] = \
-            np.ravel(np.column_stack((-temp, temp, -temp, temp)))
+        # cols: interaction # uc_index
+        col_nums = np.arange(uc_index, uc_index+len(indices_ions), dtype=np.uint32)
+        j_index.append(np.ravel(np.column_stack((col_nums, col_nums, col_nums, col_nums))))
 
-        N_index_I[uc_index:uc_index+len(indices_ions)] = i_vec_1
-        N_index_J[uc_index:uc_index+len(indices_ions)] = i_vec_3
+        w_strengths = dist_ions**(-mult)*strength
+        v_index.append(np.ravel(np.column_stack((-w_strengths, w_strengths,
+                                                 -w_strengths, w_strengths))))
+        # initial states from both ions
+        N_index_I.append(ii_states)
+        N_index_J.append(fi_states)
 
-        uc_index_indep += 4*len(indices_ions)
         uc_index += len(indices_ions)
 
     num_S_atoms = np.count_nonzero(np.array(index_S_i) != -1)
@@ -291,45 +295,44 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
     num_total_ions = num_S_atoms + num_A_atoms
     num_energy_states = sensitizer_states*num_S_atoms + activator_states*num_A_atoms
 
+    # if there are 2 states or fewer, return emtpy matrices
     if num_energy_states <= 2:
         ET_matrix = csr_matrix(np.zeros((num_energy_states, 0), dtype=np.float64))
-        N_indices = np.column_stack(([], []))
+        N_indices = np.column_stack((np.array([], dtype=np.uint32),
+                                     np.array([], dtype=np.uint32)))
         return (ET_matrix, N_indices)
 
-    num_et_processes = 10*(sum(len(arr) for arr in indices_S_k) +
-                           sum(len(arr) for arr in indices_S_l) +
-                           sum(len(arr) for arr in indices_A_k) +
-                           sum(len(arr) for arr in indices_A_l))
-    N_index_I = np.zeros((num_et_processes,), dtype=np.uint32)
-    N_index_J = np.zeros_like(N_index_I)
+    N_index_I = []  # type: List[np.array]
+    N_index_J = []  # type: List[np.array]
 
-    uc_index = uc_index_indep = 0
-    i_index = np.zeros_like(N_index_I)
-    j_index = np.zeros_like(N_index_I)
-    v_index = np.zeros_like(N_index_I, dtype=np.float64)
+    uc_index = 0
+    i_index = []  # type: List[np.array]
+    j_index = []  # type: List[np.array]
+    v_index = []  # type: List[np.array]
+
     # indices legend:
-    # i, i+1 = current Yb
-    # j, j+1, j+2, ... = current Tm
-    # k, k+1 = Yb that interacts
-    # l, l+1, l+2, ... = Tm that interacts
+    # i, i+1 = current S
+    # j, j+1, j+2, ... = current A
+    # k, k+1 = S that interacts
+    # l, l+1, l+2, ... = A that interacts
 
     # make sure the number of states for A and S are greater or equal than the processes require
     try:
         for proc_name, dict_process in dict_ET.items():
              # discard processes whose states are larger than activator states
-            if not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'AA':
-                if np.any(np.array(dict_process['indices']) > activator_states):
+            if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'AA':
+                if np.any(np.array(dict_process['indices']) >= activator_states):
                     raise lattice.LatticeError
-            elif not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'AS':
-                if np.any(np.array(dict_process['indices'][::2]) > activator_states) or\
-                    np.any(np.array(dict_process['indices'][1::2]) > sensitizer_states):
+            elif not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'AS':
+                if np.any(np.array(dict_process['indices'][::2]) >= activator_states) or\
+                    np.any(np.array(dict_process['indices'][1::2]) >= sensitizer_states):
                     raise lattice.LatticeError
-            elif not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'SS':
-                if np.any(np.array(dict_process['indices']) > sensitizer_states):
+            elif not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'SS':
+                if np.any(np.array(dict_process['indices']) >= sensitizer_states):
                     raise lattice.LatticeError
-            elif not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'SA':
-                if np.any(np.array(dict_process['indices'][::2]) > activator_states) or\
-                    np.any(np.array(dict_process['indices'][1::2]) > sensitizer_states):
+            elif not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'SA':
+                if np.any(np.array(dict_process['indices'][::2]) >= activator_states) or\
+                    np.any(np.array(dict_process['indices'][0::2]) >= sensitizer_states):
                     raise lattice.LatticeError
     except lattice.LatticeError:
         msg = ('The number of A or S states is lower ' +
@@ -337,13 +340,14 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
         logging.getLogger(__name__).error(msg)
         raise lattice.LatticeError(msg)
 
+    # go over each ion and calculate its interactions
     num_A = num_S = 0
     for num in range(num_total_ions):
         if index_A_j[num] != -1 and activator_states != 0:  # Tm ions
             index_j = index_A_j[num]  # position of ion num on the solution vector
             # add all A-A ET processes
             for proc_name, dict_process in dict_ET.items():
-                if not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'AA':
+                if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'AA':
                     # reshape to (n,) from (n,1)
                     indices_l = indices_A_l[num_A].reshape((len(indices_A_l[num_A]),))
                     dists_l = dists_A_l[num_A]
@@ -353,7 +357,7 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
                                    *dict_process['indices'])
             # add all A-S ET processes
             for proc_name, dict_process in dict_ET.items():
-                if not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'AS':
+                if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'AS':
                     indices_k = indices_A_k[num_A].reshape((len(indices_A_k[num_A]),))
                     dists_k = dists_A_k[num_A]
                     add_ET_process(index_j, indices_k, dists_k,
@@ -365,7 +369,7 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
             index_i = index_S_i[num]  # position of ion num on the solution vector
             # add all S-S ET processes
             for proc_name, dict_process in dict_ET.items():
-                if not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'SS':
+                if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'SS':
                     indices_k = indices_S_k[num_S].reshape((len(indices_S_k[num_S]),))
                     dists_k = dists_S_k[num_S]
                     add_ET_process(index_i, indices_k, dists_k,
@@ -374,7 +378,7 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
                                    *dict_process['indices'])
             # add all S-A ET processes
             for proc_name, dict_process in dict_ET.items():
-                if not np.allclose(dict_process['value'], 0.0) and dict_process['type'] == 'SA':
+                if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'SA':
                     indices_l = indices_S_l[num_S].reshape((len(indices_S_l[num_S]),))
                     dists_l = dists_S_l[num_S]
                     add_ET_process(index_i, indices_l, dists_l,
@@ -383,22 +387,208 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
                                    *dict_process['indices'])
             num_S += 1
 
-    # clear all extra terms
-    N_index_I = N_index_I[0:uc_index]
-    N_index_J = N_index_J[0:uc_index]
+    # no ET processes
+    if uc_index == 0:
+        ET_matrix = csr_matrix(np.zeros((num_energy_states, 0), dtype=np.float64))
+        N_indices = np.column_stack((np.array([], dtype=np.uint32),
+                                     np.array([], dtype=np.uint32)))
+        return (ET_matrix, N_indices)
 
-    i_index = i_index[0:4*(uc_index)]
-    j_index = j_index[0:4*(uc_index)]
-    v_index = v_index[0:4*(uc_index)]
+    # flatten lists and covert them to np.arrays
+    N_index_I = np.concatenate(N_index_I).ravel()
+    N_index_J = np.concatenate(N_index_J).ravel()
+
+    i_index = np.concatenate(i_index).ravel()
+    j_index = np.concatenate(j_index).ravel()
+    v_index = np.concatenate(v_index).ravel()
 
     # create ET matrix
     ET_matrix = csr_matrix((v_index, (i_index, j_index)),
                            shape=(num_energy_states, uc_index),
                            dtype=np.float64)
-#    ET_matrix.eliminate_zeros()
     N_indices = np.column_stack((N_index_I, N_index_J))
 
     return (ET_matrix, N_indices)
+
+
+#import pyximport
+#pyximport.install(setup_args={"script_args":["--compiler=msvc"],
+#                              "include_dirs": np.get_include()},
+#                  reload_support=True)
+#from cooperative_helper import get_all_processes
+
+# unused arguments
+# pylint: disable=W0613
+#@profile
+def _create_coop_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dict,
+                             indices_S_k: List[np.array], indices_S_l: List[np.array],
+                             indices_A_k: List[np.array], indices_A_l: List[np.array],
+                             dists_S_k: np.array, dists_S_l: np.array,
+                             dists_A_k: np.array, dists_A_l: np.array,
+                             sensitizer_states: int, activator_states: int,
+                             d_max_coop: float = np.inf,
+                            ) -> Tuple[scipy.sparse.csr_matrix, np.array]:
+    '''Calculates the cooperative coop_ET_matrix and coop_N_indices matrices of energy transfer
+       The coop_ET_matrix has size num_interactions x num_states:
+       at each column there are 6 nonzero values corresponding to the ET rates.
+       Their positions in the column are at the indices of the populations affected
+       by that particular ET process.
+       coop_N_indices has size 3 x num_interactions: each row corresponds to the populations
+       that need to be multiplied:
+           y(coop_N_indices[:,0])*y(coop_N_indices[:,1])*y(coop_N_indices[:,2]).
+
+       The total ET contribution to the rate equations is then:
+       coop_ET_matrix * y(coop_N_indices[:,0])*y(coop_N_indices[:,1])*y(coop_N_indices[:,2]).
+    '''
+    proc_dtype = [('i', np.uint32),
+                  ('k', np.uint32),
+                  ('l', np.uint32),
+                  ('d_li', np.float64),
+                  ('d_lk', np.float64),
+                  ('d_ik', np.float64)]
+#    numba_proc_dtype = numba.from_dtype(np.dtype(proc_dtype))
+
+
+#    @profile
+    def get_all_processes(indices_this, indices_others, dists_others, d_max_coop, interaction_estimate):
+        '''Calculate all cooperative processes from ions indices_this to all indices_others.'''
+        processes_arr = np.empty((interaction_estimate, ), dtype=proc_dtype)
+
+        indices_others = [row.reshape(len(row),) for row in indices_others]
+
+        indices_this = np.array(indices_this)
+        indices_this = indices_this[indices_this != -1]
+
+        # for each ion, and the other ions it interacts with
+        num = 0
+        # XXX: parallelize?
+        for index_this, indices_k, dists_k in zip(indices_this, indices_others, dists_others):
+            # pairs of other ions
+            pairs = list(itertools.combinations(indices_k, 2))
+            # distances from this to the pairs of others
+            pairs_dist = list(itertools.combinations(dists_k, 2))
+            new_rows = [(pair[0], pair[1], index_this, dists[0], dists[1], 0.0)
+                        for pair, dists in zip(pairs, pairs_dist) if max(dists) < d_max_coop]
+#            processes.extend(new_rows)
+            processes_arr[num:num+len(new_rows)] = new_rows
+            num += len(new_rows)
+        return processes_arr[0:num]
+
+    # slowest function, use numba jit
+    @numba.jit(nopython=True, cache=True, nogil=True)
+    def get_i_k_ions(proc_i: np.array, proc_k: np.array,
+                     index_S_i: np.array) -> Tuple[np.array, np.array]:  # pragma: no cover
+        '''Get the ion number of states i and k.'''
+        # list of GS of S ions
+        index_S_i_red = index_S_i[index_S_i != -1]
+
+        ion_i = np.zeros_like(proc_i, dtype=np.int64)
+        ion_k = np.zeros_like(ion_i)
+        for num, (i, k) in enumerate(zip(proc_i, proc_k)):
+            ion_i[num] = np.where(index_S_i_red == i)[0][0]
+            ion_k[num] = np.where(index_S_i_red == k)[0][0]
+
+        return (ion_i, ion_k)
+
+    @numba.jit(nopython=True, cache=True, nogil=True)
+    def calculate_coop_strength(processes_arr, mult):  # pragma: no cover
+        '''Calculate the cooperative interaction strength for the processes.'''
+        prod1 = (processes_arr['d_li']*processes_arr['d_lk'])**mult
+        prod2 = (processes_arr['d_li']*processes_arr['d_ik'])**mult
+        prod3 = (processes_arr['d_ik']*processes_arr['d_lk'])**mult
+
+        return 1/prod1 + 1/prod2 + 1/prod3
+
+
+    num_S_atoms = np.count_nonzero(np.array(index_S_i) != -1)
+    num_A_atoms = np.count_nonzero(np.array(index_A_j) != -1)
+    num_energy_states = sensitizer_states*num_S_atoms + activator_states*num_A_atoms
+
+    # get the process dict of the coop step
+    coop_dict = None  # type: Dict
+    for dict_process in dict_ET.values():
+        if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'SSA':
+            coop_dict = dict_process
+            break
+
+    # if there are 5 states or fewer, return empty matrices
+    if num_energy_states <= 5 or coop_dict is None or dists_S_k.size == 0 or dists_A_k.size == 0:
+        coop_ET_matrix = csr_matrix(np.zeros((num_energy_states, 0), dtype=np.float64))
+        coop_N_indices = np.column_stack((np.array([], dtype=np.uint32),
+                                          np.array([], dtype=np.uint32),
+                                          np.array([], dtype=np.uint32)))
+        return (coop_ET_matrix, coop_N_indices)
+
+    # get all coop processes with distances smaller than d_max_coop
+    index_A_j_arr = np.array(index_A_j).astype(np.int64)
+    index_A_j_arr = index_A_j_arr[index_A_j_arr != -1]
+    index_A_j_arr = index_A_j_arr.astype(np.uint32)
+    indices_A_k_arr = np.array([row.reshape(len(row), 1) for row in indices_A_k], dtype=np.uint32)
+    indices_A_k_arr.shape = indices_A_k_arr.shape[0:2]
+
+    interaction_estimate = num_A_atoms*num_S_atoms*(num_S_atoms-1)//2  # max number
+    factor = np.count_nonzero(dists_A_k < d_max_coop)/dists_A_k.size
+    interaction_estimate *= factor
+#    print(factor, interaction_estimate)
+    processes_arr = get_all_processes(index_A_j_arr, indices_A_k_arr,
+                                      dists_A_k, d_max_coop, int(interaction_estimate))
+#    print(processes_arr)
+    num_inter = len(processes_arr)
+#    logger.debug('Number of cooperative processes: %d', num_inter)
+
+    # no interactions
+    if num_inter == 0:
+        coop_ET_matrix = csr_matrix(np.zeros((num_energy_states, 0), dtype=np.float64))
+        coop_N_indices = np.column_stack((np.array([], dtype=np.uint32),
+                                          np.array([], dtype=np.uint32),
+                                          np.array([], dtype=np.uint32)))
+        return (coop_ET_matrix, coop_N_indices)
+
+    # update the last columm of processes_arr with the distance between i and k
+    i_ion_arr, k_ion_arr = get_i_k_ions(processes_arr['i'], processes_arr['k'], np.array(index_S_i))
+    processes_arr['d_ik'] = dists_S_k[i_ion_arr, k_ion_arr-1]
+#    logger.debug('Cooperative distances calculated.')
+
+    # unpack requested process
+    (i_i_state, k_i_state, l_i_state,
+     i_f_state, k_f_state, l_f_state) = coop_dict['indices']
+
+    # calculate the current ion's initial and final states
+    i_i_states = np.array(processes_arr['i'], dtype=np.uint32) + i_i_state
+    i_f_states = np.array(processes_arr['i'], dtype=np.uint32) + i_f_state
+    # calculate the interacting k ions' initial and final states
+    k_i_states = np.array(processes_arr['k'], dtype=np.uint32) + k_i_state
+    k_f_states = np.array(processes_arr['k'], dtype=np.uint32) + k_f_state
+    # calculate the interacting l ions' initial and final states
+    l_i_states = np.array(processes_arr['l'], dtype=np.uint32) + l_i_state
+    l_f_states = np.array(processes_arr['l'], dtype=np.uint32) + l_f_state
+    # rows: interweave i_vec_Xs
+    i_index = np.ravel(np.column_stack((i_i_states, i_f_states,
+                                        k_i_states, k_f_states,
+                                        l_i_states, l_f_states)))
+    # columns: interaction number
+    num_cols = np.arange(0, num_inter, dtype=np.uint32)
+    j_index = np.ravel(np.column_stack((num_cols, num_cols,
+                                        num_cols, num_cols,
+                                        num_cols, num_cols)))
+
+    value = coop_dict['value']
+    mult = coop_dict['mult']
+    w_strengths = value*calculate_coop_strength(processes_arr, mult)
+    v_index = np.ravel(np.column_stack((-w_strengths, w_strengths,
+                                        -w_strengths, w_strengths,
+                                        -w_strengths, w_strengths)))
+
+    np.set_printoptions(threshold=np.Inf)
+
+    # create ET matrix
+    coop_ET_matrix = csr_matrix((v_index, (i_index, j_index)),
+                                shape=(num_energy_states, num_inter),
+                                dtype=np.float64)
+    # initial states
+    coop_N_indices = np.column_stack((i_i_states, k_i_states, l_i_states))
+
+    return (coop_ET_matrix, coop_N_indices)
 
 
 #@profile
@@ -415,7 +605,7 @@ def _calculate_jac_matrices(N_indices: np.array) -> np.array:
     num_interactions = len(N_indices[:, 0])
 
     # calculate indices for the jacobian
-    temp = np.arange(0, num_interactions, dtype=np.uint64)
+    temp = np.arange(0, num_interactions, dtype=np.uint32)
     row_indices = np.ravel(np.column_stack((temp, temp)))
     col_indices = np.ravel(np.column_stack((N_indices[:, 0], N_indices[:, 1])))
     y_indices = np.ravel(np.column_stack((N_indices[:, 1], N_indices[:, 0])))
@@ -424,12 +614,87 @@ def _calculate_jac_matrices(N_indices: np.array) -> np.array:
 
     return jac_indices
 
+#@profile
+def _calculate_coop_jac_matrices(coop_N_indices: np.array) -> np.array:
+    '''Calculates the cooperative jacobian matrix helper data structures (non-zero values):
+       coop_N_indices has 3 columns and num_coop_interactions rows
+       with the indices i, k, l of each interaction.
+       coop_jac_indices's first column is the row, second is the column,
+       and 3rd and 4th are the population indices.
+       The jacobian is then:
+           jac_prod = y(coop_jac_indices[:, 2])*y(coop_jac_indices[:, 3])
+           J_i,j = jac_prod, i=coop_jac_indices[:, 0], j=coop_jac_indices[:, 1]
+           repeated indices are summed
+       The size of jac_indices is 3 x (3*num_coop_interactions)
+    '''
+    # coop_N_indices[:,0] = index i
+    # coop_N_indices[:,1] = index k
+    # coop_N_indices[:,2] = index l
+
+    # for each interaction get the indices of the three pairs: ik, il, kl
+    # each triplet of products goes into one row, corresponding to its interaction_number
+    # the column position is given by the other state not in the pair:
+    #   for the product pair ik, the column is l.
+
+    @numba.jit(nopython=True, cache=True)
+    def get_col_values(num_interactions: int,
+                       coop_N_indices: np.array) -> np.array:  # pragma: no cover
+        '''Gets the column values for the cooperative jacobian.
+            This is a 1D array with the state numbers in reversed order
+            for each row in coop_N_indices.
+        '''
+        col_indices = np.empty((3*num_coop_interactions,), dtype=np.uint32)
+        num = 0
+        for row_num in range(coop_N_indices.shape[0]):
+            col_indices[num] = coop_N_indices[row_num, 2]
+            col_indices[num+1] = coop_N_indices[row_num, 1]
+            col_indices[num+2] = coop_N_indices[row_num, 0]
+            num += 3
+        return col_indices
+
+    @numba.jit(nopython=True, cache=True)
+    def get_y_values(num_interactions: int,
+                     coop_N_indices: np.array) -> Tuple[np.array, np.array]:  # pragma: no cover
+        '''Return two 1D arrays with the pairs of states that appear in a position of the
+            jacobian matrix.
+        '''
+        y_values0 = np.empty((3*num_interactions,), dtype=np.uint32)
+        y_values1 = np.empty((3*num_interactions,), dtype=np.uint32)
+        num = 0
+        for row_num in range(coop_N_indices.shape[0]):
+            val0 = coop_N_indices[row_num, 0]
+            val1 = coop_N_indices[row_num, 1]
+            val2 = coop_N_indices[row_num, 2]
+            y_values0[num] = val0
+            y_values1[num] = val1
+            y_values0[num+1] = val0
+            y_values1[num+1] = val2
+            y_values0[num+2] = val1
+            y_values1[num+2] = val2
+            num += 3
+        return y_values0, y_values1
+
+    num_coop_interactions = len(coop_N_indices[:, 0])
+
+    # rows
+    temp = np.arange(0, num_coop_interactions, dtype=np.uint32)
+    row_indices = np.repeat(temp, 3)  # three elements per row
+
+    # cols
+    col_indices = get_col_values(num_coop_interactions, coop_N_indices)
+
+    # values
+    y_values0, y_values1 = get_y_values(num_coop_interactions, coop_N_indices)
+
+    # pack everything in an array
+    coop_jac_indices = np.column_stack((row_indices, col_indices, y_values0, y_values1))
+    return coop_jac_indices
+
 
 def get_lifetimes(cte: Dict) -> List[float]:
     '''Returns a list of all lifetimes in seconds.
        First sensitizer and then activator
     '''
-
     pos_value_S = cte['decay']['pos_value_S']
     pos_value_A = cte['decay']['pos_value_A']
 
@@ -440,6 +705,7 @@ def get_lifetimes(cte: Dict) -> List[float]:
 def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = None
                          ) -> Tuple[Dict, np.array, List[int], List[int],
                                     scipy.sparse.csr_matrix, scipy.sparse.csr_matrix,
+                                    scipy.sparse.csr_matrix, np.array, np.array,
                                     scipy.sparse.csr_matrix, np.array, np.array]:
     '''Setups all data structures necessary for the microscopic rate equations
         As arguments it gets the cte dict (that can be read from a file with settings.py)
@@ -532,7 +798,6 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
     # j: current A ion
     # k: other S ion that interacts
     # l: other A ion that interacts
-
     with h5py.File(filename, mode='r') as file:
         index_S_i = list(itertools.chain.from_iterable(np.array(file['indices_S_i']).tolist()))
         index_A_j = list(itertools.chain.from_iterable(np.array(file['indices_A_j']).tolist()))
@@ -555,7 +820,6 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
 
         initial_population = np.array(file['initial_population'])
 
-
     logger.info('Building matrices...')
 
     logger.info('Absorption and decay matrices...')
@@ -573,19 +837,36 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
                                                dists_S_k, dists_S_l,
                                                dists_A_k, dists_A_l,
                                                sensitizer_states, activator_states)
-
     jac_indices = _calculate_jac_matrices(N_indices)
-
     logger.info('Number of interactions: %d.', N_indices.shape[0])
+
+    # Cooperative matrices
+    logger.info('Cooperative energy transfer matrices...')
+    d_max_coop = cte['lattice'].get('d_max_coop', np.inf)
+    (coop_ET_matrix,
+     coop_N_indices) = _create_coop_ET_matrices(index_S_i, index_A_j, cte['ET'],
+                                                indices_S_k, indices_S_l,
+                                                indices_A_k, indices_A_l,
+                                                dists_S_k, dists_S_l,
+                                                dists_A_k, dists_A_l,
+                                                sensitizer_states, activator_states,
+                                                d_max_coop=d_max_coop)
+    coop_jac_indices = _calculate_coop_jac_matrices(coop_N_indices)
+    logger.info('Number of cooperative interactions: %d.', coop_N_indices.shape[0])
 
     logger.info('Setup finished. Total time: %.2fs.', time.time()-start_time)
     return (cte, initial_population, index_S_i, index_A_j,
-            total_abs_matrix, decay_matrix, ET_matrix, N_indices, jac_indices)
+            total_abs_matrix, decay_matrix,
+            ET_matrix, N_indices, jac_indices,
+            coop_ET_matrix, coop_N_indices, coop_jac_indices)
 
 
+# unused arguments
+# pylint: disable=W0613
 def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = None
                      ) -> Tuple[Dict, np.array, List[int], List[int],
                                 scipy.sparse.csr_matrix, scipy.sparse.csr_matrix,
+                                scipy.sparse.csr_matrix, np.array, np.array,
                                 scipy.sparse.csr_matrix, np.array, np.array]:
     '''Setups all data structures necessary for the average rate equations
         As arguments it gets the cte dict (that can be read from a file with settings.py)
@@ -631,14 +912,14 @@ def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = Non
 
     if num_total_ions == 0:
         msg = 'No ions generated, the concentrations are too small!'
-        logger.error(msg)
+        logger.error(msg, exc_info=True)
         raise lattice.LatticeError(msg)
 
     # discard the results, but it does a lot of error checking
     # don't show the plot
     old_no_plot = cte['no_plot']
     cte['no_plot'] = True
-    # generate lattice, data will be saved to disk
+    # generate lattice, data won't be saved to disk
     lattice.generate(cte, no_save=True)
     cte['no_plot'] = old_no_plot
 
@@ -690,7 +971,7 @@ def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = Non
     logger.info('Energy transfer matrices...')
     # use the avg value if present
     ET_dict = cte['ET'].copy()
-    for proc_name, dict_process in ET_dict.items():
+    for dict_process in ET_dict.values():
         if 'value_avg' in dict_process:
             dict_process['value'] = dict_process['value_avg']
     ET_matrix, N_indices = _create_ET_matrices(indices_S_i, indices_A_j, ET_dict,
@@ -706,33 +987,59 @@ def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = Non
     N_indices = np.delete(N_indices, np.array(emtpy_indices), axis=0)
 
     jac_indices = _calculate_jac_matrices(N_indices)
-
     logger.info('Number of interactions: %d.', N_indices.shape[0])
+
+    coop_ET_matrix = csr_matrix(np.zeros((num_energy_states, 0), dtype=np.float64))
+    coop_N_indices = np.column_stack((np.array([], dtype=np.uint32),
+                                      np.array([], dtype=np.uint32),
+                                      np.array([], dtype=np.uint32)))
+    coop_jac_indices = np.column_stack((np.array([], dtype=np.uint32),
+                                        np.array([], dtype=np.uint32),
+                                        np.array([], dtype=np.uint32),
+                                        np.array([], dtype=np.uint32)))
+#    logger.info('Cooperative energy transfer matrices...')
+#    (coop_ET_matrix,
+#     coop_N_indices) = _create_coop_ET_matrices(indices_S_i, indices_A_j, ET_dict,
+#                                                indices_S_k, indices_S_l,
+#                                                indices_A_k, indices_A_l,
+#                                                dists_S_k, dists_S_l,
+#                                                dists_A_k, dists_A_l,
+#                                                sensitizer_states, activator_states)
+#    logger.info('Number of cooperative interactions: %d.', coop_N_indices.shape[0])
 
     logger.info('Setup finished. Total time: %.2fs.', time.time()-start_time)
     return (cte, initial_population, indices_S_i, indices_A_j,
-            total_abs_matrix, decay_matrix, ET_matrix, N_indices, jac_indices)
+            total_abs_matrix, decay_matrix,
+            ET_matrix, N_indices, jac_indices,
+            coop_ET_matrix, coop_N_indices, coop_jac_indices)
 
 
-
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-    logger.debug('Called from main.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
-    cte['no_console'] = False
-    cte['no_plot'] = False
-
-    cte['lattice']['S_conc'] = 0.0
-    cte['lattice']['A_conc'] = 0.0
-
-    (cte, initial_population, index_S_i, index_A_j,
-     total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = setup_microscopic_eqs(cte)
-
-    UC_matrix = UC_matrix.toarray()
-    total_abs_matrix = total_abs_matrix.toarray()
-    decay_matrix = decay_matrix.toarray()
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#    logger.debug('Called from main.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+##    logger.setLevel(logging.DEBUG)
+#
+##    cte['lattice']['S_conc'] = 0.0
+##    cte['lattice']['A_conc'] = 0.0
+#
+##    full_path='test/test_setup/data_3S_2A.hdf5'
+#    full_path = None
+#
+#    (cte, initial_population, index_S_i, index_A_j,
+#     total_abs_matrix, decay_matrix, ET_matrix,
+#     N_indices, jac_indices,
+#     coop_ET_matrix, coop_N_indices,
+#     coop_jac_indices) = setup_microscopic_eqs(cte, full_path=full_path)
+#
+#
+##    ET_matrix = ET_matrix.toarray()
+##    coop_ET_matrix = coop_ET_matrix.toarray()
+##    total_abs_matrix = total_abs_matrix.toarray()
+##    decay_matrix = decay_matrix.toarray()

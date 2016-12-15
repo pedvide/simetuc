@@ -55,10 +55,10 @@ def _load_yaml_file(filename: str, direct_file: bool = False) -> Dict:
             cte = _ordered_load(filename, yaml.SafeLoader)
     except OSError as err:
         logger.error('Error reading file!')
-        logger.error(str(err.args))
+        logger.error(str(err.args), exc_info=True)
         raise ConfigError('Error reading file ({})!'.format(filename)) from err
     except yaml.YAMLError as exc:
-        logger.error('Error while parsing the config file: %s!', filename)
+        logger.error('Error while parsing the config file: %s!', filename, exc_info=True)
         if hasattr(exc, 'problem_mark'):
             logger.error(str(exc.problem_mark).strip())
             if exc.context is not None:
@@ -121,7 +121,7 @@ def _check_values(needed_values_lst: List[str], present_values_dict: Dict,
         needed_values = set(needed_values_lst)
     except (AttributeError, TypeError) as err:
         msg = 'Section "{}" is empty!'.format(section)
-        logger.error(msg)
+        logger.error(msg, exc_info=True)
         raise ConfigError(msg) from err
 
     if optional_values_lst is None:
@@ -172,7 +172,7 @@ def _get_state_index(list_labels: List[str], state_label: str,
     except ValueError as err:  # print an error and exit
         msg = err.args[0].replace('in list', 'a valid state label')
         num_msg = ' (number {})'.format(num) if num else ''
-        logger.error('Incorrect %s%s: %s', section, num_msg, process)
+        logger.error('Incorrect %s%s: %s', section, num_msg, process, exc_info=True)
         logger.error(msg)
         raise LabelError(msg) from err
     return index
@@ -191,7 +191,7 @@ def _get_ion(list_ion_labels: List[str], ion_label: str,
     except ValueError as err:  # print an error and exit
         msg = err.args[0].replace('in list', 'a valid ion label')
         num_msg = ' (number {})'.format(num) if num else ''
-        logger.error('Incorrect %s%s: %s', section, num_msg, process)
+        logger.error('Incorrect %s%s: %s', section, num_msg, process, exc_info=True)
         logger.error(msg)
         raise LabelError(msg) from err
     return index
@@ -208,17 +208,17 @@ def _get_value(dictionary: Dict, value: str, val_type: Callable) -> Any:
         val = val_type(dictionary[value])
     except ValueError as err:
         msg = 'Invalid value for parameter "{}"'.format(value)
-        logger.error(msg)
+        logger.error(msg, exc_info=True)
         logger.error(str(err.args))
         raise ValueError(msg) from err
     except KeyError as err:
         msg = 'Missing parameter "{}"'.format(value)
-        logger.error(msg)
+        logger.error(msg, exc_info=True)
         logger.error(str(err.args))
         raise ConfigError(msg) from err
     except TypeError as err:
         msg = 'Label missing in "{}"?'.format(dictionary)
-        logger.error(msg)
+        logger.error(msg, exc_info=True)
         logger.error(str(err.args))
         raise ConfigError(msg) from err
 
@@ -232,7 +232,7 @@ def _get_positive_value(dictionary: Dict, value: str, val_type: Callable) -> Uni
     val = _get_value(dictionary, value, val_type)
     if val < 0:
         msg = '"{}" is a negative value'.format(value)
-        logger.error(msg)
+        logger.error(msg, exc_info=True)
         raise ValueError(msg)
 
     return val
@@ -258,7 +258,7 @@ def _get_normalized_float_value(dictionary: Dict, value: str) -> float:
         return val
     else:
         msg = '"{}" is not between 0 and 1.'.format(value)
-        logger.error(msg)
+        logger.error(msg, exc_info=True)
         raise ValueError(msg)
 
 
@@ -276,13 +276,13 @@ def _get_list_floats(list_vals: List) -> List[float]:
         lst = [float(Fraction(elem)) for elem in list_vals]  # type: ignore
     except ValueError as err:
         msg = 'Invalid value in list "{}"'.format(list_vals)
-        logger.error(msg)
+        logger.error(msg, exc_info=True)
         logger.error(str(err.args))
         raise ValueError(msg) from err
 
     if any(elem < 0 for elem in lst):
         msg = 'Negative value in list "{}"'.format(list_vals)
-        logger.error(msg)
+        logger.error(msg, exc_info=True)
         raise ValueError(msg)
 
     return lst
@@ -297,8 +297,9 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
     needed_keys = ['name', 'N_uc', 'S_conc', 'A_conc', 'a', 'b', 'c',
                    'alpha', 'beta', 'gamma', 'spacegroup',
                    'sites_pos', 'sites_occ']
+    optional_keys = ['d_max', 'd_max_coop']
     # check that all keys are in the file
-    _check_values(needed_keys, dict_lattice, 'lattice')
+    _check_values(needed_keys, dict_lattice, 'lattice', optional_values_lst=optional_keys)
 
     parsed_dict = {}  # type: Dict
 
@@ -313,6 +314,17 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
     alpha_param = _get_float_value(dict_lattice, 'alpha')
     beta_param = _get_float_value(dict_lattice, 'beta')
     gamma_param = _get_float_value(dict_lattice, 'gamma')
+    if 'd_max' in dict_lattice:
+        d_max = _get_float_value(dict_lattice, 'd_max')
+    else:
+        d_max = np.inf
+    parsed_dict['d_max'] = d_max
+    if 'd_max_coop' in dict_lattice:
+        d_max_coop = _get_float_value(dict_lattice, 'd_max_coop')
+    else:
+        d_max_coop = np.inf
+    parsed_dict['d_max_coop'] = d_max_coop
+
 
     # angles should have reasonable values
     if alpha_param > 360 or beta_param > 360 or gamma_param > 360:
@@ -604,15 +616,26 @@ def _parse_ET(cte: Dict) -> Dict:
                                          process=process, num=num)
                         for ion_num, (ion_label, label) in zip(list_ions_num, list_init_final)]
 
-        # get process type: S-S, A-A, S-A, A-S
+        # get process type: S-S, A-A, S-A, A-S, S-S-A, or A-A-S
         list_ions = [ion for ion, label in list_init_final]
         first_ion = list_ions[0]
         second_ion = list_ions[1]
+        if len(list_ions) == 6:
+            third_ion = list_ions[2]
+        else:
+            third_ion = None
         ET_type = None
         if first_ion == activator_ion_label and second_ion == activator_ion_label:
-            ET_type = 'AA'
+            if third_ion == sensitizer_ion_label:
+                ET_type = 'AAS'
+            else:
+                ET_type = 'AA'
+
         elif first_ion == sensitizer_ion_label and second_ion == sensitizer_ion_label:
-            ET_type = 'SS'
+            if third_ion == activator_ion_label:
+                ET_type = 'SSA'
+            else:
+                ET_type = 'SS'
         elif first_ion == sensitizer_ion_label and second_ion == activator_ion_label:
             ET_type = 'SA'
         elif first_ion == activator_ion_label and second_ion == sensitizer_ion_label:
@@ -885,6 +908,6 @@ def load(filename: str) -> Dict:
     return cte
 
 
-#if __name__ == "__main__":
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
+if __name__ == "__main__":
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')

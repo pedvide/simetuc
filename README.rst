@@ -12,18 +12,23 @@ Installation
 ------------
 
 Python 3.5 is required. Installing
-`Anaconda <https://www.continuum.io/downloads>`__ is recommended
-(preferably 64 bits).
+`Anaconda <https://www.continuum.io/downloads>`__ is recommended; it
+works with Windows (64/32 bits), Linux (64/32 bits) and Mac (64 bits).
+
+After installing Anaconda execute the following command at the command
+prompt (cmd.exe for Windows, shell for Linux and Mac):
 
 ::
 
-    $ conda install -c pedvide simetuc
+    conda install -c pedvide simetuc
 
 or
 
 ::
 
-    $ pip install simetuc
+    pip install simetuc
+
+That will download and install all necessary files.
 
 Features
 --------
@@ -33,25 +38,41 @@ Features
    -  Run with: ``simetuc config_file.txt [options]``
    -  See all options below and with: ``simetuc -h``
 
--  The simulations are controlled by a configuration textfile that
+-  The simulations are controlled by a configuration text file that the
+   user can edit with the parameters adecuate to its system of study. It
    includes:
 
    -  Information about the host lattice.
-   -  Energy states.
-   -  Absorption and excitation.
+   -  Energy states labels.
+   -  Absorption and excitation (including ESA).
    -  Decay (including branching ratios).
    -  Energy transfer.
    -  Other setings for the power and concentration dependence or
       optimization.
 
--  See the example configuration file in the simetuc folder.
--  Add experimental data as two column text data, separated by tabs or
-   spaces.
+-  simetuc works with any sensitizer and activator ion kind.
+
+   -  The examples are given for the Yb-Tm system.
+
+-  All kinds of energy tranfer processes are supported:
+
+   -  Energy migration.
+   -  Upconversion (ETU).
+   -  Downconversion.
+   -  Cross-relaxation.
+   -  Cooperative processes.
+   -  Energy tranfer from sensitizers to activators
+   -  Back transfer from activators to sensitizers.
+
+-  See the example `configuration file <simetuc/config_file.cfg>`__ in
+   the simetuc folder.
+-  Add decay experimental data as two column text data, separated by
+   tabs or spaces.
 -  Different options:
 
-   -  Lattice creation.
+   -  Create the lattice.
    -  Simulate the dynamics (rise and decay).
-   -  Optimization of the energy transfer parameters.
+   -  Optimize the energy transfer parameters.
 
       -  Minimize the deviation between experiment and simulation.
 
@@ -75,7 +96,7 @@ TODO
 -  [ ] Add pressure dependence option: Change the distances of the
    lattice and simulate dynamics or steady-state.
 -  [ ] Read experimental data in more formats.
--  [ ] Add cooperative sensitization.
+-  [x] Add cooperative sensitization (work in progress).
 -  [ ] Include pulse frequency for steady state simulations using a non
    cw laser
 

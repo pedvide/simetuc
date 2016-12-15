@@ -19,9 +19,9 @@ from assimulo.problem import Explicit_Problem
 
 import numpy
 import pyximport
-pyximport.install(setup_args={"script_args":["--compiler=msvc"],
-                              "include_dirs": numpy.get_include()},
-                  reload_support=True)
+#pyximport.install(setup_args={"script_args":["--compiler=msvc"],
+#                              "include_dirs": numpy.get_include()},
+#                  reload_support=True)
 from odesolver_assimulo_funs import _rate_eq_pulse_assimulo, _jac_rate_eq_pulse_assimulo
 from odesolver_assimulo_funs import _rate_eq_assimulo, _jac_rate_eq_assimulo
 

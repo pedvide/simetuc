@@ -244,7 +244,7 @@ class Solution():
             return cls(t_sol, y_sol, index_S_i, index_A_j, cte)
         except OSError:
             logger = logging.getLogger(__name__)
-            logger.error('File not found! (%s)', full_path)
+            logger.error('File not found! (%s)', full_path, exc_info=True)
             raise
 
 
@@ -308,6 +308,8 @@ class DynamicsSolution(Solution):
             path = os.path.join('expData', lattice_name, filename)
         elif os.path.isdir(os.path.join('simetuc', 'expData')):
             path = os.path.join(os.path.join('simetuc', 'expData'), lattice_name, filename)
+        else:
+            return None
         try:
             with open(path, 'rt') as file:
                 try:  # TODO: get a better way to read data
@@ -322,10 +324,10 @@ class DynamicsSolution(Solution):
     #        data = np.loadtxt(path, usecols=(0, 1)) # 10x slower
         except FileNotFoundError:
             # exp data doesn't exist. not a problem.
-            return 0
+            return None
 
         if len(data) == 0:
-            return 0
+            return None
 
         # smooth the data to get an "average" of the maximum
         smooth_data = signal.savgol_filter(data[:, 1], filter_window, 2, mode='nearest')
@@ -346,7 +348,7 @@ class DynamicsSolution(Solution):
         if not np.any(exp_data):  # if there's no experimental data, don't do anything
             return sim_data
         if not np.any(sim_data):  # pragma: no cover
-            return 0
+            return None
 
         last_points = exp_data[-offset_points:, 1]  # get last 50 points
         offset = np.mean(last_points[last_points > 0])*max(sim_data)
@@ -365,11 +367,11 @@ class DynamicsSolution(Solution):
         # create function to interpolate
         list_iterp_sim_funcs = [interpolate.interp1d(self.t_sol, simData_corr,
                                                      fill_value='extrapolate')
-                                if simData_corr is not 0 else 0
+                                if simData_corr is not None else None
                                 for simData_corr in self.list_avg_data_ofs]
         # interpolate them to the experimental data times
         list_iterp_sim_data = [iterpFun(expData[:, 0])
-                               if (expData is not 0) and (iterpFun is not 0) else 0
+                               if (expData is not None) and (iterpFun is not None) else None
                                for iterpFun, expData in zip(list_iterp_sim_funcs,
                                                             self.list_exp_data)]
 
@@ -384,7 +386,7 @@ class DynamicsSolution(Solution):
         # calculate the relative mean square deviation
         # error = 1/mean(y)*sqrt(sum( (y-yexp)^2 )/N )
         rmdevs = [(sim-exp[:, 1]*np.max(sim))**2
-                  if (exp is not 0) and (sim is not 0) else 0
+                  if (exp is not None) and (sim is not None) else 0
                   for (sim, exp) in zip(list_iterp_sim_data, self.list_exp_data)]
         errors = [1/np.mean(sim)*np.sqrt(1/len(sim)*np.sum(rmdev))
                   if rmdev is not 0 else 0
@@ -549,7 +551,7 @@ class SolutionList(Sequence[Solution]):
                     solutions.append(sol)
         except OSError:
             logger = logging.getLogger(__name__)
-            logger.error('File not found! (%s)', full_path)
+            logger.error('File not found! (%s)', full_path, exc_info=True)
             raise
         self.add_solutions(solutions)
 
@@ -728,6 +730,20 @@ class Simulations():
                                                                self.cte['lattice']['N_uc'],
                                                                self.cte['states']['energy_states'])
 
+    def _get_t_pulse(self):
+        try:
+            for exc_dict in self.cte['excitations'].values():  # pragma: no branch
+                if exc_dict['active']:
+                    tf_p = exc_dict['t_pulse']  # pulse width.
+                    break
+            type(tf_p)
+        except (KeyError, NameError):
+            logger = logging.getLogger(__name__)
+            logger.error('t_pulse value not found!')
+            logger.error('Please add t_pulse to your excitation settings.')
+            raise
+        return tf_p
+
     def modify_ET_param_value(self, process: str, new_strength: float) -> None:
         '''Modify a ET parameter'''
         self.cte['ET'][process]['value'] = new_strength
@@ -750,9 +766,9 @@ class Simulations():
         # get matrices of interaction, initial conditions, abs, decay, etc
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
-         UC_matrix, N_indices,
-         jac_indices) = setup_func(self.cte, full_path=self.full_path)
-#        initial_population = np.asfortranarray(initial_population, dtype=np.float64)
+         ET_matrix, N_indices, jac_indices,
+         coop_ET_matrix, coop_N_indices,
+         coop_jac_indices) = setup_func(self.cte, full_path=self.full_path)
 
         # update cte
         self.cte = cte
@@ -761,17 +777,7 @@ class Simulations():
         t0 = 0
         tf = (10*np.max(precalculate.get_lifetimes(self.cte))).round(8)  # total simulation time
         t0_p = t0
-        # make sure t_pulse exists and get the active one
-        try:
-            for exc_dict in self.cte['excitations'].values():  # pragma: no branch
-                if exc_dict['active']:
-                    tf_p = exc_dict['t_pulse']  # pulse width.
-                    break
-            type(tf_p)
-        except (KeyError, NameError):
-            logger.error('t_pulse value not found!')
-            logger.error('Please add t_pulse to your excitation settings.')
-            raise
+        tf_p = self._get_t_pulse()
         N_steps_pulse = 2
         t0_sol = tf_p
         tf_sol = tf
@@ -788,14 +794,16 @@ class Simulations():
         t_pulse = np.linspace(t0_p, tf_p, N_steps_pulse, dtype=np.float64)
         y_pulse = odesolver.solve_pulse(t_pulse, initial_population.transpose(),
                                         total_abs_matrix, decay_matrix,
-                                        UC_matrix, N_indices, jac_indices,
+                                        ET_matrix, N_indices, jac_indices,
+                                        coop_ET_matrix, coop_N_indices, coop_jac_indices,
                                         rtol=rtol, atol=atol, quiet=self.cte['no_console'])
 
         # relaxation
         logger.info('Solving relaxation...')
         t_sol = np.logspace(np.log10(t0_sol), np.log10(tf_sol), N_steps, dtype=np.float64)
         y_sol = odesolver.solve_relax(t_sol, y_pulse[-1, :], decay_matrix,
-                                      UC_matrix, N_indices, jac_indices,
+                                      ET_matrix, N_indices, jac_indices,
+                                      coop_ET_matrix, coop_N_indices, coop_jac_indices,
                                       rtol=rtol, atol=atol, quiet=self.cte['no_console'])
 
         formatted_time = time.strftime("%Mm %Ss", time.localtime(time.time()-start_time_ODE))
@@ -834,8 +842,9 @@ class Simulations():
         # get matrices of interaction, initial conditions, abs, decay, etc
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
-         UC_matrix, N_indices,
-         jac_indices) = setup_func(self.cte, full_path=self.full_path)
+         ET_matrix, N_indices, jac_indices,
+         coop_ET_matrix, coop_N_indices,
+         coop_jac_indices) = setup_func(self.cte, full_path=self.full_path)
 
         # update cte
         self.cte = cte
@@ -858,7 +867,9 @@ class Simulations():
         t_pulse = np.linspace(t0_p, tf_p, N_steps_pulse)
         y_pulse = odesolver.solve_pulse(t_pulse, initial_population.transpose(),
                                         total_abs_matrix, decay_matrix,
-                                        UC_matrix, N_indices, jac_indices, nsteps=1000,
+                                        ET_matrix, N_indices, jac_indices,
+                                        coop_ET_matrix, coop_N_indices, coop_jac_indices,
+                                        nsteps=1000,
                                         rtol=rtol, atol=atol, quiet=self.cte['no_console'])
 
         logger.info('Equations solved! Total time: %.2fs.', time.time()-start_time_ODE)
@@ -979,9 +990,9 @@ if __name__ == "__main__":
     solution.log_errors()
     solution.plot()
 
-    solution_avg = sim.simulate_avg_dynamics()
-    solution_avg.plot()
-    solution_avg.log_errors()
+#    solution_avg = sim.simulate_avg_dynamics()
+#    solution_avg.log_errors()
+#    solution_avg.plot()
 #
 #    solution = sim.simulate_steady_state()
 #    solution.log_populations()

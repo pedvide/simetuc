@@ -141,7 +141,13 @@ def setup_cte():
                             {'indices': [1, 0, 0, 1],
                              'mult': 6,
                              'type': 'SS',
-                             'value': 45022061400.0})]))])
+                             'value': 45022061400.0}),
+                            ('coop1',
+                             {'indices': [1, 1, 0, 0, 0, 5],
+                              'mult': 6,
+                              'type': 'SSA',
+                              'value': 1000.0})
+                            ]))])
 
     cte['no_console'] = True
     cte['no_plot'] = True
@@ -157,7 +163,8 @@ def test_lattice_1A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
+     N_indices, jac_indices,
+     coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -203,7 +210,7 @@ def test_lattice_1A_ESA(setup_cte): # use the ESA processes in NIR_800 excitatio
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
+     N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -263,7 +270,7 @@ def test_lattice_1A_two_color(setup_cte): # use two color excitation
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
+     N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -320,7 +327,7 @@ def test_lattice_2A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
+     N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -403,7 +410,7 @@ def test_lattice_1S(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
+     N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -435,7 +442,7 @@ def test_lattice_2S(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
+     N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -477,7 +484,7 @@ def test_lattice_1S_1A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
+     N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -555,7 +562,7 @@ def test_lattice_2S_2A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
+     N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -729,7 +736,7 @@ def test_random_lattice(setup_cte, params, absorption, problem):
     with temp_bin_filename() as temp_filename:
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
-         N_indices, jac_indices) = setup_func(cte, full_path=temp_filename)
+         N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = setup_func(cte, full_path=temp_filename)
 
     # some matrices can grow very large. Make sure it's returned as sparse
     assert sparse.issparse(ET_matrix)
@@ -836,7 +843,7 @@ def test_random_wrong_lattice(setup_cte, params, absorption, problem):
         with temp_bin_filename() as temp_filename:
             (cte, initial_population, index_S_i, index_A_j,
              absorption_matrix, decay_matrix, ET_matrix,
-             N_indices, jac_indices) = setup_func(setup_cte, full_path=temp_filename)
+             N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = setup_func(setup_cte, full_path=temp_filename)
 
 def test_get_lifetimes(setup_cte):
 
@@ -850,7 +857,7 @@ def test_get_lifetimes(setup_cte):
     with temp_bin_filename() as temp_filename:
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
-         N_indices, jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
+         N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
 
     tau_list = precalculate.get_lifetimes(cte)
 
@@ -869,10 +876,10 @@ def test_wrong_number_states(setup_cte):
     with temp_bin_filename() as temp_filename:
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
-         N_indices, jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
+         N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
 
         # change number of states
         cte['states']['activator_states'] = 10
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
-         N_indices, jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
+         N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)

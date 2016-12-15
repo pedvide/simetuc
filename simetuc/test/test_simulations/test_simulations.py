@@ -106,7 +106,7 @@ def setup_cte():
            'pump_rate': [0.00093],
            't_pulse': 1e-08}},
          'lattice': {'A_conc': 0.3,
-          'N_uc': 30,
+          'N_uc': 20,
           'S_conc': 0.3,
           'cell_par': [5.9738, 5.9738, 3.5297, 90.0, 90.0, 120.0],
           'name': 'bNaYF4',
@@ -156,7 +156,7 @@ def test_sim_dyn1(setup_cte):
     solution.plot(state=6)
     solution.plot(state=1)
 
-def test_sim_dyn2(setup_cte):
+def test_sim_dyn_2S_2A(setup_cte):
     '''Test that the dynamics have the right result for a simple system'''
     test_filename = os.path.join(test_folder_path, 'data_2S_2A.hdf5')
     sim = simulations.Simulations(setup_cte, full_path=test_filename)
@@ -173,7 +173,7 @@ def test_sim_dyn2(setup_cte):
          y_sol = np.array(file['y_sol'])
     assert np.allclose(y_sol, solution.y_sol)
 
-def test_sim_dyn3(setup_cte):
+def test_sim_dyn_wrong_state_plot(setup_cte):
     '''Test that you can't plot a wrong state.'''
     setup_cte['lattice']['S_conc'] = 0
 
@@ -184,7 +184,7 @@ def test_sim_dyn3(setup_cte):
     with pytest.raises(ValueError):
         solution.plot(state=10)
 
-def test_sim_dyn4(setup_cte):
+def test_sim_average_dyn(setup_cte):
     '''Test average dynamics.'''
     setup_cte['lattice']['S_conc'] = 0
 
@@ -326,6 +326,9 @@ def test_sim_power_dep1(setup_cte, mocker):
         assert not sol_hdf5
         sol_hdf5.load(filename)
 
+    with temp_config_filename('') as filename:
+        solution.save_txt(filename)
+
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
@@ -348,8 +351,10 @@ def test_sim_power_dep3(setup_cte, recwarn, mocker):
     '''A plot was requested, but no_plot is set'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver._solve_ode')
-        mocked.return_value = np.random.random((10, 10))
+        mocked = mocker.patch('simetuc.simulations.Simulations.simulate_steady_state')
+        mocked.return_value = simulations.SteadyStateSolution(np.empty((1000,)),
+                                                              np.empty((1000, 2*setup_cte['states']['energy_states'])),
+                                                              [], [], setup_cte)
 
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         power_dens_list = np.logspace(1, 2, 3)
@@ -364,23 +369,6 @@ def test_sim_power_dep3(setup_cte, recwarn, mocker):
     assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
 
 def test_sim_power_dep4(setup_cte, mocker):
-    '''Check save_txt'''
-    setup_cte['no_plot'] = True
-    with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.odesolver._solve_ode')
-        # the num_states changes when the temp lattice is created,
-        # allocate 2x so that we're safe. Also make the num_points 1000.
-        mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
-
-        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
-        power_dens_list = np.logspace(1, 2, 3)
-        solution = sim.simulate_power_dependence(power_dens_list)
-        assert mocked.call_count == len(power_dens_list)
-
-    with temp_config_filename('') as filename:
-        solution.save_txt(filename)
-
-def test_sim_power_dep5(setup_cte, mocker):
     '''Check that the solutions have the right power_dens'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
@@ -395,7 +383,7 @@ def test_sim_power_dep5(setup_cte, mocker):
         assert mocked.call_count == len(power_dens_list)
 
     for num, power_dens in enumerate(power_dens_list):
-        solution[num].power_dens == power_dens
+        assert solution[num].power_dens == power_dens
 
 def test_sim_conc_dep1(setup_cte, mocker):
     '''Test that the concentration dependence works'''

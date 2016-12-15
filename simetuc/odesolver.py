@@ -14,38 +14,71 @@ import ctypes
 import numpy as np
 from numpy.ctypeslib import ndpointer
 
-from scipy.sparse import csc_matrix
+from scipy.sparse import csr_matrix, csc_matrix
 from scipy.integrate import ode
 
 # nice progress bar
 from tqdm import tqdm
 
-def _rate_eq_pulse(t, y, abs_matrix, decay_matrix, UC_matrix, N_indices):
+def _rate_eq_pulse(t, y, abs_matrix, decay_matrix,
+                   UC_matrix, N_indices,
+                   coop_ET_matrix, coop_N_indices):
     ''' Calculates the rhs of the ODE for the excitation pulse
     '''
     N_prod_sel = y[N_indices[:, 0]]*y[N_indices[:, 1]]
     UC_matrix = UC_matrix.dot(N_prod_sel)
 
-    return abs_matrix.dot(y) + decay_matrix.dot(y) + UC_matrix
+    N_coop_prod_sel = y[coop_N_indices[:, 0]]*y[coop_N_indices[:, 1]]*y[coop_N_indices[:, 2]]
+    coop_ET_matrix = coop_ET_matrix.dot(N_coop_prod_sel)
+
+    return abs_matrix.dot(y) + decay_matrix.dot(y) + UC_matrix + coop_ET_matrix
 
 
-def _jac_rate_eq_pulse(t, y, abs_matrix, decay_matrix, UC_matrix, jac_indices):
+def _jac_rate_eq_pulse(t, y, abs_matrix, decay_matrix,
+                       UC_matrix, jac_indices,
+                       coop_ET_matrix, coop_jac_indices):
     ''' Calculates the jacobian of the ODE for the excitation pulse
     '''
     y_values = y[jac_indices[:, 2]]
-    nJ_matrix = csc_matrix((y_values, (jac_indices[:, 0], jac_indices[:, 1])),
+    nJ_matrix = csr_matrix((y_values, (jac_indices[:, 0], jac_indices[:, 1])),
                            shape=(UC_matrix.shape[1], UC_matrix.shape[0]), dtype=np.float64)
-    UC_J_matrix = UC_matrix.dot(nJ_matrix)
+    UC_J_matrix = UC_matrix.dot(nJ_matrix).toarray()
 
-    return abs_matrix.toarray() + decay_matrix.toarray() + UC_J_matrix.toarray()
+    y_coop_values = y[coop_jac_indices[:, 2]]*y[coop_jac_indices[:, 3]]
+    nJ_coop_matrix = csr_matrix((y_coop_values, (coop_jac_indices[:, 0], coop_jac_indices[:, 1])),
+                           shape=(coop_ET_matrix.shape[1], coop_ET_matrix.shape[0]),
+                           dtype=np.float64)
+    UC_J_coop_matrix = coop_ET_matrix.dot(nJ_coop_matrix).toarray()
+
+    return abs_matrix.toarray() + decay_matrix.toarray() + UC_J_matrix + UC_J_coop_matrix
 
 
-def _rate_eq(t, y, decay_matrix, UC_matrix, N_indices):
+def _rate_eq(t, y, decay_matrix, UC_matrix, N_indices, coop_ET_matrix, coop_N_indices):
     '''Calculates the rhs of the ODE for the relaxation'''
     N_prod_sel = y[N_indices[:, 0]]*y[N_indices[:, 1]]
     UC_matrix = UC_matrix.dot(N_prod_sel)
 
-    return decay_matrix.dot(y) + UC_matrix
+    N_coop_prod_sel = y[coop_N_indices[:, 0]]*y[coop_N_indices[:, 1]]*y[coop_N_indices[:, 2]]
+    coop_ET_matrix = coop_ET_matrix.dot(N_coop_prod_sel)
+
+    return decay_matrix.dot(y) + UC_matrix + coop_ET_matrix
+
+
+def _jac_rate_eq(t, y, decay_matrix, UC_matrix, jac_indices, coop_ET_matrix, coop_jac_indices):
+    ''' Calculates the jacobian of the ODE for the relaxation
+    '''
+    y_values = y[jac_indices[:, 2]]
+    nJ_matrix = csr_matrix((y_values, (jac_indices[:, 0], jac_indices[:, 1])),
+                           shape=(UC_matrix.shape[1], UC_matrix.shape[0]), dtype=np.float64)
+    UC_J_matrix = UC_matrix.dot(nJ_matrix).toarray()
+
+    y_coop_values = y[coop_jac_indices[:, 2]]*y[coop_jac_indices[:, 3]]
+    nJ_coop_matrix = csr_matrix((y_coop_values, (coop_jac_indices[:, 0], coop_jac_indices[:, 1])),
+                           shape=(coop_ET_matrix.shape[1], coop_ET_matrix.shape[0]),
+                           dtype=np.float64)
+    UC_J_coop_matrix = coop_ET_matrix.dot(nJ_coop_matrix).toarray()
+
+    return decay_matrix.toarray() + UC_J_matrix + UC_J_coop_matrix
 
 
 def _rate_eq_dll(decay_matrix, UC_matrix, N_indices):  # pragma: no cover
@@ -94,18 +127,6 @@ def _rate_eq_dll(decay_matrix, UC_matrix, N_indices):  # pragma: no cover
         return out_vector
 
     return rate_eq_fast
-
-
-def _jac_rate_eq(t, y, decay_matrix, UC_matrix, jac_indices):
-    ''' Calculates the jacobian of the ODE for the relaxation
-    '''
-    y_values = y[jac_indices[:, 2]]
-    nJ_matrix = csc_matrix((y_values, (jac_indices[:, 0], jac_indices[:, 1])),
-                           shape=(UC_matrix.shape[1], UC_matrix.shape[0]), dtype=np.float64)
-    UC_J_matrix = UC_matrix.dot(nJ_matrix)
-    jacobian = UC_J_matrix.toarray() + decay_matrix.toarray()
-
-    return jacobian
 
 
 def _solve_ode(t_arr, fun, fargs, jfun, jargs, initial_population,
@@ -164,22 +185,26 @@ def _solve_ode(t_arr, fun, fargs, jfun, jargs, initial_population,
 
 def solve_pulse(t_pulse, initial_pop, total_abs_matrix, decay_matrix,
                 UC_matrix, N_indices, jac_indices,
+                coop_ET_matrix, coop_N_indices, coop_jac_indices,
                 nsteps=100, rtol=1e-3, atol=1e-15, quiet=False):
     '''Solve the response to an excitation pulse.'''
     return _solve_ode(t_pulse, _rate_eq_pulse,
-                      (total_abs_matrix, decay_matrix, UC_matrix, N_indices),
+                      (total_abs_matrix, decay_matrix, UC_matrix, N_indices,
+                       coop_ET_matrix, coop_N_indices),
                       _jac_rate_eq_pulse,
-                      (total_abs_matrix, decay_matrix, UC_matrix, jac_indices),
+                      (total_abs_matrix, decay_matrix, UC_matrix, jac_indices,
+                       coop_ET_matrix, coop_jac_indices),
                       initial_pop, method='adams',
                       rtol=rtol, atol=atol, nsteps=nsteps, quiet=quiet)
 
 
 def solve_relax(t_sol, initial_pop, decay_matrix, UC_matrix, N_indices, jac_indices,
+                coop_ET_matrix, coop_N_indices, coop_jac_indices,
                 nsteps=1000, rtol=1e-3, atol=1e-15, quiet=False):
     '''Solve the relaxation after a pulse.'''
     return _solve_ode(t_sol, _rate_eq,
-                      (decay_matrix, UC_matrix, N_indices),
+                      (decay_matrix, UC_matrix, N_indices, coop_ET_matrix, coop_N_indices),
                       _jac_rate_eq,
-                      (decay_matrix, UC_matrix, jac_indices),
+                      (decay_matrix, UC_matrix, jac_indices, coop_ET_matrix, coop_jac_indices),
                       initial_pop, rtol=rtol, atol=atol,
                       nsteps=nsteps, quiet=quiet)

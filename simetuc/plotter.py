@@ -47,7 +47,7 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
 
     for num, (sim_data, exp_data, state_label)\
         in enumerate(zip(list_sim_data, list_exp_data, state_labels)):
-        if sim_data is 0:
+        if sim_data is None:
             continue
         if (np.isnan(sim_data)).any() or not np.any(sim_data > 0):
             continue
@@ -71,7 +71,8 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
                 # detect when the simulation goes above and below atol
                 above = sim_data > atol
                 change_indices = np.where(np.roll(above, 1) != above)[0]
-                if change_indices.size > 0:
+                # make sure change_indices[-1] happens when the population is going BELOW atol
+                if change_indices.size > 1 and sim_data[change_indices[-1]] < atol:
                     # last time it changes
                     max_index = change_indices[-1]
                     # show simData until it falls below atol
@@ -96,7 +97,7 @@ def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
     ''' Plots a state's simulated data against time t_sol'''
     t_sol *= 1000  # convert to ms
 
-    if sim_data_array is 0:
+    if sim_data_array is None:
         return
     if (np.isnan(sim_data_array)).any() or not np.any(sim_data_array):
         return
