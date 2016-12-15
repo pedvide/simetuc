@@ -6,6 +6,7 @@ colorama # so tqdm works well in windows
 ase >=3.9.1 # anaconda
 PyYAML >=3.12 # anaconda
 h5py >=2.6 # anaconda
+numba
 
 # only for tests
 pytest >=3.0.3 # anaconda

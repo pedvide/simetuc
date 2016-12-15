@@ -106,7 +106,8 @@ setup(
                       'tqdm >=4.8',
                       'colorama',
                       'PyYAML >=3.12',
-                      'h5py >=2.6'],
+                      'h5py >=2.6',
+                      'numba'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
