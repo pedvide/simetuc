@@ -95,7 +95,6 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
 def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
                           state_label: str = None, atol: float = 1e-15) -> None:
     ''' Plots a state's simulated data against time t_sol'''
-    t_sol *= 1000  # convert to ms
 
     if sim_data_array is None:
         return
@@ -105,8 +104,8 @@ def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
     avg_sim = np.mean(sim_data_array, axis=1)
 
     # nonposy='clip': clip non positive values to a very small positive number
-    plt.semilogy(t_sol, sim_data_array, 'k', nonposy='clip')
-    plt.semilogy(t_sol, avg_sim, 'r', nonposy='clip', linewidth=5)
+    plt.semilogy(t_sol*1000, sim_data_array, 'k', nonposy='clip')
+    plt.semilogy(t_sol*1000, avg_sim, 'r', nonposy='clip', linewidth=5)
     plt.yscale('log', nonposy='clip')
     plt.axis('tight')
     # add some white space above and below
@@ -121,7 +120,7 @@ def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
             # last time it changes
             max_index = change_indices[-1]
             # show simData until it falls below atol
-            plt.xlim(xmax=t_sol[max_index])
+            plt.xlim(xmax=t_sol[max_index]*1000)
 
     plt.legend([state_label], loc="best")
     plt.xlabel('t (ms)')

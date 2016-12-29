@@ -972,27 +972,26 @@ class Simulations():
         return conc_dep_solution
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-
-    logger.info('Called from cmd.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
-
-    cte['no_console'] = False
-    cte['no_plot'] = False
-
-
-    sim = Simulations(cte)
-
-    solution = sim.simulate_dynamics()
-    solution.log_errors()
-    solution.plot()
-
-#    solution.plot(state=8)
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#
+#    logger.info('Called from cmd.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+#
+#    sim = Simulations(cte)
+#
+#    solution = sim.simulate_dynamics()
+#    solution.log_errors()
+#    solution.plot()
+#
+#    solution.plot(state=7)
 
 #    solution_avg = sim.simulate_avg_dynamics()
 #    solution_avg.log_errors()

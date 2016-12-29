@@ -395,27 +395,27 @@ def generate(cte: Dict, min_im_conv: bool = True,
             index_A_l, dist_A_l)
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-
-    logger.debug('Called from main.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
-    cte['no_console'] = False
-    cte['no_plot'] = False
-
-    cte['lattice']['S_conc'] = 2
-    cte['lattice']['A_conc'] = 1
-    cte['lattice']['N_uc'] = 20
-#    cte['states']['sensitizer_states'] = 0
-#    cte['states']['activator_states'] = 4
-
-    (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
-     index_S_i, index_A_j,
-     index_S_k, dist_S_k,
-     index_S_l, dist_S_l,
-     index_A_k, dist_A_k,
-     index_A_l, dist_A_l) = generate(cte)
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#
+#    logger.debug('Called from main.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+#
+#    cte['lattice']['S_conc'] = 2
+#    cte['lattice']['A_conc'] = 1
+#    cte['lattice']['N_uc'] = 20
+##    cte['states']['sensitizer_states'] = 0
+##    cte['states']['activator_states'] = 4
+#
+#    (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
+#     index_S_i, index_A_j,
+#     index_S_k, dist_S_k,
+#     index_S_l, dist_S_l,
+#     index_A_k, dist_A_k,
+#     index_A_l, dist_A_l) = generate(cte)

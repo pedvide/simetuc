@@ -153,7 +153,7 @@ def test_sim_dyn1(setup_cte):
     solution.total_error
     solution.log_errors()
     solution.plot()
-    solution.plot(state=6)
+    solution.plot(state=7)
     solution.plot(state=1)
 
 def test_sim_dyn_2S_2A(setup_cte):
