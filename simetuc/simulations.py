@@ -171,12 +171,14 @@ class Solution():
         '''Plot all decays of a state as a function of time.'''
         if state < self.cte['states']['sensitizer_states']:
             indices = self.index_S_i
+            label = self.state_labels[state]
         else:
             indices = self.index_A_j
-        label = self.state_labels[state]
-        population = np.array([self.y_sol[:, index+state]
+            label = self.state_labels[state]
+            state -= self.cte['states']['sensitizer_states']
+        populations = np.array([self.y_sol[:, index+state]
                                for index in indices if index != -1])
-        plotter.plot_state_decay_data(self.t_sol, population.T,
+        plotter.plot_state_decay_data(self.t_sol, populations.T,
                                       state_label=label, atol=1e-18)
 
     def plot(self, state: int = None) -> None:
@@ -989,6 +991,8 @@ if __name__ == "__main__":
     solution = sim.simulate_dynamics()
     solution.log_errors()
     solution.plot()
+
+#    solution.plot(state=8)
 
 #    solution_avg = sim.simulate_avg_dynamics()
 #    solution_avg.log_errors()

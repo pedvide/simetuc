@@ -838,7 +838,7 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
                                                dists_A_k, dists_A_l,
                                                sensitizer_states, activator_states)
     jac_indices = _calculate_jac_matrices(N_indices)
-    logger.info('Number of interactions: %d.', N_indices.shape[0])
+    logger.info('Number of interactions: {:,}.'.format(N_indices.shape[0]))
 
     # Cooperative matrices
     logger.info('Cooperative energy transfer matrices...')
@@ -852,7 +852,7 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
                                                 sensitizer_states, activator_states,
                                                 d_max_coop=d_max_coop)
     coop_jac_indices = _calculate_coop_jac_matrices(coop_N_indices)
-    logger.info('Number of cooperative interactions: %d.', coop_N_indices.shape[0])
+    logger.info('Number of cooperative interactions: {:,}.'.format(coop_N_indices.shape[0]))
 
     logger.info('Setup finished. Total time: %.2fs.', time.time()-start_time)
     return (cte, initial_population, index_S_i, index_A_j,
