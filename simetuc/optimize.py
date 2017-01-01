@@ -41,8 +41,7 @@ def optim_fun_factory(sim: simulations.Simulations,
     '''Generate the function to be optimize.
         This function modifies the ET params and return the error
     '''
-
-    def _update_ET_and_simulate(x):
+    def optim_fun(x):
         # update ET values if explicitly given
         for num, process in enumerate(process_list):
             sim.modify_ET_param_value(process, x[num]*x0[num])  # precondition
@@ -52,7 +51,7 @@ def optim_fun_factory(sim: simulations.Simulations,
 
         return total_error
 
-    return _update_ET_and_simulate
+    return optim_fun
 
 
 def optimize_dynamics(cte: Dict, method: str = None,
@@ -68,25 +67,10 @@ def optimize_dynamics(cte: Dict, method: str = None,
         '''
         pbar.update(1)
         if not cte['no_console']:
-            format_params = ', '.join('{:.3e}'.format(val) for val in cache.params_lst[-1]*x0)
+            format_params = ', '.join('{:.3e}'.format(val)
+                                      for val in cache.params_lst[-1]*x0)
             msg = '({}): {:.3e}'.format(format_params, cache.f_val_lst[-1])
             tqdm.tqdm.write(msg)
-
-    @cache
-    def fun_optim(x: np.array) -> float:
-        ''' Function to optimize.
-            The parameters and results are stored in the cache decorator
-        '''
-        total_error = _update_ET_and_simulate(x)
-        return total_error
-
-    def fun_optim_brute(x: np.array) -> float:
-        ''' Function to optimize by brute force.
-            No cache.
-        '''
-        pbar.update(1)
-        total_error = _update_ET_and_simulate(x)
-        return total_error
 
     cte['no_plot'] = True
 
@@ -103,26 +87,34 @@ def optimize_dynamics(cte: Dict, method: str = None,
         process_list = [process for process in cte['ET']]
 
     # starting point
-    x0 = np.array([cte['ET'][process]['value'] for process in process_list])
-
-    _update_ET_and_simulate = optim_fun_factory(sim, process_list, x0, average=average)
+    # use the avg value if present
+    ET_dict = cte['ET'].copy()
+    if average:
+        for dict_process in ET_dict.values():
+            if 'value_avg' in dict_process:
+                dict_process['value'] = dict_process['value_avg']
+    x0 = np.array([ET_dict[process]['value'] for process in process_list])
 
     tol = 1e-4
     bounds = ((0, 1e10),)*len(x0)
 
     if method is None:
         method = 'SLSQP'
-
     logger.info('Optimization method: %s.', method)
+
+    _optim_fun = optim_fun_factory(sim, process_list, x0, average=average)
+    if method != 'brute_force':
+        _optim_fun = cache(_optim_fun)
 
     if method == 'COBYLA':
         # minimize error. The starting point is preconditioned to be 1
-        res = optimize.minimize(fun_optim, np.ones_like(x0), method=method, tol=tol)
+        res = optimize.minimize(_optim_fun, np.ones_like(x0),
+                                method=method, tol=tol)
 
     elif method == 'L-BFGS-B' or method == 'TNC' or method == 'SLSQP':
         pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
         logger.info('ET parameters. RMSD.')
-        res = optimize.minimize(fun_optim, np.ones_like(x0), bounds=bounds,
+        res = optimize.minimize(_optim_fun, np.ones_like(x0), bounds=bounds,
                                 method=method, tol=tol, callback=callback_fun)
         pbar.close()
 
@@ -134,7 +126,8 @@ def optimize_dynamics(cte: Dict, method: str = None,
 
         pbar = tqdm.tqdm(desc='Optimizing', unit=' points', disable=cte['no_console'])
         logger.info('ET parameters. RMSD.')
-        res = optimize.basinhopping(fun_optim, np.ones_like(x0), minimizer_kwargs=minimizer_kwargs,
+        res = optimize.basinhopping(_optim_fun, np.ones_like(x0),
+                                    minimizer_kwargs=minimizer_kwargs,
                                     niter=10, stepsize=5, T=1e-2, callback=callback_fun)
         pbar.close()
 
@@ -143,7 +136,7 @@ def optimize_dynamics(cte: Dict, method: str = None,
         N_points = 50
         pbar = tqdm.tqdm(desc='Optimizing', total=1+N_points**2,
                          unit='points', disable=cte['no_console'])
-        res = optimize.brute(fun_optim_brute, ranges=rranges, Ns=N_points, full_output=True,
+        res = optimize.brute(_optim_fun, ranges=rranges, Ns=N_points, full_output=True,
                              finish=None, disp=True)
         pbar.close()
         best_x = res[0]*x0
@@ -167,7 +160,7 @@ def optimize_dynamics(cte: Dict, method: str = None,
 
 if __name__ == "__main__":
     logger = logging.getLogger()
-    logging.basicConfig(level=logging.WARNING,
+    logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 
     logger.debug('Called from cmd.')
@@ -178,4 +171,4 @@ if __name__ == "__main__":
     cte['no_console'] = False
     cte['no_plot'] = True
 
-    optimize_dynamics(cte, method='basin_hopping')
+    optimize_dynamics(cte, average=False)

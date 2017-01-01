@@ -23,7 +23,8 @@ def setup_cte():
                {'indices': [5, 3, 6, 1],
                 'mult': 6,
                 'type': 'AA',
-                'value': 254295690.0}),
+                'value': 254295690.0,
+                'value_avg': 2e3}),
               ('ETU55',
                {'indices': [5, 5, 6, 4],
                 'mult': 6,
@@ -129,7 +130,7 @@ def setup_cte():
 
 @pytest.mark.parametrize('method', [None, 'COBYLA', 'L-BFGS-B',
                                     'TNC', 'SLSQP', 'brute_force', 'basin_hopping'])
-def test_optim1(setup_cte, mocker, method):
+def test_optim(setup_cte, mocker, method):
     '''Test that the optimization works'''
 
     # mock the simulation by returning an error that goes to 0
@@ -143,6 +144,25 @@ def test_optim1(setup_cte, mocker, method):
     mocked_opt_dyn.return_value = minimize
 
     optimize.optimize_dynamics(setup_cte, method)
+
+    assert mocked_opt_dyn.called
+
+@pytest.mark.parametrize('method', [None, 'COBYLA', 'L-BFGS-B',
+                                    'TNC', 'SLSQP', 'brute_force', 'basin_hopping'])
+def test_optim_avg(setup_cte, mocker, method):
+    '''Test that the optimization works with average rate eqs'''
+
+    # mock the simulation by returning an error that goes to 0
+    mocked_opt_dyn = mocker.patch('simetuc.optimize.optim_fun_factory')
+    value = 20
+    def minimize(x):
+        nonlocal value
+        if value != 0:
+            value -= 1
+        return value
+    mocked_opt_dyn.return_value = minimize
+
+    optimize.optimize_dynamics(setup_cte, method, average=True)
 
     assert mocked_opt_dyn.called
 
@@ -167,7 +187,7 @@ def test_optim_no_dict_params(setup_cte, mocker):
 
 
 def test_opti_fun_factory(setup_cte, mocker):
-    '''Test that the optimization works'''
+    '''Test optim_fun_factory'''
     mocked_dyn = mocker.patch('simetuc.simulations.Simulations.simulate_dynamics')
     sim = simulations.Simulations(setup_cte)
     process_list = setup_cte['optimization_processes']

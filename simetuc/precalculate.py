@@ -11,6 +11,8 @@ Created on Mon Nov 23 16:07:21 2015
 # which we don't have (note: not for the ET matrix, but maybe we have for the abs or decay?).
 # This wastes time.
 
+# TODO: Test cooperative interaction code better.
+
 import time
 import itertools
 import os

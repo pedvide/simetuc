@@ -992,7 +992,7 @@ class Simulations():
 #    solution.plot()
 #
 #    solution.plot(state=7)
-
+#
 #    solution_avg = sim.simulate_avg_dynamics()
 #    solution_avg.log_errors()
 #    solution_avg.plot()

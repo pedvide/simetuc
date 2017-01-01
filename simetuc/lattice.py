@@ -14,6 +14,7 @@ from typing import Dict, List, Tuple, Union
 import numpy as np
 import h5py
 import yaml
+from tqdm import tqdm
 
 import ase
 from ase.spacegroup import crystal
@@ -94,7 +95,7 @@ def _calculate_distances(atoms: ase.Atoms, min_im_conv: bool = True) -> np.array
     # D = atoms.get_all_distances(mic=True, simple=True) # eats up ALL the ram N=30 MAX
     num_atoms = len(atoms)
     dist_array = np.zeros((num_atoms, num_atoms), dtype=np.float64)
-    for i in range(num_atoms):
+    for i in tqdm(range(num_atoms), unit='atoms', total=num_atoms, desc='Calculating distances'):
         dist_array[i, i:num_atoms] = atoms.get_distances(i, range(i, num_atoms), mic=min_im_conv)
 
     # get the distance along the c axis divided by two
@@ -409,7 +410,7 @@ def generate(cte: Dict, min_im_conv: bool = True,
 #
 #    cte['lattice']['S_conc'] = 2
 #    cte['lattice']['A_conc'] = 1
-#    cte['lattice']['N_uc'] = 20
+#    cte['lattice']['N_uc'] = 30
 ##    cte['states']['sensitizer_states'] = 0
 ##    cte['states']['activator_states'] = 4
 #

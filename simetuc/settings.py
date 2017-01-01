@@ -908,6 +908,6 @@ def load(filename: str) -> Dict:
     return cte
 
 
-if __name__ == "__main__":
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
+#if __name__ == "__main__":
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')

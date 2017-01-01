@@ -45,14 +45,16 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
         conc_str = '_' + str(concentration.S_conc) + 'S_' + str(concentration.A_conc) + 'A'
         state_labels = [label+conc_str for label in state_labels]
 
-    for num, (sim_data, exp_data, state_label)\
-        in enumerate(zip(list_sim_data, list_exp_data, state_labels)):
+    for num, (sim_data, exp_data, state_label) in enumerate(zip(list_sim_data,
+                                                                list_exp_data,
+                                                                state_labels)):
         if sim_data is None:
             continue
         if (np.isnan(sim_data)).any() or not np.any(sim_data > 0):
             continue
 
-        plt.subplot(num_rows, num_cols, num+1)
+        ax = plt.subplot(num_rows, num_cols, num+1)
+#        ax.set_title(state_label)
 
         sim_color = colors[0]
         exp_color = colors[1]
