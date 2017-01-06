@@ -16,7 +16,12 @@ from simetuc.util import temp_config_filename
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
 
 def test_standard_config():
-    cte = settings.load(os.path.join(test_folder_path, 'test_standard_config.txt'))
+    filename = os.path.join(test_folder_path, 'test_standard_config.txt')
+    cte = settings.load(filename)
+
+
+    with open(filename, 'rt') as file:
+        config_file = file.read()
 
     cte_good = dict([
              ('lattice',
@@ -140,6 +145,7 @@ def test_standard_config():
                              'mult': 6,
                              'type': 'SS',
                              'value': 45022061400.0})]))])
+    cte_good['config_file'] = config_file
 
     assert cte == cte_good
 
@@ -187,15 +193,13 @@ def idfn(sections_data):
     return 'sections_{}'.format(num_l)
 import itertools
 import operator
-# list of sections
+# list of mandatory sections
 data = '''version: 1
 lattice: asd
 states: asd
 excitations: asd
 sensitizer_decay: asd
-activator_decay: asd
-sensitizer_branching_ratios: asd
-activator_branching_ratios: asd'''
+activator_decay: asd'''
 # combinations of sections. At least 1 is missing
 list_data = list(itertools.accumulate(data.splitlines(keepends=True)[:-1], operator.concat))
 @pytest.mark.parametrize('sections_data', list_data, ids=idfn)
@@ -238,8 +242,6 @@ states: asd
 excitations: asd
 sensitizer_decay: asd
 activator_decay: asd
-sensitizer_branching_ratios: asd
-activator_branching_ratios: asd
 '''
 # list of tuples of values for N_uc, S_conc, A_conc, a,b,c, alpha,
 lattice_values = [('dsa', 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [2/3, 1/3, 1/2]]', '[1, 1/2]'), # text instead of number
@@ -301,6 +303,41 @@ def test_lattice_config_ok_occs(lattice_values):
                  'A_conc', 'cell_par', 'sites_pos', 'sites_occ']:
         assert elem in parsed_lattice_dict
 
+data_lattice_full = '''version: 1
+lattice:
+    name: bNaYF4
+    N_uc: 8
+    # concentration
+    S_conc: 0.3
+    A_conc: 0.3
+    # unit cell
+    # distances in Angstrom
+    a: 5.9738
+    b: 5.9738
+    c: 3.5297
+    # angles in degree
+    alpha: 90
+    beta: 90
+    gamma: 120
+    # the number is also ok for the spacegroup
+    spacegroup: P-6
+    # info about sites
+    sites_pos: [[0, 0, 0], [2/3, 1/3, 1/2]]
+    sites_occ: [1, 1/2]
+'''
+def test_lattice_dmax():
+    data = data_lattice_full + '''    d_max: 100.0
+    d_max_coop: 25.0'''
+    with pytest.raises(settings.ConfigError) as excinfo: # ok, error later
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"The sections or values")
+    assert excinfo.match(r"excitations")
+    assert excinfo.match(r"activator_decay")
+    assert excinfo.match(r"states")
+    assert excinfo.match(r"sensitizer_decay")
+    assert excinfo.type == settings.ConfigError
+
 data_lattice_ok = '''version: 1
 lattice:
     name: bNaYF4
@@ -325,8 +362,6 @@ lattice:
 excitations: asd
 sensitizer_decay: asd
 activator_decay: asd
-sensitizer_branching_ratios: asd
-activator_branching_ratios: asd
 '''
 # error b/c section states is not a dictionary
 def test_empty_states_config():
@@ -355,8 +390,6 @@ states: asd
 excitations: asd
 sensitizer_decay: asd
 activator_decay: asd
-sensitizer_branching_ratios: asd
-activator_branching_ratios: asd
 '''
     with pytest.raises(settings.ConfigError) as excinfo:
         with temp_config_filename(data) as filename:
@@ -435,8 +468,6 @@ activator_decay:
     3F3: 2e-6
     1G4: 760e-6
     1D2: 67.5e-6
-sensitizer_branching_ratios: asd
-activator_branching_ratios: asd
 '''
 def test_excitations_config1():
     data = data_states_ok + '''excitations:'''
@@ -577,7 +608,7 @@ def test_abs_config3():
     assert excinfo.match('Incorrect ion label in excitation')
     assert excinfo.type == ValueError
 
-def test_abs_config4(): # good test
+def test_abs_config_ok(): # good test
     data = data_states_ok + '''excitations:
     NIR_980:
         active: True
@@ -587,12 +618,10 @@ def test_abs_config4(): # good test
         degeneracy: 4/3
         pump_rate: 4.4e-3 # cm2/J
 '''
-    with pytest.raises(AttributeError) as excinfo: # fails later b/c no branching ratios
-        with temp_config_filename(data) as filename:
-            settings.load(filename)
-    assert excinfo.type == AttributeError
+    with temp_config_filename(data) as filename:
+        settings.load(filename)
 
-def test_abs_config5(): # ok, ESA settings
+def test_abs_config_ok_ESA(): # ok, ESA settings
     data = data_states_ok + '''excitations:
     NIR_800:
         active: True
@@ -602,10 +631,8 @@ def test_abs_config5(): # ok, ESA settings
         degeneracy: [13/9, 11/9]
         pump_rate: [4.4e-3, 2e-3] # cm2/J
 '''
-    with pytest.raises(AttributeError) as excinfo: # fails later b/c no branching ratios
-        with temp_config_filename(data) as filename:
-            settings.load(filename)
-    assert excinfo.type == AttributeError
+    with temp_config_filename(data) as filename:
+        settings.load(filename)
 
 def test_abs_config6():
     data = data_states_ok + '''excitations:
@@ -690,8 +717,6 @@ excitations:
         process: Tm(3H6) -> Tm(1G4) # both ion labels are required
         degeneracy: 13/9
         pump_rate: 9.3e-4 # cm2/J
-sensitizer_branching_ratios: asd
-activator_branching_ratios: asd
 '''
 
 def test_decay_config1():
@@ -846,7 +871,7 @@ activator_decay:
     1G4: 760e-6
     1D2: 67.5e-6
 '''
-def test_branch_config1(): # all ok
+def test_branch_config_ok(): # all ok
     data = data_decay_ok + '''sensitizer_branching_ratios:
     ES->GS: 1.0
 activator_branching_ratios:
@@ -862,27 +887,8 @@ activator_branching_ratios:
     with temp_config_filename(data) as filename:
         settings.load(filename)
 
-def test_branch_config2():
+def test_branch_config_wrong_label():
     data = data_decay_ok + '''
-activator_branching_ratios:
-    3H5->3F4: 0.4
-    3H4->3F4: 0.3
-    3F3->3H4: 0.999
-    1G4->3F4: 0.15
-    1G4->3H5: 0.16
-    1G4->3H4: 0.04
-    1G4->3F3: 0.00
-    1D2->3F4: 0.43
-'''
-    with pytest.raises(settings.ConfigError) as excinfo: # missing sensitizer_branching_ratios
-        with temp_config_filename(data) as filename:
-            settings.load(filename)
-    assert excinfo.match(r"The sections or values .* must be present")
-    assert excinfo.match(r"sensitizer_branching_ratios")
-    assert excinfo.type == settings.ConfigError
-
-def test_branch_config3():
-    data = data_decay_ok + '''sensitizer_branching_ratios:
 activator_branching_ratios:
     3H->3F4: 0.4
     3H4->3F4: 0.3
@@ -899,8 +905,8 @@ activator_branching_ratios:
     assert excinfo.match(r"is not a valid state label")
     assert excinfo.type == settings.LabelError
 
-def test_branch_config4():
-    data = data_decay_ok + '''sensitizer_branching_ratios:
+def test_branch_config_value_above_1():
+    data = data_decay_ok + '''
 activator_branching_ratios:
     3H5->3F4: 1.4
     3H4->3F4: 0.3
@@ -918,7 +924,7 @@ activator_branching_ratios:
     assert excinfo.type == ValueError
 
 
-data_all_mandatory_ok = data_branch_ok = '''version: 1 # mandatory, only 1 is supported at the moment
+data_all_mandatory_ok = data_branch_ok = '''version: 1
 lattice:
 # all fields here are mandatory
     name: bNaYF4
@@ -980,9 +986,6 @@ activator_decay:
     3F3: 2e-6
     1G4: 760e-6
     1D2: 67.5e-6
-
-sensitizer_branching_ratios:
-# nothing. This section is still mandatory, though
 
 activator_branching_ratios:
     # 3H5 and 3H4 to 3F4

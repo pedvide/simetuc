@@ -556,21 +556,23 @@ def _parse_branching_ratios(cte: Dict) -> Tuple[List[Tuple[int, int, float]],
         # list of tuples of states and decay rate
         B_pos_value_S = []
         B_pos_value_A = []
-        if cte['sensitizer_branching_ratios'] is not None:
-            for num, key in enumerate(cte['sensitizer_branching_ratios'].keys()):
+        branch_ratios_S = cte.get('sensitizer_branching_ratios', None)
+        branch_ratios_A = cte.get('activator_branching_ratios', None)
+        if branch_ratios_S is not None:
+            for num, key in enumerate(branch_ratios_S.keys()):
                 states_list = ''.join(key.split()).split('->')
                 state_i, state_f = (_get_state_index(sensitizer_labels, s,
                                                      section='branching ratio',
                                                      process=key, num=num) for s in states_list)
-                val = _get_normalized_float_value(cte['sensitizer_branching_ratios'], key)
+                val = _get_normalized_float_value(branch_ratios_S, key)
                 B_pos_value_S.append((state_i, state_f, val))
-        if cte['activator_branching_ratios'] is not None:
-            for num, key in enumerate(cte['activator_branching_ratios'].keys()):
+        if branch_ratios_A is not None:
+            for num, key in enumerate(branch_ratios_A.keys()):
                 states_list = ''.join(key.split()).split('->')
                 state_i, state_f = (_get_state_index(activator_labels, s,
                                                      section='branching ratio',
                                                      process=key, num=num) for s in states_list)
-                val = _get_normalized_float_value(cte['activator_branching_ratios'], key)
+                val = _get_normalized_float_value(branch_ratios_A, key)
                 B_pos_value_A.append((state_i, state_f, val))
     except ValueError as err:
         logger.error('Invalid value for parameter in branching ratios.')
@@ -593,7 +595,7 @@ def _parse_ET(cte: Dict) -> Dict:
     tuple_state_labels = (sensitizer_labels, activator_labels)
 
     # ET PROCESSES.
-    ET_dict = {}  # type: Dict
+    ET_dict = OrderedDict()  # type: Dict
     for num, (key, value) in enumerate(cte['enery_transfer'].items()):
         # make sure all three parts are present and of the right type
         name = key
@@ -807,14 +809,18 @@ def load(filename: str) -> Dict:
     # check that all needed sections are in the file
     # and warn the user if there are extra ones
     needed_sections = ['lattice', 'states', 'excitations',
-                       'sensitizer_decay', 'activator_decay',
-                       'sensitizer_branching_ratios', 'activator_branching_ratios']
-    optional_sections = ['optimization_processes',
+                       'sensitizer_decay', 'activator_decay']
+    optional_sections = ['sensitizer_branching_ratios', 'activator_branching_ratios',
+                         'optimization_processes',
                          'enery_transfer', 'simulation_params', 'power_dependence',
                          'concentration_dependence', 'optimize_method']
     _check_values(needed_sections, config_cte, optional_values_lst=optional_sections)
 
     cte = {}  # type: Dict
+
+    # store original configuration file
+    with open(filename, 'rt') as file:
+        cte['config_file'] = file.read()
 
     # LATTICE
     # parse lattice params
@@ -908,6 +914,6 @@ def load(filename: str) -> Dict:
     return cte
 
 
-#if __name__ == "__main__":
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
+if __name__ == "__main__":
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')

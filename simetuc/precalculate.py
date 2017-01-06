@@ -28,6 +28,7 @@ import scipy.sparse
 from scipy.sparse import csr_matrix
 
 import simetuc.lattice as lattice
+from simetuc.lattice import LatticeError
 
 
 def _load_lattice(filename: str) -> Dict:
@@ -452,7 +453,8 @@ def _create_coop_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET
 
 
 #    @profile
-    def get_all_processes(indices_this, indices_others, dists_others, d_max_coop, interaction_estimate):
+    def get_all_processes(indices_this, indices_others, dists_others,
+                          d_max_coop, interaction_estimate):
         '''Calculate all cooperative processes from ions indices_this to all indices_others.'''
         processes_arr = np.empty((interaction_estimate, ), dtype=proc_dtype)
 
@@ -840,7 +842,7 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
                                                dists_A_k, dists_A_l,
                                                sensitizer_states, activator_states)
     jac_indices = _calculate_jac_matrices(N_indices)
-    logger.info('Number of interactions: {:,}.'.format(N_indices.shape[0]))
+    logger.info('Number of interactions: {:,}.'.format(N_indices.shape[0]))  # pylint: disable=W1202
 
     # Cooperative matrices
     logger.info('Cooperative energy transfer matrices...')
@@ -854,7 +856,7 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
                                                 sensitizer_states, activator_states,
                                                 d_max_coop=d_max_coop)
     coop_jac_indices = _calculate_coop_jac_matrices(coop_N_indices)
-    logger.info('Number of cooperative interactions: {:,}.'.format(coop_N_indices.shape[0]))
+    logger.info('Number of cooperative interactions: {:,}.'.format(coop_N_indices.shape[0]))  # pylint: disable=W1202
 
     logger.info('Setup finished. Total time: %.2fs.', time.time()-start_time)
     return (cte, initial_population, index_S_i, index_A_j,
@@ -917,13 +919,37 @@ def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = Non
         logger.error(msg, exc_info=True)
         raise lattice.LatticeError(msg)
 
-    # discard the results, but it does a lot of error checking
-    # don't show the plot
-    old_no_plot = cte['no_plot']
-    cte['no_plot'] = True
-    # generate lattice, data won't be saved to disk
-    lattice.generate(cte, no_save=True)
-    cte['no_plot'] = old_no_plot
+    # error checking
+    num_uc = cte['lattice']['N_uc']
+    S_conc = float(cte['lattice']['S_conc'])
+    A_conc = float(cte['lattice']['A_conc'])
+    lattice_name = cte['lattice']['name']
+
+    if num_uc <= 0:
+        logger.error('Wrong number of unit cells: %d.', num_uc)
+        logger.error('It must be a positive integer.')
+        raise LatticeError('Wrong number of unit cells.')
+
+    # if the concentrations are not in the correct range
+    if not ((0.0 <= S_conc <= 100.0) and (0.0 <= A_conc <= 100.0) and
+            (0 <= S_conc+A_conc <= 100.0)):
+        logger.error('Wrong ion concentrations:' +
+                     '%.2f%% Sensitizer, %.2f%% Activator.', S_conc, A_conc)
+        logger.error('They must be between 0% and 100%, and their sum too.')
+        raise LatticeError('Wrong ion concentrations.')
+
+    num_S_states = cte['states']['sensitizer_states']
+    num_A_states = cte['states']['activator_states']
+    if (S_conc != 0 and num_S_states == 0) or (A_conc != 0 and num_A_states == 0):
+        logger.error('The number of states of each ion cannot be zero.')
+        raise LatticeError('Wrong number of states.')
+
+    num_states = num_S_states + num_A_states
+    if num_states == 0:
+        msg = ('No doped ions generated: the lattice or' +
+               ' the concentrations are too small, or the number of energy states is zero!')
+        logger.error(msg)
+        raise LatticeError(msg)
 
     logger.info('Number of ions: %d, sensitizers: %d, activators: %d.',
                 num_total_ions, num_sensitizers, num_activators)

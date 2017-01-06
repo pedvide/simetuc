@@ -58,6 +58,8 @@ def parse_args(args: Any) -> argparse.Namespace:
     group.add_argument("-q", "--quiet", help='show only errors', action="store_true")
     # no plot
     parser.add_argument("--no-plot", help='don\'t show plots', action="store_true")
+
+    # average rate equations
     parser.add_argument("--average", help=('use average rate equations' +
                                            ' instead of microscopic'), action="store_true")
     # config file
@@ -65,8 +67,6 @@ def parse_args(args: Any) -> argparse.Namespace:
 
     # main options: load config file, lattice, simulate or optimize
     group = parser.add_mutually_exclusive_group()
-#    group.add_argument('--config', help='import and validate configuration file',
-#                       action='store_true')
     group.add_argument('-l', '--lattice', help='generate and plot the lattice',
                        action='store_true')
     group.add_argument('-d', '--dynamics', help='simulate dynamics',
@@ -85,9 +85,9 @@ def parse_args(args: Any) -> argparse.Namespace:
 
     # save data
     group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument('--save', help='save results in HDF5 format (recommended)',
+    group.add_argument('--no-save', help='don\'t save results',
                        action="store_true")
-    group.add_argument('--save-txt', help='save (some) results in text format',
+    group.add_argument('--save-txt', help='save some) results in text format',
                        action="store_true")
 
     # add plot subcommand
@@ -232,26 +232,35 @@ def main(ext_args: List[str] = None) -> None:
         method = cte.get('optimize_method', None)
         logger.info('Optimization method: %s.', method)
 
+        # read the starting values from the settings
+        if 'optimization_processes' in cte and cte['optimization_processes'] is not None:
+            # optimize only those ET parameters that the user has selected
+            process_list = [process for process in cte['ET']
+                            if process in cte['optimization_processes']]
+        else:
+            process_list = [process for process in cte['ET']]
+
         _change_console_logger(logging.WARNING)
         start_time = datetime.datetime.now()
         best_x, min_f = optimize.optimize_dynamics(cte, method, average=args.average)
 
         _change_console_logger(console_level)
-        print('\n')  # jump to the line after the progress bar
+#        print('\n')  # jump to the line after the progress bar
 
         total_time = datetime.datetime.now() - start_time
         hours, remainder = divmod(total_time.total_seconds(), 3600)
         minutes, seconds = divmod(remainder, 60)
         formatted_time = '{:.0f}h {:02.0f}m {:02.0f}s'.format(hours, minutes, seconds)
         logger.info('Minimum reached! Total time: %s.', formatted_time)
-        logger.info('Minimum value: %g at %s', min_f, np.array_str(best_x, precision=4))
+        logger.info('Optimized RMS error: %.3e.', min_f)
+        for proc, best_val in zip(process_list, best_x.T):
+            logger.info('%s: %.3e.', proc, best_val)
 
     # save results to disk
-    if solution is not None and (args.save or args.save_txt):
+    if solution is not None:
         logger.info('Saving results to file.')
-        if args.save:
-            solution.save()
-        elif args.save_txt:
+        solution.save()  # always save
+        if args.save_txt:
             solution.save_txt()
 
     logger.info('Program finished!')

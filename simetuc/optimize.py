@@ -48,7 +48,6 @@ def optim_fun_factory(sim: simulations.Simulations,
 
         dynamics_sol = sim.simulate_dynamics(average=average)
         total_error = dynamics_sol.total_error
-
         return total_error
 
     return optim_fun
@@ -78,7 +77,7 @@ def optimize_dynamics(cte: Dict, method: str = None,
 
     start_time = datetime.datetime.now()
 
-    # read the starting values from the settings
+    # Processes to optimize
     if 'optimization_processes' in cte and cte['optimization_processes'] is not None:
         # optimize only those ET parameters that the user has selected
         process_list = [process for process in cte['ET']
@@ -86,13 +85,14 @@ def optimize_dynamics(cte: Dict, method: str = None,
     else:
         process_list = [process for process in cte['ET']]
 
-    # starting point
     # use the avg value if present
     ET_dict = cte['ET'].copy()
     if average:
         for dict_process in ET_dict.values():
             if 'value_avg' in dict_process:
                 dict_process['value'] = dict_process['value_avg']
+
+    # starting point
     x0 = np.array([ET_dict[process]['value'] for process in process_list])
 
     tol = 1e-4
@@ -103,8 +103,12 @@ def optimize_dynamics(cte: Dict, method: str = None,
     logger.info('Optimization method: %s.', method)
 
     _optim_fun = optim_fun_factory(sim, process_list, x0, average=average)
+
+    # use the cache and print it if the method isn't brute force
     if method != 'brute_force':
         _optim_fun = cache(_optim_fun)
+        msg = '(' + ', '.join('{}'.format(proc) for proc in process_list)
+        tqdm.tqdm.write(msg + '): RMS Error')
 
     if method == 'COBYLA':
         # minimize error. The starting point is preconditioned to be 1
@@ -153,22 +157,24 @@ def optimize_dynamics(cte: Dict, method: str = None,
     minutes, seconds = divmod(remainder, 60)
     formatted_time = '{:.0f}h {:02.0f}m {:02.0f}s'.format(hours, minutes, seconds)
     logger.info('Minimum reached! Total time: %s.', formatted_time)
-    logger.info('Minimum value: %s', np.array_str(np.array(min_f), precision=5))
+    logger.info('Optimized RMS error: %.3e.', min_f)
+    for proc, best_val in zip(process_list, best_x.T):
+        logger.info('%s: %.3e.', proc, best_val)
 
     return best_x, min_f
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-
-    logger.debug('Called from cmd.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
-
-    cte['no_console'] = False
-    cte['no_plot'] = True
-
-    optimize_dynamics(cte, average=False)
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#
+#    logger.debug('Called from cmd.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = True
+#
+#    optimize_dynamics(cte, average=False)

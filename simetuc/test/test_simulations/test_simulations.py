@@ -129,6 +129,7 @@ def setup_cte():
           'sensitizer_states': 2,
           'sensitizer_states_labels': ['GS', 'ES']}}
 
+    cte['config_file'] = 'config_file_text'
     cte['no_console'] = True
     cte['no_plot'] = False
     return cte

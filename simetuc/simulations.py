@@ -58,6 +58,9 @@ class Solution():
         # The first is the sim color, the second the exp data color.
         self.cte['colors'] = 'bk' if average else 'rk'
 
+        # prefix for the name of the saved files
+        self._prefix = 'solution'
+
     def __bool__(self) -> bool:
         '''Instance is True if all its data structures have been filled out'''
         return (self.t_sol.size != 0 and self.y_sol.size != 0 and self.cte != {} and
@@ -122,14 +125,14 @@ class Solution():
         state_labels = sensitizer_labels + activator_labels
         return state_labels
 
-    def save_file_full_path(self) -> str:  # pragma: no cover
-        '''Return the full path to save a file (without extention).'''
+    def save_file_full_name(self, prefix: str = None) -> str:  # pragma: no cover
+        '''Return the full name to save a file (without extention or prefix).'''
         lattice_name = self.cte['lattice']['name']
         path = os.path.join('results', lattice_name)
         os.makedirs(path, exist_ok=True)
-        filename = 'dynamics_{}uc_{}S_{}A'.format(int(self.cte['lattice']['N_uc']),
-                                                  float(self.concentration.S_conc),
-                                                  float(self.concentration.A_conc))
+        filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(self.cte['lattice']['N_uc']),
+                                                        float(self.concentration.S_conc),
+                                                        float(self.concentration.A_conc))
         return os.path.join(path, filename)
 
     @property
@@ -177,7 +180,7 @@ class Solution():
             label = self.state_labels[state]
             state -= self.cte['states']['sensitizer_states']
         populations = np.array([self.y_sol[:, index+state]
-                               for index in indices if index != -1])
+                                for index in indices if index != -1])
         plotter.plot_state_decay_data(self.t_sol, populations.T,
                                       state_label=label, atol=1e-18)
 
@@ -205,24 +208,26 @@ class Solution():
     def save(self, full_path: str = None) -> None:
         '''Save data to disk as a HDF5 file'''
         if full_path is None:  # pragma: no cover
-            full_path = self.save_file_full_path() + '.hdf5'
+            full_path = self.save_file_full_name(self._prefix) + '.hdf5'
         with h5py.File(full_path, 'w') as file:
             file.create_dataset("t_sol", data=self.t_sol, compression='gzip')
             file.create_dataset("y_sol", data=self.y_sol, compression='gzip')
+            file.create_dataset("y_sol_avg", data=self.list_avg_data, compression='gzip')
             file.create_dataset("index_S_i", data=self.index_S_i, compression='gzip')
             file.create_dataset("index_A_j", data=self.index_A_j, compression='gzip')
             # serialze cte as text and store it as an attribute
             file.attrs['cte'] = yaml.dump(self.cte)
+            file.attrs['config_file'] = self.cte['config_file']
 
     def save_txt(self, full_path: str = None, mode: str = 'wt') -> None:
         '''Save the settings, the time and the average populations to disk as a textfile'''
         if full_path is None:  # pragma: no cover
-            full_path = self.save_file_full_path() + '.txt'
+            full_path = self.save_file_full_name(self._prefix) + '.txt'
         # print cte
         with open(full_path, mode) as csvfile:
             csvfile.write('Settings:\n')
-            pprint.pprint(self.cte, stream=csvfile)
-            csvfile.write('\nData:\n')
+            csvfile.write(self.cte['config_file'])
+            csvfile.write('\n\n\nData:\n')
         # print t_sol and avg sim data
         header = ('time (s)      ' +
                   '         '.join(self.cte['states']['sensitizer_states_labels']) +
@@ -259,6 +264,9 @@ class SteadyStateSolution(Solution):
         super(SteadyStateSolution, self).__init__(t_sol, y_sol, index_S_i, index_A_j,
                                                   cte, average=average)
         self._final_populations = np.array([])
+
+        # prefix for the name of the saved files
+        self._prefix = 'steady_state'
 
     def _calculate_final_populations(self) -> List[float]:
         '''Calculate the final population for all states after a steady state simulation'''
@@ -298,6 +306,9 @@ class DynamicsSolution(Solution):
 
         self._total_error = None  # type: float
         self._errors = np.array([])
+
+        # prefix for the name of the saved files
+        self._prefix = 'dynamics'
 
     #@profile
     @staticmethod
@@ -487,7 +498,7 @@ class SolutionList(Sequence[Solution]):
         # constructor of the underliying class that the list stores.
         # the load method will create instances of this type
         self._items_class = Solution
-        self._suffix = ''
+        self._prefix = 'solutionlist'
 
     def __bool__(self) -> bool:
         '''Instance is True if its list is not emtpy.'''
@@ -527,17 +538,19 @@ class SolutionList(Sequence[Solution]):
     def save(self, full_path: str = None) -> None:
         '''Save all data from all solutions in a HDF5 file'''
         if full_path is None:  # pragma: no cover
-            full_path = self[0].save_file_full_path() + '_' + self._suffix + '.hdf5'
+            full_path = self[0].save_file_full_name(self._prefix) + '.hdf5'
 
         with h5py.File(full_path, 'w') as file:
             for num, sol in enumerate(self):
                 group = file.create_group(str(num))
                 group.create_dataset("t_sol", data=sol.t_sol, compression='gzip')
                 group.create_dataset("y_sol", data=sol.y_sol, compression='gzip')
+                group.create_dataset("y_sol_avg", data=sol.list_avg_data, compression='gzip')
                 group.create_dataset("index_S_i", data=sol.index_S_i, compression='gzip')
                 group.create_dataset("index_A_j", data=sol.index_A_j, compression='gzip')
                 # serialze cte as text and store it as an attribute
                 group.attrs['cte'] = yaml.dump(sol.cte)
+                file.attrs['config_file'] = sol.cte['config_file']
 
     def load(self, full_path: str) -> None:
         '''Load data from a HDF5 file'''
@@ -560,8 +573,8 @@ class SolutionList(Sequence[Solution]):
     def save_txt(self, full_path: str = None, mode: str = 'w') -> None:
         '''Save the settings, the time and the average populations to disk as a textfile'''
         if full_path is None:  # pragma: no cover
-            full_path = self[0].save_file_full_path() + '.txt'
-        with open(full_path, 'wt') as csvfile:
+            full_path = self[0].save_file_full_name('solutionlist') + '.txt'
+        with open(full_path, mode+'t') as csvfile:
             csvfile.write('Solution list:\n')
         for sol in self:
             sol.save_txt(full_path, 'at')
@@ -579,7 +592,7 @@ class PowerDependenceSolution(SolutionList):
         # constructor of the underliying class that the list stores
         # the load method will create instances of this type
         self._items_class = SteadyStateSolution
-        self._suffix = 'pow_dep'
+        self._prefix = 'pow_dep'
 
     def __repr__(self) -> str:
         '''Representation of a power dependence list.'''
@@ -629,7 +642,7 @@ class ConcentrationDependenceSolution(SolutionList):
             self._items_class = DynamicsSolution
         else:
             self._items_class = SteadyStateSolution
-        self._suffix = 'conc_dep'
+        self._prefix = 'conc_dep'
 
     def __repr__(self) -> str:
         '''Representation of a concentration dependence list.'''
@@ -639,16 +652,6 @@ class ConcentrationDependenceSolution(SolutionList):
                                                                       len(self),
                                                                       concs,
                                                                       power)
-
-    def save(self, full_path: str = None) -> None:
-        '''Save all data from all solutions in a HDF5 file'''
-        # change the name of the saved file and pass it to the super method
-        if full_path is None:  # pragma: no cover
-            conc_path = self[0].save_file_full_path()
-            # get only the data_Xuc part
-            conc_path = '_'.join(conc_path.split('_')[:2])
-            full_path = conc_path + '_' + self._suffix + '.hdf5'
-        super(ConcentrationDependenceSolution, self).save(full_path)
 
     def plot(self) -> None:
         '''Plot the concentration dependence of the emission for all states.
