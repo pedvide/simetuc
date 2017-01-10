@@ -153,9 +153,9 @@ def create_ground_states(ion_type: np.array,
 def create_interaction_matrices(ion_type: np.array, dist_array: np.array,
                                 index_S_i: np.array, index_A_j: np.array,
                                 lattice_info: dict) -> Tuple[List[np.array], List[np.array],
-                                                              List[np.array], List[np.array],
-                                                              List[np.array], List[np.array],
-                                                              List[np.array], List[np.array]]:
+                                                             List[np.array], List[np.array],
+                                                             List[np.array], List[np.array],
+                                                             List[np.array], List[np.array]]:
     '''It returns the interaction lists distances:
         index_S_k = position of the GS of S ions that interact with S ions
         index_S_l = position of the GS of A ions that interact with S ions

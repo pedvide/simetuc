@@ -56,7 +56,7 @@ def _create_absorption_matrix(abs_sensitizer: np.array, abs_activator: np.array,
     abs_sensitizer_sp = scipy.sparse.csr_matrix(abs_sensitizer, dtype=np.float64)
     abs_activator_sp = scipy.sparse.csr_matrix(abs_activator, dtype=np.float64)
 
-    def get_block(num):
+    def get_block(num: int) -> scipy.sparse.csr_matrix:
         '''Returns a S or A block matrix depending on what kind of ion num is'''
         if index_S_i[num] != -1:
             return abs_sensitizer_sp
@@ -213,7 +213,7 @@ def _create_decay_matrix(sensitizer_states: int, activator_states: int, decay_di
     else:
         decay_activator = None
 
-    def get_block(num):
+    def get_block(num: int) -> np.array:
         '''Returns a S or A block matrix depending on what kind of ion num is'''
         if index_S_i[num] != -1:
             return decay_sensitizer
@@ -453,8 +453,9 @@ def _create_coop_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET
 
 
 #    @profile
-    def get_all_processes(indices_this, indices_others, dists_others,
-                          d_max_coop, interaction_estimate):
+    def get_all_processes(indices_this: np.array, indices_others: np.array,
+                          dists_others: np.array,
+                          d_max_coop: float, interaction_estimate: int) -> np.array:
         '''Calculate all cooperative processes from ions indices_this to all indices_others.'''
         processes_arr = np.empty((interaction_estimate, ), dtype=proc_dtype)
 
@@ -495,7 +496,7 @@ def _create_coop_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET
         return (ion_i, ion_k)
 
     @numba.jit(nopython=True, cache=True, nogil=True)
-    def calculate_coop_strength(processes_arr, mult):  # pragma: no cover
+    def calculate_coop_strength(processes_arr: np.array, mult: int) -> np.array:  # pragma: no cover
         '''Calculate the cooperative interaction strength for the processes.'''
         prod1 = (processes_arr['d_li']*processes_arr['d_lk'])**mult
         prod2 = (processes_arr['d_li']*processes_arr['d_ik'])**mult

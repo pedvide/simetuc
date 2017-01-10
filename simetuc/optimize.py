@@ -27,6 +27,7 @@ def cache(function):
     cache.f_val_lst = []
 
     @functools.wraps(function)
+    # if @cache mypy syntax is fixed, add annotations here
     def wrapper(*args):
         '''Wraps a function to add a cache'''
         f_val = function(*args)
@@ -41,7 +42,8 @@ def optim_fun_factory(sim: simulations.Simulations,
     '''Generate the function to be optimize.
         This function modifies the ET params and return the error
     '''
-    def optim_fun(x):
+    def optim_fun(x: np.array) -> float:
+        '''Update ET strengths, simulate dynamics and return total error'''
         # update ET values if explicitly given
         for num, process in enumerate(process_list):
             sim.modify_ET_param_value(process, x[num]*x0[num])  # precondition
@@ -60,6 +62,7 @@ def optimize_dynamics(cte: Dict, method: str = None,
     '''
     logger = logging.getLogger(__name__)
 
+    # if @cache mypy syntax is fixed, add annotations here
     def callback_fun(Xi, *args):
         ''' This function is called after every minimization step
             It prints the current parameters and error from the cache

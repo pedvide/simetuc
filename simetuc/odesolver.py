@@ -11,6 +11,8 @@ import logging
 import warnings
 import ctypes
 
+from typing import Callable, Tuple
+
 import numpy as np
 from numpy.ctypeslib import ndpointer
 
@@ -46,8 +48,8 @@ def _jac_rate_eq_pulse(t, y, abs_matrix, decay_matrix,
 
     y_coop_values = y[coop_jac_indices[:, 2]]*y[coop_jac_indices[:, 3]]
     nJ_coop_matrix = csr_matrix((y_coop_values, (coop_jac_indices[:, 0], coop_jac_indices[:, 1])),
-                           shape=(coop_ET_matrix.shape[1], coop_ET_matrix.shape[0]),
-                           dtype=np.float64)
+                                shape=(coop_ET_matrix.shape[1], coop_ET_matrix.shape[0]),
+                                dtype=np.float64)
     UC_J_coop_matrix = coop_ET_matrix.dot(nJ_coop_matrix).toarray()
 
     return abs_matrix.toarray() + decay_matrix.toarray() + UC_J_matrix + UC_J_coop_matrix
@@ -74,8 +76,8 @@ def _jac_rate_eq(t, y, decay_matrix, UC_matrix, jac_indices, coop_ET_matrix, coo
 
     y_coop_values = y[coop_jac_indices[:, 2]]*y[coop_jac_indices[:, 3]]
     nJ_coop_matrix = csr_matrix((y_coop_values, (coop_jac_indices[:, 0], coop_jac_indices[:, 1])),
-                           shape=(coop_ET_matrix.shape[1], coop_ET_matrix.shape[0]),
-                           dtype=np.float64)
+                                shape=(coop_ET_matrix.shape[1], coop_ET_matrix.shape[0]),
+                                dtype=np.float64)
     UC_J_coop_matrix = coop_ET_matrix.dot(nJ_coop_matrix).toarray()
 
     return decay_matrix.toarray() + UC_J_matrix + UC_J_coop_matrix
@@ -129,8 +131,12 @@ def _rate_eq_dll(decay_matrix, UC_matrix, N_indices):  # pragma: no cover
     return rate_eq_fast
 
 
-def _solve_ode(t_arr, fun, fargs, jfun, jargs, initial_population,
-               rtol=1e-3, atol=1e-15, nsteps=500, method='bdf', quiet=True):
+def _solve_ode(t_arr: np.array,
+               fun: Callable, fargs: Tuple,
+               jfun: Callable, jargs: Tuple,
+               initial_population: np.array,
+               rtol: float = 1e-3, atol: float = 1e-15, nsteps: int = 500,
+               method: str = 'bdf', quiet: bool = True) -> np.array:
     ''' Solve the ode for the times t_arr using rhs fun and jac jfun
         with their arguments as tuples.
     '''
@@ -183,10 +189,13 @@ def _solve_ode(t_arr, fun, fargs, jfun, jargs, initial_population,
     return y_arr
 
 
-def solve_pulse(t_pulse, initial_pop, total_abs_matrix, decay_matrix,
-                UC_matrix, N_indices, jac_indices,
-                coop_ET_matrix, coop_N_indices, coop_jac_indices,
-                nsteps=100, rtol=1e-3, atol=1e-15, quiet=False):
+def solve_pulse(t_pulse: np.array, initial_pop: np.array,
+                total_abs_matrix: csr_matrix, decay_matrix: csr_matrix,
+                UC_matrix: csr_matrix, N_indices: np.array, jac_indices: np.array,
+                coop_ET_matrix: csr_matrix,
+                coop_N_indices: np.array, coop_jac_indices: np.array,
+                nsteps: int = 100, rtol: float = 1e-3, atol: float = 1e-15,
+                quiet: bool = False) -> np.array:
     '''Solve the response to an excitation pulse.'''
     return _solve_ode(t_pulse, _rate_eq_pulse,
                       (total_abs_matrix, decay_matrix, UC_matrix, N_indices,
@@ -198,9 +207,13 @@ def solve_pulse(t_pulse, initial_pop, total_abs_matrix, decay_matrix,
                       rtol=rtol, atol=atol, nsteps=nsteps, quiet=quiet)
 
 
-def solve_relax(t_sol, initial_pop, decay_matrix, UC_matrix, N_indices, jac_indices,
-                coop_ET_matrix, coop_N_indices, coop_jac_indices,
-                nsteps=1000, rtol=1e-3, atol=1e-15, quiet=False):
+def solve_relax(t_sol: np.array, initial_pop: np.array,
+                decay_matrix: csr_matrix,
+                UC_matrix: csr_matrix, N_indices: np.array, jac_indices: np.array,
+                coop_ET_matrix: csr_matrix,
+                coop_N_indices: np.array, coop_jac_indices: np.array,
+                nsteps: int = 1000, rtol: float = 1e-3, atol: float = 1e-15,
+                quiet: bool = False) -> np.array:
     '''Solve the relaxation after a pulse.'''
     return _solve_ode(t_sol, _rate_eq,
                       (decay_matrix, UC_matrix, N_indices, coop_ET_matrix, coop_N_indices),

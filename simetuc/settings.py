@@ -108,10 +108,11 @@ def _ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
 
 
 def _check_values(needed_values_lst: List[str], present_values_dict: Dict,
-                  section: str = None, optional_values_lst: List[str]= None):
+                  section: str = None, optional_values_lst: List[str] = None) -> None:
     ''' Check that the needed keys are present in section
         Print error and exit if not
         Print warning in there are extra keys in section
+        Returns None
     '''
     logger = logging.getLogger(__name__)
 
@@ -156,7 +157,9 @@ def _check_values(needed_values_lst: List[str], present_values_dict: Dict,
 
 def _get_ion_and_state_labels(string: str) -> List[Tuple[str, str]]:
     ''' Returns a list of tuples (ion_label, state_label)'''
-    return re.findall(r'\s*(\w+)\s*\(\s*(\w+)\s*\)', string)
+    state_re = r'[\w/]+'  # match any letter, including forward slash '/'
+    ion_re = r'\w+'  # match any letter
+    return re.findall(r'\s*(' + ion_re + r')\s*\(\s*(' + state_re + r')\s*\)', string)
 
 
 def _get_state_index(list_labels: List[str], state_label: str,
@@ -225,6 +228,23 @@ def _get_value(dictionary: Dict, value: str, val_type: Callable) -> Any:
     return val
 
 
+def _get_list(dictionary: Dict, value: str, val_type: Callable) -> List[Any]:
+    '''Returns a list of positive floats, it converts it into a Fraction first.
+        Raises ValuError if it's not a float or if negative'''
+    logger = logging.getLogger(__name__)
+
+    try:
+        list_vals = dictionary[value]
+        lst = [val_type(elem) for elem in list_vals]
+    except ValueError as err:
+        msg = 'Invalid value in list "{}"'.format(list_vals)
+        logger.error(msg, exc_info=True)
+        logger.error(str(err.args))
+        raise ValueError(msg) from err
+
+    return lst
+
+
 def _get_positive_value(dictionary: Dict, value: str, val_type: Callable) -> Union[int, float]:
     '''Gets a value from the dict and raises a ValueError if it's negative'''
     logger = logging.getLogger(__name__)
@@ -265,6 +285,11 @@ def _get_normalized_float_value(dictionary: Dict, value: str) -> float:
 def _get_string_value(dictionary: Dict, value: str) -> str:
     '''Gets a string from the dictionary'''
     return _get_value(dictionary, value, str)
+
+
+def _get_list_strings(dictionary: Dict, value: str) -> List[str]:
+    '''Gets a string from the dictionary'''
+    return _get_list(dictionary, value, str)
 
 
 def _get_list_floats(list_vals: List) -> List[float]:
@@ -374,6 +399,35 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
 
     return parsed_dict
 
+
+def _parse_states(dict_states: Dict) -> Dict:
+    '''Parses the states section of the settings.
+        Returns the parsed states dict'''
+    logger = logging.getLogger(__name__)
+
+    needed_keys = ['sensitizer_ion_label', 'sensitizer_states_labels',
+                   'activator_ion_label', 'activator_states_labels']
+    # check that all keys are in the file
+    _check_values(needed_keys, dict_states, 'states')
+    # check that no value is None or empty
+    for key, value in dict_states.items():
+        if value is None or not value:
+            msg = '{} must not be empty'.format(key)
+            logger.error(msg)
+            raise ValueError(msg)
+    # store values
+    parsed_dict = {}  # type: Dict
+    parsed_dict['sensitizer_ion_label'] = _get_string_value(dict_states, 'sensitizer_ion_label')
+    parsed_dict['sensitizer_states_labels'] = _get_list_strings(dict_states,
+                                                                'sensitizer_states_labels')
+    parsed_dict['activator_ion_label'] = _get_string_value(dict_states, 'activator_ion_label')
+    parsed_dict['activator_states_labels'] = _get_list_strings(dict_states,
+                                                               'activator_states_labels')
+    # store number of states
+    parsed_dict['sensitizer_states'] = len(parsed_dict['sensitizer_states_labels'])
+    parsed_dict['activator_states'] = len(parsed_dict['activator_states_labels'])
+
+    return parsed_dict
 
 def _parse_excitations(dict_excitations: Dict) -> Dict:
     '''Parses the excitation section
@@ -827,25 +881,7 @@ def load(filename: str) -> Dict:
     cte['lattice'] = _parse_lattice(config_cte['lattice'])
 
     # NUMBER OF STATES
-    needed_keys = ['sensitizer_ion_label', 'sensitizer_states_labels',
-                   'activator_ion_label', 'activator_states_labels']
-    # check that all keys are in the file
-    _check_values(needed_keys, config_cte['states'], 'states')
-    # check that no value is None or empty
-    for key, value in config_cte['states'].items():
-        if value is None or not value:
-            msg = '{} must not be empty'.format(key)
-            logger.error(msg)
-            raise ValueError(msg)
-    # store values
-    cte['states'] = {}
-    cte['states']['sensitizer_ion_label'] = config_cte['states']['sensitizer_ion_label']
-    cte['states']['sensitizer_states_labels'] = config_cte['states']['sensitizer_states_labels']
-    cte['states']['activator_ion_label'] = config_cte['states']['activator_ion_label']
-    cte['states']['activator_states_labels'] = config_cte['states']['activator_states_labels']
-    # store number of states
-    cte['states']['sensitizer_states'] = len(config_cte['states']['sensitizer_states_labels'])
-    cte['states']['activator_states'] = len(config_cte['states']['activator_states_labels'])
+    cte['states'] = _parse_states(config_cte['states'])
 
     # EXCITATIONS
     cte['excitations'] = _parse_excitations(config_cte['excitations'])
@@ -914,6 +950,6 @@ def load(filename: str) -> Dict:
     return cte
 
 
-if __name__ == "__main__":
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
+#if __name__ == "__main__":
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')

@@ -7,7 +7,7 @@ Created on Sun Oct 16 11:53:51 2016
 
 # TODO: INCLUDE PULSE FREQUENCY IN STEADY STATE FOR NON CW-LASER EXCITATION
 # notTODO: INCLUDE .CIF FILE GENERATION OF LATTICE -> doesn't work with multiple sites...
-# TODO: cooperative sensitization
+# TODO: cooperative sensitization: in progress
 
 import sys
 import logging
@@ -20,7 +20,7 @@ import os
 from pkg_resources import resource_string
 from typing import Any, Union, List
 
-import numpy as np
+#import numpy as np
 import matplotlib.pyplot as plt
 import yaml
 
@@ -99,7 +99,7 @@ def parse_args(args: Any) -> argparse.Namespace:
     return parsed_args
 
 
-def _setup_logging(console_level):
+def _setup_logging(console_level: int) -> None:
     '''Load logging settings from file and apply them.'''
     # read logging settings from file
     # use the file located where the package is installed
@@ -128,7 +128,7 @@ def _setup_logging(console_level):
     # so each execution of this program is logged to a fresh file
     logging.config.dictConfig(log_settings)
     logger = logging.getLogger('simetuc')
-    for handler in logging.getLogger().handlers:   # pragma: no cover
+    for handler in logging.getLogger().handlers:  # pragma: no cover
         if isinstance(handler, logging.handlers.RotatingFileHandler):  # type: ignore
             handler.doRollover()  # type: ignore
 

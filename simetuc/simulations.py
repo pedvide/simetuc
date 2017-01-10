@@ -11,7 +11,6 @@ import logging
 import warnings
 import copy
 import os
-import pprint
 from typing import Dict, List, Tuple, Iterator, Sequence
 
 import h5py
@@ -66,15 +65,19 @@ class Solution():
         return (self.t_sol.size != 0 and self.y_sol.size != 0 and self.cte != {} and
                 len(self.index_S_i) != 0 and len(self.index_A_j) != 0)
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         '''Two solutions are equal if all its vars are equal or numerically close'''
+        if not isinstance(other, Solution):
+            return NotImplemented
         return (self.y_sol.shape == other.y_sol.shape and np.allclose(self.t_sol, other.t_sol) and
                 np.allclose(self.y_sol, other.y_sol) and
                 self.cte == other.cte and self.index_S_i == other.index_S_i and
                 self.index_A_j == other.index_A_j)
 
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other: object) -> bool:
         '''Define a non-equality test'''
+        if not isinstance(other, Solution):
+            return NotImplemented
         return not self == other
 
     def __repr__(self) -> str:
@@ -504,8 +507,10 @@ class SolutionList(Sequence[Solution]):
         '''Instance is True if its list is not emtpy.'''
         return len(self.solution_list) != 0
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         '''Two solutions are equal if all their solutions are equal.'''
+        if not isinstance(other, SolutionList):
+            return NotImplemented
         return self.solution_list == other.solution_list
 
     # __iter__, __len__ and __getitem__ implement all requirements for a Sequence,
@@ -518,9 +523,11 @@ class SolutionList(Sequence[Solution]):
         '''Return the length of the solution_list.'''
         return len(self.solution_list)
 
-    def __getitem__(self, key):
+    def __getitem__(self, index: int) -> Solution:  # type: ignore
         '''Implements solution[number].'''
-        return self.solution_list[key]
+        if 0 > index > len(self.solution_list):
+            raise IndexError
+        return self.solution_list[index]
 
     def __repr__(self) -> str:
         '''Representation of a solution list.'''
@@ -630,7 +637,7 @@ class PowerDependenceSolution(SolutionList):
 
 class ConcentrationDependenceSolution(SolutionList):
     '''Solution to a concentration dependence simulation'''
-    def __init__(self, dynamics=False) -> None:
+    def __init__(self, dynamics: bool = False) -> None:
         '''If dynamics is true the solution list stores DynamicsSolution,
            otherwise it stores SteadyStateSolution
         '''
@@ -720,12 +727,16 @@ class Simulations():
         '''Instance is True if the cte dict has been filled'''
         return self.cte != {}
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         '''Two solutions are equal if all its vars are equal.'''
+        if not isinstance(other, Simulations):
+            return NotImplemented
         return self.cte == other.cte and self.full_path == other.full_path
 
-    def __ne__(self, other) -> bool:
+    def __ne__(self, other: object) -> bool:
         '''Define a non-equality test'''
+        if not isinstance(other, Simulations):
+            return NotImplemented
         return not self == other
 
     def __repr__(self) -> str:
@@ -735,7 +746,8 @@ class Simulations():
                                                                self.cte['lattice']['N_uc'],
                                                                self.cte['states']['energy_states'])
 
-    def _get_t_pulse(self):
+    def _get_t_pulse(self) -> float:
+        '''Return the pulse width of the simulation'''
         try:
             for exc_dict in self.cte['excitations'].values():  # pragma: no branch
                 if exc_dict['active']:

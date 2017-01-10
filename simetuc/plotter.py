@@ -53,7 +53,7 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
         if (np.isnan(sim_data)).any() or not np.any(sim_data > 0):
             continue
 
-        ax = plt.subplot(num_rows, num_cols, num+1)
+        plt.subplot(num_rows, num_cols, num+1)
 #        ax.set_title(state_label)
 
         sim_color = colors[0]
@@ -228,7 +228,7 @@ def plot_lattice(doped_lattice: np.array, ion_type: np.array) -> None:
     '''
     from mpl_toolkits.mplot3d import proj3d
 
-    def orthogonal_proj(zfront, zback):  # pragma: no cover
+    def orthogonal_proj(zfront: float, zback: float) -> np.array:  # pragma: no cover
         '''
         This code sets the 3d projection to orthogonal so the plots are easier to see
         http://stackoverflow.com/questions/23840756/how-to-disable-perspective-in-mplot3d
