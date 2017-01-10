@@ -30,6 +30,25 @@ or
 
 That will download and install all necessary files.
 
+Note: Some OSX users report problems using conda, if after installing
+you can't use the program (i.e., ``simetuc -h`` fails because simetuc
+wasn't recognized as a command), use ``pip install simetuc``
+
+Update
+~~~~~~
+
+If you installed it using conda, update with:
+
+::
+
+    conda update -c pedvide simetuc
+
+If you installed it with pip, update with:
+
+::
+
+    pip install -U simetuc
+
 Features
 --------
 
@@ -64,7 +83,7 @@ Features
    -  Energy tranfer from sensitizers to activators
    -  Back transfer from activators to sensitizers.
 
--  See the example `configuration file <simetuc/config_file.cfg>`__ in
+-  See the example `configuration file <https://github.com/pedvide/simetuc/blob/master/simetuc/config_file.cfg>`__ in
    the simetuc folder.
 -  Add decay experimental data as two column text data, separated by
    tabs or spaces.
@@ -88,7 +107,7 @@ Features
 Documentation
 -------------
 
-See the powerpoint `presentation <docs/simetuc_presentation>`__.
+See the powerpoint `presentation <https://github.com/pedvide/simetuc/tree/master/docs/simetuc_presentation>`__.
 
 TODO
 ----
@@ -122,8 +141,8 @@ This software has been described and used in these publications:
 If you use this sofware in a scientific publication, please cite the
 appropiate articles above.
 
-Acknowledgements
-----------------
+Acknowledgments
+---------------
 
 The financial support of the EU FP7 ITN LUMINET (Grant agreement No.
 316906) is gratefully acknowledged.
@@ -137,7 +156,7 @@ License
 
 Copyright Pedro Villanueva Delgado, 2016.
 
-Distributed under the terms of the `MIT <LICENSE.txt>`__ license,
+Distributed under the terms of the `MIT <https://github.com/pedvide/simetuc/blob/master/LICENSE.txt>`__ license,
 simetuc is free and open source software.
 
 .. |License| image:: https://img.shields.io/github/license/pedvide/simetuc.svg
