@@ -71,8 +71,8 @@ If you installed it with pip, update with:
     * Simulate the steady state.
     * Simulate the power dependence of each emission.
     * Simulate the concentration dependence of the dynamics or the steady state.
-* All results can be plotted and saved in .hdf5 format.
-* For all options --average uses standard average rate equations instead of microscopic ones.
+* All results are plotted and saved in .hdf5 format.
+* For all options `--average` uses standard average rate equations instead of microscopic ones.
 
 ## Documentation
 

@@ -100,8 +100,8 @@ Features
    -  Simulate the concentration dependence of the dynamics or the
       steady state.
 
--  All results can be plotted and saved in .hdf5 format.
--  For all options --average uses standard average rate equations
+-  All results are plotted and saved in .hdf5 format.
+-  For all options ``--average`` uses standard average rate equations
    instead of microscopic ones.
 
 Documentation
