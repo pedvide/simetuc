@@ -26,6 +26,19 @@ or
 
 That will download and install all necessary files.
 
+Note: Some OSX users report problems using conda, if after installing you can't use the program (i.e., `simetuc -h` fails because simetuc wasn't recognized as a command), use `pip install simetuc`
+
+### Update
+
+If you installed it using conda, update with:
+
+    conda update -c pedvide simetuc
+
+If you installed it with pip, update with:
+
+    pip install -U simetuc
+
+
 ## Features
 
 * Command line interface program.
@@ -85,7 +98,7 @@ This software has been described and used in these publications:
 
 If you use this sofware in a scientific publication, please cite the appropiate articles above.
 
-## Acknowledgements
+## Acknowledgments
 
 The financial support of the EU FP7 ITN LUMINET (Grant agreement No. 316906) is gratefully acknowledged.
 
