@@ -3,13 +3,17 @@
 \begin_document
 \begin_header
 \textclass memoir
-\use_default_options true
+\begin_preamble
+\usepackage[dvipsnames]{xcolor}
+\end_preamble
+\options twoside
+\use_default_options false
 \maintain_unincluded_children false
 \language english
 \language_package default
 \inputencoding auto
 \fontencoding global
-\font_roman default
+\font_roman lmodern
 \font_sans default
 \font_typewriter default
 \font_math auto
@@ -26,8 +30,19 @@
 \index_command default
 \paperfontsize default
 \spacing single
-\use_hyperref false
-\papersize default
+\use_hyperref true
+\pdf_title "simetuc User Manual"
+\pdf_author "Pedro Villanueva-Delgado"
+\pdf_bookmarks true
+\pdf_bookmarksnumbered false
+\pdf_bookmarksopen false
+\pdf_bookmarksopenlevel 1
+\pdf_breaklinks false
+\pdf_pdfborder true
+\pdf_colorlinks true
+\pdf_backref false
+\pdf_pdfusetitle true
+\papersize a4paper
 \use_geometry false
 \use_package amsmath 1
 \use_package amssymb 1
@@ -58,8 +73,9 @@
 \paragraph_indentation default
 \quotes_language english
 \papercolumns 1
-\papersides 1
+\papersides 2
 \paperpagestyle default
+\listings_params "basicstyle={\ttfamily},backgroundcolor={\color{black!10}},framexleftmargin=0em,columns=flexible"
 \tracking_changes false
 \output_changes false
 \html_math_output 0
@@ -70,15 +86,322 @@
 \begin_body
 
 \begin_layout Title
-simetuc User Manual
+
+\emph on
+simetuc
+\emph default
+ User Manual
 \end_layout
 
 \begin_layout Author
 Pedro Villanueva-Delgado
 \end_layout
 
+\begin_layout Standard
+\begin_inset CommandInset toc
+LatexCommand tableofcontents
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Chapter
+Features
+\end_layout
+
+\begin_layout Itemize
+Command line interface program.
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Run with 
+\begin_inset listings
+lstparams "basicstyle={\ttfamily}"
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.txt [options]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Itemize
+See all options below and with 
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc -h
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+The simulation is controlled by a configuration text file that the user
+ can edit with the parameters adequate to its system of study.
+ It includes:
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Information about the host lattice.
+\end_layout
+
+\begin_layout Itemize
+Energy states labels.
+\end_layout
+
+\begin_layout Itemize
+Absorption and excitation (including ESA).
+\end_layout
+
+\begin_layout Itemize
+Decay (including branching ratios).
+\end_layout
+
+\begin_layout Itemize
+Energy transfer.
+\end_layout
+
+\begin_layout Itemize
+Other settings for the power and concentration dependence or optimization.
+ 
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+
+\emph on
+simetuc
+\emph default
+ works with any sensitizer and activator ion kind.
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+The examples are given for the Yb-Tm system.
+ 
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+All kinds of energy transfer processes are supported:
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Energy migration.
+\end_layout
+
+\begin_layout Itemize
+Upconversion (ETU).
+\end_layout
+
+\begin_layout Itemize
+Downconversion.
+\end_layout
+
+\begin_layout Itemize
+Cross-relaxation.
+\end_layout
+
+\begin_layout Itemize
+Cooperative processes.
+\end_layout
+
+\begin_layout Itemize
+Energy transfer from sensitizers to activators.
+\end_layout
+
+\begin_layout Itemize
+Back transfer from activators to sensitizers.
+ 
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+See the example configuration file in the simetuc folder.
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+The configuration file sections are detailed and discussed in this document.
+\end_layout
+
+\begin_layout Itemize
+See also the full example in the appendix.
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Add decay experimental data as two column text data, separated by tabs or
+ spaces.
+\end_layout
+
+\begin_layout Itemize
+Different options:
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Create the lattice.
+\end_layout
+
+\begin_layout Itemize
+Simulate the dynamics (rise and decay).
+\end_layout
+
+\begin_layout Itemize
+Optimize the energy transfer parameters.
+ 
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+Minimize the deviation between experiment and simulation.
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+Simulate the steady state.
+\end_layout
+
+\begin_layout Itemize
+Simulate the power dependence of each emission.
+\end_layout
+
+\begin_layout Itemize
+Simulate the concentration dependence of the dynamics or the steady state.
+\end_layout
+
+\end_deeper
+\begin_layout Itemize
+All results are plotted and saved in the .hdf5 format.
+\end_layout
+
+\begin_layout Itemize
+For all options 
+\begin_inset listings
+inline true
+status open
+
+\begin_layout Plain Layout
+
+--average
+\end_layout
+
+\end_inset
+
+ uses standard average rate equations instead of microscopic ones.
+\end_layout
+
+\begin_layout Part
+User Guide
+\end_layout
+
 \begin_layout Chapter
 Installation
+\end_layout
+
+\begin_layout Standard
+Python 3.5 is required.
+ Installing Anaconda is recommended; it works with Windows (64/32 bits),
+ Linux (64/32 bits) and Mac (64 bits).
+\end_layout
+
+\begin_layout Standard
+After installing 
+\begin_inset CommandInset href
+LatexCommand href
+name "Anaconda"
+target "https://www.continuum.io/downloads"
+
+\end_inset
+
+ execute the following command at the command prompt (
+\emph on
+cmd.exe
+\emph default
+ for Windows, 
+\emph on
+shell
+\emph default
+ for Linux and Mac):
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Some OSX users report problems using 
+\emph on
+conda
+\emph default
+, if after installing you can't use the program (i.e., 
+\emph on
+simetuc -h
+\emph default
+ fails because 
+\emph on
+simetuc
+\emph default
+ wasn't recognized as a command), use 
+\emph on
+pip install simetuc.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+conda install -c pedvide simetuc
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+or
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+pip install simetuc
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+That will download and install all necessary files.
 \end_layout
 
 \begin_layout Section
@@ -86,19 +409,3029 @@ Update
 \end_layout
 
 \begin_layout Standard
-Features
+If you installed it using 
+\emph on
+conda
+\emph default
+, update with:
 \end_layout
 
 \begin_layout Standard
-Publications
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+conda update -c pedvide simetuc
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
+If you installed it with 
+\emph on
+pip
+\emph default
+, update with:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+pip install -U simetuc 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Chapter
+The configuration file
+\end_layout
+
+\begin_layout Standard
+Some sections of the configuration file are mandatory (the starred Sections
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Version"
+
+\end_inset
+
+-
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Decay"
+
+\end_inset
+
+), some are optional (Sections 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Branching-ratios"
+
+\end_inset
+
+-
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Optimization-Method"
+
+\end_inset
+
+), and some are only mandatory when performing a particular simulation type
+ (Sections 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Power-Dependence"
+
+\end_inset
+
+ and 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Concentration-Dependence"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Standard
+Comments can be placed anywhere in the file starting with a hash symbol
+ (#).
+\end_layout
+
+\begin_layout Standard
+The different sections of the file begin by a section name, for example
+ lattice or states, followed by a colon (:).
+ The different subsections and values are in a new line and indented with
+ four spaces (not tabs!).
+ A section can contain a single value or subsections; for example:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+# comment1
+\end_layout
+
+\begin_layout Plain Layout
+
+section1: value1
+\end_layout
+
+\begin_layout Plain Layout
+
+section2:
+\end_layout
+
+\begin_layout Plain Layout
+
+    subsection1: value2 # comment2
+\end_layout
+
+\begin_layout Plain Layout
+
+    subsection2:
+\end_layout
+
+\begin_layout Plain Layout
+
+        subsubsection1: value3
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Some of the values may be text or numbers, others, however, may be lists
+ or a list of lists.
+ A list is written as a comma-separated values between two square brackets:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+section: [item1, item2, item3]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+And for a list of lists:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+section: [[lst1_item1, lst1_item2], [lst2_item1, lst2_item2]]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+A full example of a configuration file, showing all options, is shown in
+ Listing 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "lst:full_conf_file"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Version"
+
+\end_inset
+
+Version*
+\end_layout
+
+\begin_layout Standard
+At the moment, there is only one format for the configuration file; however,
+ in the future, it is possible that an improved format is introduced that
+ is not compatible with the current one.
+ For this reason the version of the format has to be included, the only
+ value allowed is 1:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+version: 1
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Lattice*
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Lattice"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This section defines the name of the lattice, the unit cell parameters,
+ the concentration of sensitizer and activator ions, and optionally, a maximum
+ distance of interaction.
+\end_layout
+
+\begin_layout Standard
+This section starts with
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+lattice:
+\end_layout
+
+\begin_layout Plain Layout
+
+    # values and subsections...
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Those values and subsections are described now.
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+name is an arbitrary text that describes the lattice.
+ It will be used as a folder name under latticeData (Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:The-latticeData-folder"
+
+\end_inset
+
+), expData (Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:The-expData-folder"
+
+\end_inset
+
+), and results (Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:The-results-folder"
+
+\end_inset
+
+).
+ Therefore it should only contain letters, numbers, and underscore (_) character
+s (no spaces).
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+number
+\begin_inset space ~
+\end_inset
+
+of
+\begin_inset space ~
+\end_inset
+
+unit
+\begin_inset space ~
+\end_inset
+
+cells is an integer greater than zero.
+ It specifies how many unit cells along the three directions a lattice will
+ consist on.
+ 
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+concentration of sensitizer and activator, in percentages from 0 to 100%.
+ An ion with 0% concentration will not participate in the equations and
+ therefore will not make the simulation take longer.
+ 
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+    S_conc: 0
+\end_layout
+
+\begin_layout Plain Layout
+
+    A_conc: 0.3
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+unit
+\begin_inset space ~
+\end_inset
+
+cell
+\begin_inset space ~
+\end_inset
+
+parameters consist on the three lattice distances and three angles.
+ The distances are given in Angstrom and the angles in degrees (between
+ 0 and 360º).
+ 
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+    # distances in Angstrom
+\end_layout
+
+\begin_layout Plain Layout
+
+    a: 5.9738
+\end_layout
+
+\begin_layout Plain Layout
+
+    b: 5.9738
+\end_layout
+
+\begin_layout Plain Layout
+
+    c: 3.5297
+\end_layout
+
+\begin_layout Plain Layout
+
+    # angles in degree
+\end_layout
+
+\begin_layout Plain Layout
+
+    alpha: 90
+\end_layout
+
+\begin_layout Plain Layout
+
+    beta: 90
+\end_layout
+
+\begin_layout Plain Layout
+
+    gamma: 120
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+spacegroup determines the symmetry of the lattice.
+ It can be given as the international short symbol (e.g., P-6) or as the Internati
+onal Union of Crystallography number (e.g.
+ 174).
+ 
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+sites positions and occupancies determine the positions of the doped ions
+ (in units of the lattice distances, from 0 to 1) and their fractional occupancy
+ (between 0 and 1).
+ For a lattice with just one site: 
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+    sites_pos: [0, 0, 0]
+\end_layout
+
+\begin_layout Plain Layout
+
+    sites_occ: 1
+\end_layout
+
+\end_inset
+
+For a lattice with two sites, the second of which is half occupied:
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+    sites_pos: [[0, 0, 0], [2/3, 1/3, 1/2]]
+\end_layout
+
+\begin_layout Plain Layout
+
+    sites_occ: [1, 1/2]
+\end_layout
+
+\end_inset
+
+The sites are populated randomly using the desired concentration, see Section
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Creating-a-lattice"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+A full example of the lattice section is
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+lattice: # all fields here are mandatory
+\end_layout
+
+\begin_layout Plain Layout
+
+    name: bNaYF4
+\end_layout
+
+\begin_layout Plain Layout
+
+    N_uc: 40
+\end_layout
+
+\begin_layout Plain Layout
+
+    S_conc: 0
+\end_layout
+
+\begin_layout Plain Layout
+
+    A_conc: 0.3
+\end_layout
+
+\begin_layout Plain Layout
+
+    # unit cell
+\end_layout
+
+\begin_layout Plain Layout
+
+    # distances in Angstrom
+\end_layout
+
+\begin_layout Plain Layout
+
+    a: 5.9738
+\end_layout
+
+\begin_layout Plain Layout
+
+    b: 5.9738
+\end_layout
+
+\begin_layout Plain Layout
+
+    c: 3.5297
+\end_layout
+
+\begin_layout Plain Layout
+
+    # angles in degree
+\end_layout
+
+\begin_layout Plain Layout
+
+    alpha: 90
+\end_layout
+
+\begin_layout Plain Layout
+
+    beta: 90
+\end_layout
+
+\begin_layout Plain Layout
+
+    gamma: 120
+\end_layout
+
+\begin_layout Plain Layout
+
+    spacegroup: P-6
+\end_layout
+
+\begin_layout Plain Layout
+
+    # info about sites.
+\end_layout
+
+\begin_layout Plain Layout
+
+    sites_pos: [[0, 0, 0], [2/3, 1/3, 1/2]]
+\end_layout
+
+\begin_layout Plain Layout
+
+    sites_occ: [1, 1/2]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Optional values
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+maximum
+\begin_inset space ~
+\end_inset
+
+distances for the normal and cooperative interactions restrict energy transfer
+ to ions closer than the distances.
+ The normal maximum distance (
+\family typewriter
+d_max
+\family default
+) is not yet implemented; however, the cooperative one is, and it's strongly
+ recommended to use it if cooperative interactions are present.
+ The cooperative interactions grow approximately with the cube of the number
+ of ions, the normal interactions grow with the square.
+\begin_inset Newline newline
+\end_inset
+
+If the values are not present, they are set to infinite.
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+lattice:
+\end_layout
+
+\begin_layout Plain Layout
+
+    ...
+ all other fields ...
+ 
+\end_layout
+
+\begin_layout Plain Layout
+
+    d_max: 100.0
+\end_layout
+
+\begin_layout Plain Layout
+
+    d_max_coop: 25.0
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+States*
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:States"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This section determines the number of energy states per ion and their labels.
+\end_layout
+
+\begin_layout Standard
+Four subsections are mandatory, two per ion type:
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+ion
+\begin_inset space ~
+\end_inset
+
+labels is any text that describes the sensitizer or activator ion.
+ It usually is the ion's chemical symbol.
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+ion
+\begin_inset space ~
+\end_inset
+
+states
+\begin_inset space ~
+\end_inset
+
+labels is a list of text.
+ Each item in the list labels an energy state; the first is the ground state,
+ the rest should be in order of increasing energy.
+ Usually the term symbols of the Dieke diagram are used.
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+states:
+\end_layout
+
+\begin_layout Plain Layout
+
+    sensitizer_ion_label: Yb
+\end_layout
+
+\begin_layout Plain Layout
+
+    sensitizer_states_labels: [GS, ES]
+\end_layout
+
+\begin_layout Plain Layout
+
+    activator_ion_label: Tm
+\end_layout
+
+\begin_layout Plain Layout
+
+    activator_states_labels: [3H6, 3F4, 3H5, 3H4, 3F3, 1G4, 1D2]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The ion and state labels will be used to define excitation (Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Excitation"
+
+\end_inset
+
+), decay (Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Decay"
+
+\end_inset
+
+), branching ratios (Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Branching-ratios"
+
+\end_inset
+
+), and energy transfer processes (Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Energy-Transfer"
+
+\end_inset
+
+).
+\end_layout
+
+\begin_layout Section
+Excitation*
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Excitation"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+At the beginning of the simulation, all ions are in their ground state.
+ An excitation source is necessary to pump them to an excited state.
+ This source can be pulsed for dynamics or continuous for steady state simulatio
+ns.
+\end_layout
+
+\begin_layout Standard
+Any number of excitation subsections can be added to the file, and at least
+ one has to be active (see below).
+ A two-color experiment can be simulated by activating two excitations.
+ Any number of excitations can be active.
+\end_layout
+
+\begin_layout Standard
+An excitation block contains several mandatory subsections:
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+label is a short unique text.
+ It identifies the excitation and it is used in the naming of experimental
+ data files (see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:The-expData-folder"
+
+\end_inset
+
+), so short, informative names are encouraged.
+ 
+\end_layout
+
+\begin_layout Description
+active can be true or false and indicates whether the excitation will be
+ used for the simulations.
+ 
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+excitation
+\begin_inset space ~
+\end_inset
+
+power
+\begin_inset space ~
+\end_inset
+
+density in 
+\begin_inset Formula $\unit{W\,cm^{-2}}$
+\end_inset
+
+.
+ For pulsed sources this has to be the instantaneous power density of the
+ pulse.
+ Usual values are in the order of 
+\begin_inset Formula $\unit[10^{5}\text{˗}10^{7}]{W\,cm^{-2}}$
+\end_inset
+
+ for pulsed excitations and 
+\begin_inset Formula $\unit[10^{1}\text{˗}10^{3}]{W\,cm^{-2}}$
+\end_inset
+
+ for continuous excitations.
+ 
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+pulse
+\begin_inset space ~
+\end_inset
+
+width of the excitation source (in seconds) for pulsed excitations.
+ For continuous excitations it can be omitted.
+ 
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+process is the actual absorption transition.
+ The format is 
+\family typewriter
+ion_label(state_label_i) -> ion_label(state_label_f)
+\family default
+.
+ Where the ion and state labels were defined in Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:States"
+
+\end_inset
+
+.
+ Both ion labels have to be present and equal; both state labels have to
+ belong to the same ion type.
+ 
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+degeneracy is the relative degeneracy of the initial and final states.
+ The relative degeneracy of two trivalent lanthanide states with terms 
+\begin_inset Formula $^{2S_{i}+1}L_{iJ_{i}}$
+\end_inset
+
+ and 
+\begin_inset Formula $^{2S_{f}+1}L_{fJ_{f}}$
+\end_inset
+
+ is 
+\begin_inset Formula $g_{rel}=\frac{2J_{i}+1}{2J_{f}+1}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+pump
+\begin_inset space ~
+\end_inset
+
+rate is the absorption cross-section divided by the transition energy in
+ units of 
+\begin_inset Formula $\unit{cm^{2}\,J^{-1}}$
+\end_inset
+
+, that is 
+\begin_inset Formula $R_{P}=\frac{\sigma(\nu)}{h\nu}$
+\end_inset
+
+.
+ The pump rate multiplied by the power density is equal to the absorption
+ probability, with units of 
+\begin_inset Formula $\unit{s^{-1}}$
+\end_inset
+
+.
+ 
+\end_layout
+
+\begin_layout Standard
+An example with two excitation blocks:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+excitations:
+\end_layout
+
+\begin_layout Plain Layout
+
+    pulsed_1G4:
+\end_layout
+
+\begin_layout Plain Layout
+
+        active: True
+\end_layout
+
+\begin_layout Plain Layout
+
+        power_dens: 1e6
+\end_layout
+
+\begin_layout Plain Layout
+
+        t_pulse: 1e-8
+\end_layout
+
+\begin_layout Plain Layout
+
+        process: Tm(3H6) -> Tm(1G4)
+\end_layout
+
+\begin_layout Plain Layout
+
+        degeneracy: 13/9
+\end_layout
+
+\begin_layout Plain Layout
+
+        pump_rate: 9.3e-4
+\end_layout
+
+\begin_layout Plain Layout
+
+    CW_980nm:
+\end_layout
+
+\begin_layout Plain Layout
+
+        active: False
+\end_layout
+
+\begin_layout Plain Layout
+
+        power_dens: 1e2
+\end_layout
+
+\begin_layout Plain Layout
+
+        process: Yb(GS) -> Yb(ES)
+\end_layout
+
+\begin_layout Plain Layout
+
+        degeneracy: 4/3
+\end_layout
+
+\begin_layout Plain Layout
+
+        pump_rate: 4.4e-3
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Excited state absorption
+\end_layout
+
+\begin_layout Standard
+Excited state absorption (ESA) can be simulated by giving a list of transitions,
+ degeneracies and pump rates in the corresponding fields, for example:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+excitations:
+\end_layout
+
+\begin_layout Plain Layout
+
+    NIR_800:
+\end_layout
+
+\begin_layout Plain Layout
+
+        active: False
+\end_layout
+
+\begin_layout Plain Layout
+
+        power_dens: 1e5
+\end_layout
+
+\begin_layout Plain Layout
+
+        t_pulse: 1e-8
+\end_layout
+
+\begin_layout Plain Layout
+
+        process: [Tm(3H6)->Tm(3H4), Tm(3H5)->Tm(1G4)] # list
+\end_layout
+
+\begin_layout Plain Layout
+
+        degeneracy: [13/9, 11/9] # list
+\end_layout
+
+\begin_layout Plain Layout
+
+        pump_rate: [4.4e-3, 4e-3] # list
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Decay"
+
+\end_inset
+
+Decay*
+\end_layout
+
+\begin_layout Standard
+This section contains the decay lifetimes in seconds.
+ There are two sections, one for the sensitizer and one for the activator.
+ In both cases the decay lifetimes are input with 
+\family typewriter
+state_label: lifetime
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+sensitizer_decay:
+\end_layout
+
+\begin_layout Plain Layout
+
+    ES: 2.5e-3
+\end_layout
+
+\begin_layout Plain Layout
+
+activator_decay:
+\end_layout
+
+\begin_layout Plain Layout
+
+    3F4: 12e-3
+\end_layout
+
+\begin_layout Plain Layout
+
+    3H5: 25e-6
+\end_layout
+
+\begin_layout Plain Layout
+
+    3H4: 2e-3
+\end_layout
+
+\begin_layout Plain Layout
+
+    3F3: 2e-6
+\end_layout
+
+\begin_layout Plain Layout
+
+    1G4: 760e-6
+\end_layout
+
+\begin_layout Plain Layout
+
+    1D2: 67.5e-6
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Branching-ratios"
+
+\end_inset
+
+Branching ratios
+\end_layout
+
+\begin_layout Standard
+These are two optional sections, one for the sensitizer and one for the
+ activator.
+\end_layout
+
+\begin_layout Standard
+The branching ratios describe the fraction of emission from an initial state
+ to a final state.
+ The format is 
+\family typewriter
+initial_state -> final_state: ratio.
+
+\family default
+ The ratio is a number between zero and one.
+ The branching ratio to the ground state does not need to be specified because
+ it is calculated automatically from the other values.
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+sensitizer_branching_ratios: # can be empty or simply omitted
+\end_layout
+
+\begin_layout Plain Layout
+
+activator_branching_ratios:
+\end_layout
+
+\begin_layout Plain Layout
+
+    3H5->3F4: 0.4
+\end_layout
+
+\begin_layout Plain Layout
+
+    3H4->3F4: 0.3
+\end_layout
+
+\begin_layout Plain Layout
+
+    3H4->3H5: 0.1
+\end_layout
+
+\begin_layout Plain Layout
+
+    3F3->3H4: 0.999
+\end_layout
+
+\begin_layout Plain Layout
+
+    1G4->3F4: 0.15
+\end_layout
+
+\begin_layout Plain Layout
+
+    1G4->3H5: 0.16
+\end_layout
+
+\begin_layout Plain Layout
+
+    1G4->3H4: 0.04
+\end_layout
+
+\begin_layout Plain Layout
+
+    1G4->3F3: 0.001
+\end_layout
+
+\begin_layout Plain Layout
+
+    1D2->3F4: 0.43
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Energy-Transfer"
+
+\end_inset
+
+Energy transfer
+\end_layout
+
+\begin_layout Standard
+This optional section includes one or more energy transfer processes between
+ ions in the simulation.
+ Each energy transfer block refers to one process and contains several fields:
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+label is a short unique text.
+ It can also be used to restrict the optimization to certain processes (Section
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Optimization-Processes"
+
+\end_inset
+
+).
+ 
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+process describes the ET interaction with the format 
+\family typewriter
+ion_label1(init_state) + ion_label2(init_state) -> ion_label1(end_state)
+ + ion_label2(end_state)
+\family default
+.
+ Where the ion and state labels were defined in Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:States"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+multipolarity of the interaction is an integer number, usually 6, 8 or 10.
+\end_layout
+
+\begin_layout Description
+The
+\begin_inset space ~
+\end_inset
+
+strength of the interaction given in units of 
+\begin_inset Formula $\unit{s^{-1}\,\AA^{n}}$
+\end_inset
+
+, where 
+\begin_inset Formula $n$
+\end_inset
+
+ is the multipolarity.
+ Optionally, an interaction strength for the average rate equation system
+ can be given; this value is several orders of magnitude lower than the
+ microscopic value.
+ If it is not given and the average rate equations are solved, the normal
+ strength will be used.
+\end_layout
+
+\begin_layout Standard
+For example:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+enery_transfer:
+\end_layout
+
+\begin_layout Plain Layout
+
+    CR50:
+\end_layout
+
+\begin_layout Plain Layout
+
+        process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
+\end_layout
+
+\begin_layout Plain Layout
+
+        multipolarity: 6
+\end_layout
+
+\begin_layout Plain Layout
+
+        strength: 4.3057e+09
+\end_layout
+
+\begin_layout Plain Layout
+
+        strength_avg: 8e+03 # optional, only for average system
+\end_layout
+
+\begin_layout Plain Layout
+
+    EM:
+\end_layout
+
+\begin_layout Plain Layout
+
+        process:  Yb(ES) + Yb(GS) -> Yb(GS) + Yb(ES)
+\end_layout
+
+\begin_layout Plain Layout
+
+        multipolarity: 6
+\end_layout
+
+\begin_layout Plain Layout
+
+        strength: 4.50220614e+10
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Optimization-Processes"
+
+\end_inset
+
+Optimization processes
+\end_layout
+
+\begin_layout Standard
+An optional list of energy transfer labels.
+ When optimizing the energy transfer parameters to the experimental data
+ (see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Optimizing-the-ET-params"
+
+\end_inset
+
+), by default all parameters will be used.
+ This section restricts the optimization parameters to those in the list,
+ for example
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+optimization_processes: [CR50]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+will optimize only the parameter 
+\family typewriter
+CR50
+\family default
+, and not any other.
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Optimization-Method"
+
+\end_inset
+
+Optimization method
+\end_layout
+
+\begin_layout Standard
+This optional section defines the method used to optimize the energy transfer
+ parameters to the experimental data.
+ Several options are available:
+\end_layout
+
+\begin_layout Itemize
+SLSQP
+\end_layout
+
+\begin_layout Itemize
+COBYLA
+\end_layout
+
+\begin_layout Itemize
+L-BFGS-B
+\end_layout
+
+\begin_layout Itemize
+basin_hopping
+\end_layout
+
+\begin_layout Itemize
+brute_force
+\end_layout
+
+\begin_layout Standard
+See the 
+\emph on
+Notes
+\emph default
+ section in the 
+\begin_inset CommandInset href
+LatexCommand href
+name "scipy minimize documentation"
+target "https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/scipy.optimize.minimize.html"
+
+\end_inset
+
+.
+ SLSQP (the default) or brute_force are recommended, as they seem to take
+ the least time to arrive at the minimum.
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Power-Dependence"
+
+\end_inset
+
+Power dependence
+\end_layout
+
+\begin_layout Standard
+This section is mandatory only if a power dependence simulation is performed.
+ The starting and ending power density values and the number of steps need
+ to be given
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+power_dependence: [1e0, 1e7, 8]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that it uses a logarithmic scale, so the above configuration will produce
+ the power dependence at the following excitation power densities: 
+\begin_inset Formula $10^{0}$
+\end_inset
+
+, 
+\begin_inset Formula $10^{1}$
+\end_inset
+
+, 
+\begin_inset Formula $10^{2}$
+\end_inset
+
+, 
+\begin_inset Formula $10^{3}$
+\end_inset
+
+, 
+\begin_inset Formula $10^{4}$
+\end_inset
+
+, 
+\begin_inset Formula $10^{5}$
+\end_inset
+
+, 
+\begin_inset Formula $10^{6}$
+\end_inset
+
+, and 
+\begin_inset Formula $\unit[10^{7}]{W\,cm^{-2}}$
+\end_inset
+
+.
+ See also Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Simulating-the-power-dep"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Concentration-Dependence"
+
+\end_inset
+
+Concentration dependence
+\end_layout
+
+\begin_layout Standard
+This section is mandatory only if a concentration dependence simulation
+ is performed.
+ It consists on a list of two lists; the first list gives the sensitizer
+ concentrations at which the simulation will take place, the second gives
+ the same for the activators.
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+concentration_dependence: [[0, 0.5], [0.1, 0.2, 0.3, 0.4, 0.5]]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Note that everything else will remain constant; therefore, if the number
+ of unit cells is not high enough, at lower concentrations the quality of
+ the simulation may be low.
+ See also Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Simulating-the-concentration-dep"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Checking the configuration file
+\end_layout
+
+\begin_layout Standard
+To check that a configuration file is correct, execute:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.cfg
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+If no warnings or errors are displayed, the file is correct.
+ Nonetheless, it is still possible that some optional values are missing
+ but needed for a particular simulation type or have wrong values (e.g., negative
+ distances or concentrations above 100%).
+ In that case, this check will not warn the user, and only trying to perform
+ the actual simulation will show if something is missing.
+ In any case, the program never fails silently, that is, it always warns
+ the user if there was a problem and how to fix it.
+\end_layout
+
+\begin_layout Standard
+An example of a configuration file check that succeeded is shown in Figure
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Example-conf_file_correct"
+
+\end_inset
+
+.
+ An example of a check failure is shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Example-conf_file_wrong"
+
+\end_inset
+
+; in this case, the name or the lattice has been omitted from the file.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/correct_config_file.PNG
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Example-conf_file_correct"
+
+\end_inset
+
+Example of a correct configuration file check with and without the verbose
+ option.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/config_file_wrong_lattice.PNG
+	lyxscale 50
+	width 100col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Example-conf_file_wrong"
+
+\end_inset
+
+Example of a wrong configuration file check.
+ The two upper lines show the user-friendly error message; they can also
+ be found in the error log (see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Error-logs"
+
+\end_inset
+
+).
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Chapter
+The logs and results folders
+\end_layout
+
+\begin_layout Standard
+
+\emph on
+simetuc
+\emph default
+ creates several subfolders during its usage; these subfolders are located
+ under the current working directory (the directory from which 
+\emph on
+simetuc
+\emph default
+ is being used).
+ Additionally, the experimental data must be saved in a folder with a specific
+ format, see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:The-expData-folder"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+The log folder
+\end_layout
+
+\begin_layout Standard
+Any operation of 
+\emph on
+simetuc
+\emph default
+ writes its status and current tasks on several log files, so the user can
+ analyze what operations were performed, when, and whether they succeeded.
+ The log files are stored in a subfolder called 
+\family typewriter
+logs
+\family default
+, which is created if it doesn't exist.
+\end_layout
+
+\begin_layout Subsection
+Normal log
+\end_layout
+
+\begin_layout Standard
+This is the primary log.
+ Here all parts of the program register their operations.
+ For example, any operation begins with:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+2017-01-10 19:13:51,227 - simetuc       : INFO     Starting program...
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The log format is the following:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+YYYY-MM-DD HH:MM:SS,mmm - simetuc[.part]   : LEVEL    message
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The main program emits messages under the name 
+\emph on
+simetuc
+\emph default
+, other parts of the program have names such as 
+\emph on
+simetuc.lattice
+\emph default
+ or 
+\emph on
+simetuc.simulations
+\emph default
+.
+ The log level can be DEBUG, INFO, WARNING, or ERROR.
+\end_layout
+
+\begin_layout Subsection
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:Error-logs"
+
+\end_inset
+
+Error log
+\end_layout
+
+\begin_layout Standard
+Whenever an operation was requested, but couldn't be completed due to an
+ user error or an internal bug, the errors are written to an error log.
+ This is log remains empty if all operations succeeded.
+\end_layout
+
+\begin_layout Subsection
+Debug log
+\end_layout
+
+\begin_layout Standard
+This log registers a lot of low level information that is usually not important,
+ but can be relevant in the case of errors.
+\end_layout
+
+\begin_layout Section
+The results folder
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:The-results-folder"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+All simulations produce some results that are stored in the subfolder results
+ with the hdf5 format.
+\end_layout
+
+\begin_layout Section
+Other folders
+\end_layout
+
+\begin_layout Standard
+The lattice folder, Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:The-latticeData-folder"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The experimental data folder, see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:The-expData-folder"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+The HDF5 format
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:The-HDF5-format"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This is a open binary format that can be open with many scientific software
+ such as Matlab or Origin.
+ A lightweight viewer is 
+\begin_inset CommandInset href
+LatexCommand href
+name "HDFCompass"
+target "https://support.hdfgroup.org/projects/compass/"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Chapter
+Simulations
+\end_layout
+
+\begin_layout Section
+Creating a lattice
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Creating-a-lattice"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This is the first step in any simulation.
+ The lattice and states section of the configuration file determine the
+ position of the doped ions and the number of energy states.
+\end_layout
+
+\begin_layout Standard
+The option for creating lattice is 
+\family typewriter
+-l
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.txt -l
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When given with the 
+\family typewriter
+-v
+\family default
+ option to show the progress information, the results look like Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Lattice-creation"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/lattice_cmd.PNG
+	lyxscale 60
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/lattice_plot.PNG
+	lyxscale 60
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Lattice-creation"
+
+\end_inset
+
+Lattice creation.
+ (a) shows the result of invoking the command 
+\family typewriter
+simetuc config_file.txt -v -l
+\family default
+.
+ (b) shows the positions of the doped ions, the sensitizers as red dots
+ and the activators as blue dots.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+The latticeData folder
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:The-latticeData-folder"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+All created lattices are stored in a folder with the name of the lattice
+ under the latticeData subfolder; the name of the lattice is given by the
+ user in the configuration file, see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Lattice"
+
+\end_inset
+
+.
+ These saved files are used in subsequent simulations.
+ The name format under which they are saved is
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+data_XXuc_y.yS_z.zA.hdf5
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $XX$
+\end_inset
+
+ is the number of unit cells, 
+\begin_inset Formula $y.y$
+\end_inset
+
+ is the concentration of sensitizers and 
+\begin_inset Formula $z.z$
+\end_inset
+
+ that of activators (both in percentage).
+\end_layout
+
+\begin_layout Standard
+The file format is HDF5, see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:The-HDF5-format"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Section
+Simulating the dynamics
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Simulating-the-dynamics"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The simulation of the dynamics of a sample consists on two parts, the excitation
+ pulse and the subsequent relaxation.
+ The dynamics simulation includes the excitation, decay, branching ratios,
+ and energy transfer sections of the configuration file.
+ The output is a plot of the average decay curve of each state of the sensitizer
+ and activator.
+ The results are saved to a file, see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:The-results-folder"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The option for simulating the dynamics is 
+\family typewriter
+-d
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.txt -d
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When given with the 
+\family typewriter
+-v
+\family default
+ option to show the progress information, the results look like Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Lattice-creation-1"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/dynamics_cmd.PNG
+	lyxscale 60
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/dynamics_plot.PNG
+	lyxscale 60
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Dynamics-simulation"
+
+\end_inset
+
+Dynamics simulation.
+ (a) shows the result of invoking the command 
+\family typewriter
+simetuc config_file.txt -v -d
+\family default
+.
+ (b) shows a plot with the decay curve of all states of the sensitizer and
+ activator.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Adding experimental data
+\end_layout
+
+\begin_layout Standard
+The comparison of the experimental to the simulated data is important if
+ to ensure that the energy transfer processes and their strengths truly
+ represent an accurate picture of the sample's behavior.
+\end_layout
+
+\begin_layout Standard
+Decay experimental data is automatically loaded from the expData folder
+ (see next section), normalized and compared to the simulated decay curve
+ of the appropriate states.
+ The deviation between the experimental data and simulation is calculated
+ for each level, and then all state errors are added together to yield the
+ total error.
+\end_layout
+
+\begin_layout Subsection
+The expData folder
+\begin_inset CommandInset label
+LatexCommand label
+name "sub:The-expData-folder"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This folder should contain a subfolders with the name of the lattice.
+ Inside that subfolder several text files can be stored, each corresponding
+ to an ion's state decay for a given concentration of sensitizers and activators.
+ The name format is:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+decay_ION_STATE_exc_EXCLABEL_x.xION-S_y.yION-A.txt
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\family typewriter
+ION
+\family default
+, 
+\family typewriter
+STATE
+\family default
+, and 
+\family typewriter
+EXCLABEL
+\family default
+ are labels defined in the configuration file: 
+\family typewriter
+ION
+\family default
+ is an ion label, 
+\family typewriter
+STATE
+\family default
+ is an state label corresponding to 
+\family typewriter
+ION
+\family default
+, and 
+\family typewriter
+EXCLABEL
+\family default
+ is an excitation label defined in the excitations section of the configuration
+ file, see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Excitation"
+
+\end_inset
+
+.
+ 
+\begin_inset Formula $x.x$
+\end_inset
+
+ and 
+\begin_inset Formula $y.y$
+\end_inset
+
+ are the sensitizer (
+\family typewriter
+ION-S
+\family default
+) and activator (
+\family typewriter
+ION-A
+\family default
+) concentrations.
+\end_layout
+
+\begin_layout Standard
+As an example, the decay curve of the Tm
+\begin_inset Formula $^{3+}$
+\end_inset
+
+ state 
+\begin_inset Formula $^{1}$
+\end_inset
+
+D
+\begin_inset Formula $_{2}$
+\end_inset
+
+ for the β-NaYF
+\begin_inset Formula $_{4}$
+\end_inset
+
+: 0.3% Tm
+\begin_inset Formula $^{3+}$
+\end_inset
+
+ sample has a name:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+decay_Tm_1D2_exc_Vis_473_0.0Yb_0.3Tm.txt
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+and is stored in the folder 
+\family typewriter
+expData/bNaYF4
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+The experimental data files must have two columns separated by spaces or
+ tabs:
+\end_layout
+
+\begin_layout Enumerate
+The first one with the time in seconds.
+\end_layout
+
+\begin_layout Enumerate
+The second one with the emission intensity in any units (it will be normalized).
+\end_layout
+
+\begin_layout Standard
+Lines starting with 
+\family typewriter
+#
+\family default
+ are ignored as comments.
+ For example:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+# tau_em360_NYF_03Tm_EKSPLA473 
+\end_layout
+
+\begin_layout Plain Layout
+
+# time in seconds
+\end_layout
+
+\begin_layout Plain Layout
+
+0			0.405264768901133
+\end_layout
+
+\begin_layout Plain Layout
+
+1.99999999999978E-7	0.42944597490052
+\end_layout
+
+\begin_layout Plain Layout
+
+3.99999999999956E-7	0.432506887052342
+\end_layout
+
+\begin_layout Plain Layout
+
+5.99999999999989E-7	0.43954698500153
+\end_layout
+
+\begin_layout Plain Layout
+
+7.99999999999967E-7	0.4640342822161
+\end_layout
+
+\begin_layout Plain Layout
+
+1E-6			0.468931741659014
+\end_layout
+
+\begin_layout Plain Layout
+
+1.19999999999998E-6	0.498010407101316
+\end_layout
+
+\begin_layout Plain Layout
+
+1.39999999999996E-6	0.48852157943067
+\end_layout
+
+\begin_layout Plain Layout
+
+1.59999999999999E-6	0.51147842056933
+\end_layout
+
+\begin_layout Plain Layout
+
+1.79999999999997E-6	0.513927150290787
+\end_layout
+
+\begin_layout Plain Layout
+
+...
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Once the experimental data files are in the right folder and with the right
+ names, they will be loaded automatically, like shown in Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Dynamics-simulation-with-expdata"
+
+\end_inset
+
+.
+ The state and total errors will be shown in the commandline and recorded
+ in the log files.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/dynamics_plot_expData.PNG
+	width 80text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Dynamics-simulation-with-expdata"
+
+\end_inset
+
+Dynamics simulation with experimental data.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Optimizing the ET parameters
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Optimizing-the-ET-params"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The strength of the interactions is 
+\shape italic
+a priori
+\shape default
+ unknown.
+\end_layout
+
+\begin_layout Section
+Simulating the steady state
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Simulating-the-steady-state"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Simulating the power dependence of the steady state
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Simulating-the-power-dep"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Simulating the concentration dependence of the the steady state or of the
+ dynamics
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Simulating-the-concentration-dep"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Section
+Microscopic or average rate equations
+\end_layout
+
+\begin_layout Chapter
+Publications and acknowledgments
+\end_layout
+
+\begin_layout Standard
+This software has been described and used in these publications:
+\end_layout
+
+\begin_layout Itemize
+Villanueva-Delgado, P.; Krämer, K.
+ W.
+ & Valiente, R.
+ Simulating Energy Transfer and Upconversion in β-NaYF
+\begin_inset script subscript
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+
+: Yb
+\begin_inset script superscript
+
+\begin_layout Plain Layout
+3+
+\end_layout
+
+\end_inset
+
+, Tm
+\begin_inset script superscript
+
+\begin_layout Plain Layout
+3+
+\end_layout
+
+\end_inset
+
+, 
+\emph on
+J.
+ Phys.
+ Chem.
+ C
+\emph default
+, 
+\series bold
+2015
+\series default
+, 
+\emph on
+119
+\emph default
+ (41), pp 23648–23657.
+ 
+\begin_inset CommandInset href
+LatexCommand href
+name "DOI: 10.1021/acs.jpcc.5b06770"
+target "http://pubs.acs.org/doi/10.1021/acs.jpcc.5b06770"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+Villanueva-Delgado, P.; Krämer, K.
+ W.; Valiente, R.; de Jong, M.
+ & Meijerink, A.
+ Modeling Blue to UV Upconversion in β-NaYF
+\begin_inset script subscript
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+
+: Tm
+\begin_inset script superscript
+
+\begin_layout Plain Layout
+3+
+\end_layout
+
+\end_inset
+
+, 
+\emph on
+Phys.
+ Chem.
+ Chem.
+ Phys.
+\emph default
+, 
+\series bold
+2016
+\series default
+, 
+\emph on
+18
+\emph default
+, pp 27396-27404, 
+\begin_inset CommandInset href
+LatexCommand href
+name "DOI: 10.1039/C6CP04347J"
+target "http://pubs.rsc.org/en/Content/ArticleLanding/2016/CP/C6CP04347J#!divAbstract"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Itemize
+Villanueva-Delgado, P.
+ Upconversion in β-NaYF
+\begin_inset script subscript
+
+\begin_layout Plain Layout
+4
+\end_layout
+
+\end_inset
+
+: Yb
+\begin_inset script superscript
+
+\begin_layout Plain Layout
+3+
+\end_layout
+
+\end_inset
+
+, Tm
+\begin_inset script superscript
+
+\begin_layout Plain Layout
+3+
+\end_layout
+
+\end_inset
+
+: Synthesis, Experiments, and Models.
+ Ph.D.
+ Dissertation, University of Bern, 
+\series bold
+2016
+\series default
+.
+\end_layout
+
+\begin_layout Standard
+If you use this software in a scientific publication, please cite the appropriat
+e articles above.
+\end_layout
+
+\begin_layout Section
 Acknowledgments
 \end_layout
 
 \begin_layout Standard
+The financial support of the EU FP7 ITN LUMINET (Grant agreement No.
+ 316906) is gratefully acknowledged.
+\end_layout
+
+\begin_layout Standard
+This work was started at the University of Cantabria under Prof.
+ Rafael Valiente and continued at the University of Bern under PD Dr.
+ Karl Krämer.
+\end_layout
+
+\begin_layout Chapter
 License
+\end_layout
+
+\begin_layout Standard
+Copyright Pedro Villanueva Delgado, 2016-2017.
+\end_layout
+
+\begin_layout Standard
+Distributed under the terms of the MIT license, 
+\emph on
+simetuc
+\emph default
+ is free and open source software.
+\end_layout
+
+\begin_layout Standard
+\begin_inset VSpace bigskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+MIT License
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset line
+LatexCommand rule
+offset "0.5ex"
+width "100col%"
+height "0.5pt"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Copyright (c) 2016-2017 Pedro Villanueva Delgado
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+Permission is hereby granted, free of charge, to any person obtaining a
+ copy of this software and associated documentation files (the "Software"),
+ to deal in the Software without restriction, including without limitation
+ the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ and/or sell copies of the Software, and to permit persons to whom the Software
+ is furnished to do so, subject to the following conditions:
+\end_layout
+
+\begin_layout Standard
+\noindent
+The above copyright notice and this permission notice shall be included
+ in all copies or substantial portions of the Software.
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset VSpace defskip
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+\noindent
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE
+, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ OTHER DEALINGS IN THE SOFTWARE.
+ 
+\end_layout
+
+\begin_layout Part
+Appendix
+\end_layout
+
+\begin_layout Chapter
+Example configuration file
+\end_layout
+
+\begin_layout Standard
+\begin_inset CommandInset include
+LatexCommand lstinputlisting
+filename "E:/Users/Villanueva/Simulaciones/python/simetuc/simetuc/config_file.cfg"
+lstparams "numbers=left,numberstyle={\\footnotesize},stepnumber=5,firstnumber=1,numberfirstline=true,breaklines=true,xrightmargin={0cm},xleftmargin={0cm},linewidth=400pt,caption={Exampe configuration file},label={lst:full_conf_file}"
+
+\end_inset
+
+
 \end_layout
 
 \end_body

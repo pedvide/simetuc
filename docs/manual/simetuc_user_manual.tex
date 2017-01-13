@@ -1,0 +1,825 @@
+%% LyX 2.1.4 created this file.  For more info, see http://www.lyx.org/.
+%% Do not edit unless you really know what you are doing.
+\documentclass[a4paper,english,twoside]{memoir}
+\usepackage{lmodern}
+\usepackage[LGR,T1]{fontenc}
+\usepackage[latin9]{inputenc}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+\usepackage{color}
+\usepackage{babel}
+\usepackage{units}
+\usepackage{textcomp}
+\usepackage{amstext}
+\usepackage{graphicx}
+\usepackage[unicode=true,
+ bookmarks=true,bookmarksnumbered=false,bookmarksopen=false,
+ breaklinks=false,pdfborder={0 0 0},backref=false,colorlinks=true]
+ {hyperref}
+\hypersetup{pdftitle={simetuc User Manual},
+ pdfauthor={Pedro Villanueva-Delgado}}
+
+\makeatletter
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% LyX specific LaTeX commands.
+\pdfpageheight\paperheight
+\pdfpagewidth\paperwidth
+
+\DeclareRobustCommand{\greektext}{%
+  \fontencoding{LGR}\selectfont\def\encodingdefault{LGR}}
+\DeclareRobustCommand{\textgreek}[1]{\leavevmode{\greektext #1}}
+\DeclareFontEncoding{LGR}{}{}
+\DeclareTextSymbol{\~}{LGR}{126}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% User specified LaTeX commands.
+\usepackage[dvipsnames]{xcolor}
+
+\makeatother
+
+\usepackage{listings}
+\lstset{basicstyle={\ttfamily},
+backgroundcolor={\color{black!10}},
+framexleftmargin=0em,
+columns=flexible}
+\renewcommand{\lstlistingname}{Listing}
+
+\begin{document}
+
+\title{\emph{simetuc} User Manual}
+
+
+\author{Pedro Villanueva-Delgado}
+
+\maketitle
+\tableofcontents{}
+
+
+\chapter{Features}
+\begin{itemize}
+\item Command line interface program.
+
+\begin{itemize}
+\item Run with 
+\begin{lstlisting}[basicstyle={\ttfamily}]
+simetuc config_file.txt [options]
+\end{lstlisting}
+
+\item See all options below and with 
+\begin{lstlisting}
+simetuc -h
+\end{lstlisting}
+
+\end{itemize}
+\item The simulation is controlled by a configuration text file that the
+user can edit with the parameters adequate to its system of study.
+It includes:
+
+\begin{itemize}
+\item Information about the host lattice.
+\item Energy states labels.
+\item Absorption and excitation (including ESA).
+\item Decay (including branching ratios).
+\item Energy transfer.
+\item Other settings for the power and concentration dependence or optimization. 
+\end{itemize}
+\item \emph{simetuc} works with any sensitizer and activator ion kind.
+
+\begin{itemize}
+\item The examples are given for the Yb-Tm system. 
+\end{itemize}
+\item All kinds of energy transfer processes are supported:
+
+\begin{itemize}
+\item Energy migration.
+\item Upconversion (ETU).
+\item Downconversion.
+\item Cross-relaxation.
+\item Cooperative processes.
+\item Energy transfer from sensitizers to activators.
+\item Back transfer from activators to sensitizers. 
+\end{itemize}
+\item See the example configuration file in the simetuc folder.
+
+\begin{itemize}
+\item The configuration file sections are detailed and discussed in this
+document.
+\item See also the full example in the appendix.
+\end{itemize}
+\item Add decay experimental data as two column text data, separated by
+tabs or spaces.
+\item Different options:
+
+\begin{itemize}
+\item Create the lattice.
+\item Simulate the dynamics (rise and decay).
+\item Optimize the energy transfer parameters. 
+
+\begin{itemize}
+\item Minimize the deviation between experiment and simulation.
+\end{itemize}
+\item Simulate the steady state.
+\item Simulate the power dependence of each emission.
+\item Simulate the concentration dependence of the dynamics or the steady
+state.
+\end{itemize}
+\item All results are plotted and saved in the .hdf5 format.
+\item For all options \lstinline!--average! uses standard average rate
+equations instead of microscopic ones.
+\end{itemize}
+
+\part{User Guide}
+
+
+\chapter{Installation}
+
+Python 3.5 is required. Installing Anaconda is recommended; it works
+with Windows (64/32 bits), Linux (64/32 bits) and Mac (64 bits).
+
+After installing \href{https://www.continuum.io/downloads}{Anaconda}
+execute the following command at the command prompt (\emph{cmd.exe}
+for Windows, \emph{shell} for Linux and Mac):\footnote{Some OSX users report problems using \emph{conda}, if after installing
+you can't use the program (i.e., \emph{simetuc -h} fails because \emph{simetuc}
+wasn't recognized as a command), use \emph{pip install simetuc.}}
+
+\begin{lstlisting}
+conda install -c pedvide simetuc
+\end{lstlisting}
+
+
+or
+
+\begin{lstlisting}
+pip install simetuc
+\end{lstlisting}
+
+
+That will download and install all necessary files.
+
+
+\section{Update}
+
+If you installed it using \emph{conda}, update with:
+
+\begin{lstlisting}
+conda update -c pedvide simetuc
+\end{lstlisting}
+
+
+If you installed it with \emph{pip}, update with:
+
+\begin{lstlisting}
+pip install -U simetuc 
+\end{lstlisting}
+
+
+
+\chapter{The configuration file}
+
+Some sections of the configuration file are mandatory (Sections \ref{sub:Version}-\ref{sub:Decay}),
+some are optional (Sections \ref{sub:Branching-ratios}-\ref{sub:Optimization-Method}),
+and some are only mandatory when performing a particular simulation
+type (Sections \ref{sub:Power-Dependence} and \ref{sub:Concentration-Dependence}).
+
+Comments can be placed anywhere in the file starting with a hash symbol
+(\#).
+
+The different sections of the file begin by a section name, for example
+lattice or states, followed by a colon (:). The different subsections
+and values are in a new line and indented with four spaces (not tabs!).
+A section can contain a single value or subsections; for example:
+
+\begin{lstlisting}
+# comment1
+section1: value1
+section2:
+    subsection1: value2 # comment2
+    subsection2:
+        subsubsection1: value3
+\end{lstlisting}
+
+
+Some of the values may be text or numbers, others, however, may be
+lists or a list of lists. A list is written as a comma-separated values
+between two square brackets:
+
+\begin{lstlisting}
+section: [item1, item2, item3]
+\end{lstlisting}
+
+
+And for a list of lists:
+
+\begin{lstlisting}
+section: [[lst1_item1, lst1_item2], [lst2_item1, lst2_item2]]
+\end{lstlisting}
+
+
+A full example of a configuration file, showing all options, is shown
+in Listing \ref{lst:full_conf_file}.
+
+
+\section{\label{sub:Version}Version}
+
+At the moment, there is only one format for the configuration file;
+however, in the future, it is possible that an improved format is
+introduced that is not compatible with the current one. For this reason
+the version of the format has to be included, the only value allowed
+is 1:
+
+\begin{lstlisting}
+version: 1
+\end{lstlisting}
+
+
+
+\section{Lattice\label{sub:Lattice}}
+
+This section defines the name of the lattice, the unit cell parameters,
+the concentration of sensitizer and activator ions, and optionally,
+a maximum distance of interaction.
+
+This section starts with
+\begin{lstlisting}
+lattice:
+    # values and subsections...
+\end{lstlisting}
+
+
+Those values and subsections are described now.
+\begin{description}
+\item [{The~name}] is an arbitrary text that describes the lattice. It
+will be used as a folder name under latticeData (Section \ref{sub:The-latticeData-folder}),
+expData (Section \ref{sub:The-expData-folder}), and results (Section
+\ref{sec:The-results-folder}). Therefore it should only contain letters,
+numbers, and underscore (\_) characters (no spaces).
+\item [{The~number~of~unit~cells}] is an integer greater than zero.
+It specifies how many unit cells along the three directions a lattice
+will consist on. 
+\item [{The~concentration}] of sensitizer and activator, in percentages
+from 0 to 100\%. An ion with 0\% concentration will not participate
+in the equations and therefore will not make the simulation take longer.
+\begin{lstlisting}
+    S_conc: 0
+    A_conc: 0.3
+\end{lstlisting}
+
+\item [{The~unit~cell~parameters}] consist on the three lattice distances
+and three angles. The distances are given in Angstrom and the angles
+in degrees (between 0 and 360º). 
+\begin{lstlisting}
+    # distances in Angstrom
+    a: 5.9738
+    b: 5.9738
+    c: 3.5297
+    # angles in degree
+    alpha: 90
+    beta: 90
+    gamma: 120
+\end{lstlisting}
+
+\item [{The~spacegroup}] determines the symmetry of the lattice. It can
+be given as the international short symbol (e.g., P-6) or as the International
+Union of Crystallography number (e.g. 174). 
+\item [{The~sites}] positions and occupancies determine the positions
+of the doped ions (in units of the lattice distances, from 0 to 1)
+and their fractional occupancy (between 0 and 1). For a lattice with
+just one site: 
+\begin{lstlisting}
+    sites_pos: [0, 0, 0]
+    sites_occ: 1
+\end{lstlisting}
+For a lattice with two sites, the second of which is half occupied:
+\begin{lstlisting}
+    sites_pos: [[0, 0, 0], [2/3, 1/3, 1/2]]
+    sites_occ: [1, 1/2]
+\end{lstlisting}
+The sites are populated randomly using the desired concentration,
+see Section \ref{sec:Creating-a-lattice}.
+\end{description}
+A full example of the lattice section is
+
+\begin{lstlisting}
+lattice: # all fields here are mandatory
+    name: bNaYF4
+    N_uc: 40
+    S_conc: 0
+    A_conc: 0.3
+    # unit cell
+    # distances in Angstrom
+    a: 5.9738
+    b: 5.9738
+    c: 3.5297
+    # angles in degree
+    alpha: 90
+    beta: 90
+    gamma: 120
+    spacegroup: P-6
+    # info about sites.
+    sites_pos: [[0, 0, 0], [2/3, 1/3, 1/2]]
+    sites_occ: [1, 1/2]
+\end{lstlisting}
+
+
+
+\subsection{Optional values}
+\begin{description}
+\item [{The~maximum~distances}] for the normal and cooperative interactions
+restrict energy transfer to ions closer than the distances. The normal
+maximum distance (\texttt{d\_max}) is not yet implemented; however,
+the cooperative one is, and it's strongly recommended to use it if
+cooperative interactions are present. The cooperative interactions
+grow approximately with the cube of the number of ions, the normal
+interactions grow with the square.\\
+If the values are not present, they are set to infinite.
+\begin{lstlisting}
+lattice:
+    ... all other fields ... 
+    d_max: 100.0
+    d_max_coop: 25.0
+\end{lstlisting}
+
+\end{description}
+
+\section{States\label{sub:States}}
+
+This section determines the number of energy states per ion and their
+labels.
+
+Four subsections are mandatory, two per ion type:
+\begin{description}
+\item [{The~ion~labels}] is any text that describes the sensitizer or
+activator ion. It usually is the ion's chemical symbol.
+\item [{The~ion~states~labels}] is a list of text. Each item in the
+list labels an energy state; the first is the ground state, the rest
+should be in order of increasing energy. Usually the term symbols
+of the Dieke diagram are used.
+\end{description}
+\begin{lstlisting}
+states:
+    sensitizer_ion_label: Yb
+    sensitizer_states_labels: [GS, ES]
+    activator_ion_label: Tm
+    activator_states_labels: [3H6, 3F4, 3H5, 3H4, 3F3, 1G4, 1D2]
+\end{lstlisting}
+
+
+The ion and state labels will be used to define excitation (Section
+\ref{sub:Excitation}), decay (Section \ref{sub:Decay}), branching
+ratios (Section \ref{sub:Branching-ratios}), and energy transfer
+processes (Section \ref{sub:Energy-Transfer}).
+
+
+\section{Excitation\label{sub:Excitation}}
+
+At the beginning of the simulation, all ions are in their ground state.
+An excitation source is necessary to pump them to an excited state.
+This source can be pulsed for dynamics or continuous for steady state
+simulations.
+
+Any number of excitation subsections can be added to the file, and
+at least one has to be active (see below). A two-color experiment
+can be simulated by activating two excitations. Any number of excitations
+can be active.
+
+An excitation block contains several mandatory subsections:
+\begin{description}
+\item [{The~label}] is a short unique text. It identifies the excitation
+and it is used in the naming of experimental data files (see Section
+\ref{sub:The-expData-folder}), so short, informative names are encouraged. 
+\item [{active}] can be true or false and indicates whether the excitation
+will be used for the simulations. 
+\item [{The~excitation~power~density}] in $\unit{W\,cm^{-2}}$. For
+pulsed sources this has to be the instantaneous power density of the
+pulse. Usual values are in the order of $\unit[10^{5}\text{\ensuremath{-}}10^{7}]{W\,cm^{-2}}$
+for pulsed excitations and $\unit[10^{1}\text{\ensuremath{-}}10^{3}]{W\,cm^{-2}}$
+for continuous excitations. 
+\item [{The~pulse~width}] of the excitation source (in seconds) for pulsed
+excitations. For continuous excitations it can be omitted. 
+\item [{The~process}] is the actual absorption transition. The format
+is \texttt{ion\_label(state\_label\_i) -> ion\_label(state\_label\_f)}.
+Where the ion and state labels were defined in Section \ref{sub:States}.
+Both ion labels have to be present and equal; both state labels have
+to belong to the same ion type. 
+\item [{The~degeneracy}] is the relative degeneracy of the initial and
+final states. The relative degeneracy of two trivalent lanthanide
+states with terms $^{2S_{i}+1}L_{iJ_{i}}$ and $^{2S_{f}+1}L_{fJ_{f}}$
+is $g_{rel}=\frac{2J_{i}+1}{2J_{f}+1}$. 
+\item [{The~pump~rate}] is the absorption cross-section divided by the
+transition energy in units of $\unit{cm^{2}\,J^{-1}}$, that is $R_{P}=\frac{\sigma(\nu)}{h\nu}$.
+The pump rate multiplied by the power density is equal to the absorption
+probability, with units of $\unit{s^{-1}}$. 
+\end{description}
+An example with two excitation blocks:
+
+\begin{lstlisting}
+excitations:
+    pulsed_1G4:
+        active: True
+        power_dens: 1e6
+        t_pulse: 1e-8
+        process: Tm(3H6) -> Tm(1G4)
+        degeneracy: 13/9
+        pump_rate: 9.3e-4
+    CW_980nm:
+        active: False
+        power_dens: 1e2
+        process: Yb(GS) -> Yb(ES)
+        degeneracy: 4/3
+        pump_rate: 4.4e-3
+\end{lstlisting}
+
+
+
+\subsection{Excited state absorption}
+
+Excited state absorption (ESA) can be simulated by giving a list of
+transitions, degeneracies and pump rates in the corresponding fields,
+for example:
+
+\begin{lstlisting}
+excitations:
+    NIR_800:
+        active: False
+        power_dens: 1e5
+        t_pulse: 1e-8
+        process: [Tm(3H6)->Tm(3H4), Tm(3H5)->Tm(1G4)] # list
+        degeneracy: [13/9, 11/9] # list
+        pump_rate: [4.4e-3, 4e-3] # list
+\end{lstlisting}
+
+
+
+\section{\label{sub:Decay}Decay}
+
+This section contains the decay lifetimes in seconds. There are two
+sections, one for the sensitizer and one for the activator. In both
+cases the decay lifetimes are input with \texttt{state\_label: lifetime}:
+
+\begin{lstlisting}
+sensitizer_decay:
+    ES: 2.5e-3
+activator_decay:
+    3F4: 12e-3
+    3H5: 25e-6
+    3H4: 2e-3
+    3F3: 2e-6
+    1G4: 760e-6
+    1D2: 67.5e-6
+\end{lstlisting}
+
+
+
+\section{\label{sub:Branching-ratios}Branching ratios}
+
+These are two optional sections, one for the sensitizer and one for
+the activator.
+
+The branching ratios describe the fraction of emission from an initial
+state to a final state. The format is \texttt{initial\_state -> final\_state: ratio.}
+The ratio is a number between zero and one. The branching ratio to
+the ground state does not need to be specified because it is calculated
+automatically from the other values.
+
+\begin{lstlisting}
+sensitizer_branching_ratios: # can be empty or simply omitted
+activator_branching_ratios:
+    3H5->3F4: 0.4
+    3H4->3F4: 0.3
+    3H4->3H5: 0.1
+    3F3->3H4: 0.999
+    1G4->3F4: 0.15
+    1G4->3H5: 0.16
+    1G4->3H4: 0.04
+    1G4->3F3: 0.001
+    1D2->3F4: 0.43
+\end{lstlisting}
+
+
+
+\section{\label{sub:Energy-Transfer}Energy transfer}
+
+This optional section includes one or more energy transfer processes
+between ions in the simulation. Each energy transfer block refers
+to one process and contains several fields:
+\begin{description}
+\item [{The~label}] is a short unique text. It can also be used to restrict
+the optimization to certain processes (Section \ref{sub:Optimization-Processes}). 
+\item [{The~process}] describes the ET interaction with the format \texttt{ion\_label1(init\_state)
++ ion\_label2(init\_state) -> ion\_label1(end\_state) + ion\_label2(end\_state)}.
+Where the ion and state labels were defined in Section \ref{sub:States}.
+\item [{The~multipolarity}] of the interaction is an integer number, usually
+6, 8 or 10.
+\item [{The~strength}] of the interaction given in units of $\unit{s^{-1}\,\AA^{n}}$,
+where $n$ is the multipolarity. Optionally, an interaction strength
+for the average rate equation system can be given; this value is several
+orders of magnitude lower than the microscopic value. If it is not
+given and the average rate equations are solved, the normal strength
+will be used.
+\end{description}
+For example:
+
+\begin{lstlisting}
+enery_transfer:
+    CR50:
+        process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
+        multipolarity: 6
+        strength: 4.3057e+09
+        strength_avg: 8e+03 # optional, only for average system
+    EM:
+        process:  Yb(ES) + Yb(GS) -> Yb(GS) + Yb(ES)
+        multipolarity: 6
+        strength: 4.50220614e+10
+\end{lstlisting}
+
+
+
+\section{\label{sub:Optimization-Processes}Optimization processes}
+
+An optional list of energy transfer labels. When optimizing the energy
+transfer parameters to the experimental data (see Section \ref{sec:Optimizing-the-ET-params}),
+by default all parameters will be used. This section restricts the
+optimization parameters to those in the list, for example
+
+\begin{lstlisting}
+optimization_processes: [CR50]
+\end{lstlisting}
+
+
+will optimize only the parameter \texttt{CR50}, and not any other.
+
+
+\section{\label{sub:Optimization-Method}Optimization method}
+
+This optional section defines the method used to optimize the energy
+transfer parameters to the experimental data. Several options are
+available:
+\begin{itemize}
+\item SLSQP
+\item COBYLA
+\item L-BFGS-B
+\item basin\_hopping
+\item brute\_force
+\end{itemize}
+See the \emph{Notes} section in the \href{https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/scipy.optimize.minimize.html}{scipy minimize documentation}.
+SLSQP (the default) or brute\_force are recommended, as they seem
+to take the least time to arrive at the minimum.
+
+
+\section{\label{sub:Power-Dependence}Power dependence}
+
+This section is mandatory only if a power dependence simulation is
+performed. The starting and ending power density values and the number
+of steps need to be given
+
+\begin{lstlisting}
+power_dependence: [1e0, 1e7, 8]
+\end{lstlisting}
+
+
+Note that it uses a logarithmic scale, so the above configuration
+will produce the power dependence at the following excitation power
+densities: $10^{0}$, $10^{1}$, $10^{2}$, $10^{3}$, $10^{4}$,
+$10^{5}$, $10^{6}$, and $\unit[10^{7}]{W\,cm^{-2}}$. See also Section
+\ref{sec:Simulating-the-power-dep}.
+
+
+\section{\label{sub:Concentration-Dependence}Concentration dependence}
+
+This section is mandatory only if a concentration dependence simulation
+is performed. It consists on a list of two lists; the first list gives
+the sensitizer concentrations at which the simulation will take place,
+the second gives the same for the activators.
+
+\begin{lstlisting}
+concentration_dependence: [[0, 0.5], [0.1, 0.2, 0.3, 0.4, 0.5]]
+\end{lstlisting}
+
+
+Note that everything else will remain constant; therefore, if the
+number of unit cells is not high enough, at lower concentrations the
+quality of the simulation may be low. See also Section \ref{sec:Simulating-the-concentration-dep}.
+
+
+\section{Checking the configuration file}
+
+To check that a configuration file is correct, execute:
+
+\begin{lstlisting}
+simetuc config_file.cfg
+\end{lstlisting}
+
+
+If no warnings or errors are displayed, the file is correct. Nonetheless,
+it is still possible that some optional values are missing but needed
+for a particular simulation type or have wrong values (e.g., negative
+distances or concentrations above 100\%). In that case, this check
+will not warn the user, and only trying to perform the actual simulation
+will show if something is missing. In any case, the program never
+fails silently, that is, it always warns the user if there was a problem
+and how to fix it.
+
+An example of a configuration file check that succeeded is shown in
+Figure \ref{fig:Example-conf_file_correct}. An example of a check
+failure is shown in Figure \ref{fig:Example-conf_file_wrong}; in
+this case, the name or the lattice has been omitted from the file.
+
+\begin{figure}
+\begin{centering}
+\includegraphics[width=1\columnwidth]{figures/correct_config_file.PNG}
+\par\end{centering}
+
+\caption{\label{fig:Example-conf_file_correct}Example of a correct configuration
+file check with and without the verbose option.}
+\end{figure}
+
+
+\begin{figure}
+\begin{centering}
+\includegraphics[width=1\columnwidth]{figures/config_file_wrong_lattice.PNG}
+\par\end{centering}
+
+\caption{\label{fig:Example-conf_file_wrong}Example of a wrong configuration
+file check. The two upper lines show the user-friendly error message;
+they can also be found in the error log (see Section \ref{sub:Error-logs}).}
+\end{figure}
+
+
+
+\chapter{The logs and results folders}
+
+\emph{simetuc} creates several subfolders during its usage; these
+subfolders are located under the current working directory (the directory
+from which \emph{simetuc} is being used). Additionally, the experimental
+data must be saved in a folder with a specific format, see Section
+\ref{sub:The-expData-folder}.
+
+
+\section{The log folder}
+
+Any operation of \emph{simetuc} writes its status and current tasks
+on several log files, so the user can analyze what operations were
+performed, when, and whether they succeeded. The log files are stored
+in a subfolder called \texttt{logs}, which is created if it doesn't
+exist.
+
+
+\subsection{Normal log}
+
+This is the primary log. Here all parts of the program register their
+operations. For example, any operation begins with:
+
+\begin{lstlisting}
+2017-01-10 19:13:51,227 - simetuc       : INFO     Starting program...
+\end{lstlisting}
+
+
+The log format is the following:
+
+\begin{lstlisting}
+YYYY-MM-DD HH:MM:SS,mmm - simetuc[.part]   : LEVEL    message
+\end{lstlisting}
+
+
+The main program emits messages under the name \emph{simetuc}, other
+parts of the program have names such as \emph{simetuc.lattice} or
+\emph{simetuc.simulations}. The log level can be DEBUG, INFO, WARNING,
+or ERROR.
+
+
+\subsection{\label{sub:Error-logs}Error log}
+
+Whenever an operation was requested, but couldn't be completed due
+to an user error or an internal bug, the errors are written to an
+error log. This is log remains empty if all operations succeeded.
+
+
+\subsection{Debug log}
+
+This log registers a lot of low level information that is usually
+not important, but can be relevant in the case of errors.
+
+
+\section{The results folder\label{sec:The-results-folder}}
+
+All simulations produce some results that are stored in the subfolder
+results with the hdf5 format.
+
+
+\section{Other folders}
+
+The lattice folder, Section \ref{sub:The-latticeData-folder}.
+
+The experimental data folder, see Section \ref{sub:The-expData-folder}.
+
+
+\chapter{Simulations}
+
+
+\section{Creating a lattice\label{sec:Creating-a-lattice}}
+
+
+\subsection{The latticeData folder\label{sub:The-latticeData-folder}}
+
+
+\section{Simulating the dynamics\label{sec:Simulating-the-dynamics}}
+
+
+\section{Adding experimental data}
+
+
+\subsection{The expData folder\label{sub:The-expData-folder}}
+
+
+\section{Optimizing the ET parameters\label{sec:Optimizing-the-ET-params}}
+
+
+\section{Simulating the steady state\label{sec:Simulating-the-steady-state}}
+
+
+\section{Simulating the power dependence of the steady state\label{sec:Simulating-the-power-dep}}
+
+
+\section{Simulating the concentration dependence of the the steady state or
+of the dynamics\label{sec:Simulating-the-concentration-dep}}
+
+
+\section{Microscopic or average rate equations}
+
+
+\chapter{Publications}
+
+This software has been described and used in these publications:
+\begin{itemize}
+\item Villanueva-Delgado, P.; Krämer, K. W. \& Valiente, R. Simulating Energy
+Transfer and Upconversion in \textgreek{b}-NaYF\textsubscript{4}:
+Yb\textsuperscript{3+}, Tm\textsuperscript{3+}, \emph{J. Phys. Chem.
+C}, \textbf{2015}, \emph{119} (41), pp 23648\textendash 23657. \href{http://pubs.acs.org/doi/10.1021/acs.jpcc.5b06770}{DOI: 10.1021/acs.jpcc.5b06770}.
+\item Villanueva-Delgado, P.; Krämer, K. W.; Valiente, R.; de Jong, M. \&
+Meijerink, A. Modeling Blue to UV Upconversion in \textgreek{b}-NaYF\textsubscript{4}:
+Tm\textsuperscript{3+}, \emph{Phys. Chem. Chem. Phys.}, \textbf{2016},
+\emph{18}, pp 27396-27404, \href{http://pubs.rsc.org/en/Content/ArticleLanding/2016/CP/C6CP04347J\#!divAbstract}{DOI: 10.1039/C6CP04347J}.
+\end{itemize}
+If you use this software in a scientific publication, please cite
+the appropriate articles above.
+
+
+\chapter{Acknowledgments}
+
+The financial support of the EU FP7 ITN LUMINET (Grant agreement No.
+316906) is gratefully acknowledged.
+
+This work was started at the University of Cantabria under Prof. Rafael
+Valiente and continued at the University of Bern under PD Dr. Karl
+Krämer.
+
+
+\chapter{License}
+
+Copyright Pedro Villanueva Delgado, 2016-2017.
+
+Distributed under the terms of the MIT license, \emph{simetuc} is
+free and open source software.
+
+\bigskip{}
+
+
+MIT License
+
+\rule[0.5ex]{1\columnwidth}{0.5pt}
+
+\noindent Copyright (c) 2016-2017 Pedro Villanueva Delgado
+
+\noindent \medskip{}
+
+
+\noindent Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation files
+(the \textquotedbl{}Software\textquotedbl{}), to deal in the Software
+without restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software
+is furnished to do so, subject to the following conditions:
+
+\noindent The above copyright notice and this permission notice shall
+be included in all copies or substantial portions of the Software.
+
+\noindent \medskip{}
+
+
+\noindent THE SOFTWARE IS PROVIDED \textquotedbl{}AS IS\textquotedbl{},
+WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE. 
+
+
+\part{Appendix}
+
+
+\chapter{Example configuration file}
+
+\lstinputlisting[numbers=left,numberstyle={\footnotesize},stepnumber=5,firstnumber=1,numberfirstline=true,breaklines=true,xrightmargin={0cm},xleftmargin={0cm},linewidth=400pt,caption={Exampe configuration file},label={lst:full_conf_file}]{E:/Users/Villanueva/Simulaciones/python/simetuc/simetuc/config_file.cfg}
+\end{document}

@@ -44,22 +44,22 @@ If you installed it with pip, update with:
 * Command line interface program.
     * Run with: `simetuc config_file.txt [options]`
     * See all options below and with: `simetuc -h`
-* The simulations are controlled by a configuration text file that the user can edit with the parameters adecuate to its system of study. It includes:
+* The simulations are controlled by a configuration text file that the user can edit with the parameters adequate to its system of study. It includes:
     * Information about the host lattice.
     * Energy states labels.
     * Absorption and excitation (including ESA).
     * Decay (including branching ratios).
     * Energy transfer.
-    * Other setings for the power and concentration dependence or optimization.
+    * Other settings for the power and concentration dependence or optimization.
 * <i>simetuc</i> works with any sensitizer and activator ion kind.
     * The examples are given for the Yb-Tm system.
-* All kinds of energy tranfer processes are supported:
+* All kinds of energy transfer processes are supported:
     * Energy migration.
     * Upconversion (ETU).
     * Downconversion.
     * Cross-relaxation.
     * Cooperative processes.
-    * Energy tranfer from sensitizers to activators
+    * Energy transfer from sensitizers to activators.
     * Back transfer from activators to sensitizers.
 * See the example [configuration file](simetuc/config_file.cfg) in the simetuc folder.
 * Add decay experimental data as two column text data, separated by tabs or spaces.
@@ -71,7 +71,7 @@ If you installed it with pip, update with:
     * Simulate the steady state.
     * Simulate the power dependence of each emission.
     * Simulate the concentration dependence of the dynamics or the steady state.
-* All results are plotted and saved in .hdf5 format.
+* All results are plotted and saved in the .hdf5 format.
 * For all options `--average` uses standard average rate equations instead of microscopic ones.
 
 ## Documentation
@@ -96,7 +96,7 @@ This software has been described and used in these publications:
  - Villanueva-Delgado, P.; Krämer, K. W. & Valiente, R. [Simulating Energy Transfer and Upconversion in β-NaYF<sub>4</sub>: Yb<sup>3+</sup>, Tm<sup>3+</sup>](http://pubs.acs.org/doi/10.1021/acs.jpcc.5b06770)
  - Villanueva-Delgado, P.; Krämer, K. W.; Valiente, R.; de Jong, M. & Meijerink, A. [Modeling Blue to UV Upconversion in β-NaYF<sub>4</sub>: Tm<sup>3+</sup>](http://pubs.rsc.org/en/Content/ArticleLanding/2016/CP/C6CP04347J#!divAbstract)
 
-If you use this sofware in a scientific publication, please cite the appropiate articles above.
+If you use this software in a scientific publication, please cite the appropriate articles above.
 
 ## Acknowledgments
 
@@ -106,7 +106,7 @@ This work was started at the University of Cantabria under Prof. Rafael Valiente
 
 ## License
 
-Copyright Pedro Villanueva Delgado, 2016.
+Copyright Pedro Villanueva Delgado, 2016-2017.
 
 Distributed under the terms of the [MIT](LICENSE.txt) license, simetuc is free and open source software.
 

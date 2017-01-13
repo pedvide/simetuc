@@ -139,16 +139,16 @@ def _check_values(needed_values_lst: List[str], present_values_dict: Dict,
         else:
             logger.error('Sections that are needed but not present in the file:')
         logger.error(str(set(set_needed_not_present)))
-        raise ConfigError('The sections or values \
-                          {} must be present.'.format(set_needed_not_present))
+        raise ConfigError('The sections or values ' +
+                          '{} must be present.'.format(set_needed_not_present))
 
     set_extra = present_values - needed_values
     # if there are extra values and they aren't optional
     if len(set_extra) > 0 and not set_extra.issubset(optional_values):
         set_not_optional = set_extra - optional_values
         if section is not None:
-            logger.warning('''WARNING! The following values in section "%s"
-                              are not recognized:''', section)
+            logger.warning('WARNING! The following values in section "%s" ' +
+                           'are not recognized:', section)
         else:
             logger.warning('These sections should not be present in the file:')
         logger.warning(str(set_not_optional))
@@ -350,10 +350,15 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
         d_max_coop = np.inf
     parsed_dict['d_max_coop'] = d_max_coop
 
+    # lattice constant should have reasonable values
+    if not 0 <= a_param or not 0 <= b_param or not 0 <= c_param:
+        msg = 'The lattice constants must be greater than zero.'
+        logger.error(msg)
+        raise ValueError(msg)
 
     # angles should have reasonable values
-    if alpha_param > 360 or beta_param > 360 or gamma_param > 360:
-        msg = 'The angles must be below 360°.'
+    if not 0 <= alpha_param <= 360 or not 0 <= beta_param <= 360 or not 0 <= gamma_param <= 360:
+        msg = 'The angles must be between 0° and 360°.'
         logger.error(msg)
         raise ValueError(msg)
 
@@ -950,6 +955,6 @@ def load(filename: str) -> Dict:
     return cte
 
 
-#if __name__ == "__main__":
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
+if __name__ == "__main__":
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')

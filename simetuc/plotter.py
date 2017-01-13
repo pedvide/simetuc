@@ -224,7 +224,7 @@ def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray
 
 def plot_lattice(doped_lattice: np.array, ion_type: np.array) -> None:
     '''Plot a lattice of x,y,z points with the color
-        depending on the corresponding vcalue of ion_type
+        depending on the corresponding value of ion_type
     '''
     from mpl_toolkits.mplot3d import proj3d
 
@@ -243,12 +243,20 @@ def plot_lattice(doped_lattice: np.array, ion_type: np.array) -> None:
     proj3d.persp_transformation = orthogonal_proj
     fig = plt.figure()
     axis = fig.add_subplot(111, projection='3d')
-    # axis=Axes3D(fig)
-    colors = ['b' if ion else 'r' for ion in ion_type]
 
-    axis.scatter(doped_lattice[:, 0], doped_lattice[:, 1],
-                 doped_lattice[:, 2], c=colors, marker='o')
+    S_ion = 0
+    A_ion = 1
+    # plot first S then A ions
+    if np.any(ion_type == S_ion):
+        axis.scatter(doped_lattice[ion_type==S_ion, 0], doped_lattice[ion_type==S_ion, 1],
+                     doped_lattice[ion_type==S_ion, 2], c='r', marker='o', label='S')
+    if np.any(ion_type == A_ion):
+        axis.scatter(doped_lattice[ion_type==A_ion, 0], doped_lattice[ion_type==A_ion, 1],
+                     doped_lattice[ion_type==A_ion, 2], c='B', marker='o', label='A')
+
     axis.set_xlabel('X (Å)')
     axis.set_ylabel('Y (Å)')
     axis.set_zlabel('Z (Å)')
     plt.axis('square')
+
+    plt.legend(loc='best', scatterpoints=1)

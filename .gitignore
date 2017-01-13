@@ -156,3 +156,4 @@ $RECYCLE.BIN/
 *.lnk
 *.lyx~
 pylint_res.txt
+*.lyx#

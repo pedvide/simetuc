@@ -58,7 +58,7 @@ Features
    -  See all options below and with: ``simetuc -h``
 
 -  The simulations are controlled by a configuration text file that the
-   user can edit with the parameters adecuate to its system of study. It
+   user can edit with the parameters adequate to its system of study. It
    includes:
 
    -  Information about the host lattice.
@@ -66,21 +66,21 @@ Features
    -  Absorption and excitation (including ESA).
    -  Decay (including branching ratios).
    -  Energy transfer.
-   -  Other setings for the power and concentration dependence or
+   -  Other settings for the power and concentration dependence or
       optimization.
 
 -  simetuc works with any sensitizer and activator ion kind.
 
    -  The examples are given for the Yb-Tm system.
 
--  All kinds of energy tranfer processes are supported:
+-  All kinds of energy transfer processes are supported:
 
    -  Energy migration.
    -  Upconversion (ETU).
    -  Downconversion.
    -  Cross-relaxation.
    -  Cooperative processes.
-   -  Energy tranfer from sensitizers to activators
+   -  Energy transfer from sensitizers to activators.
    -  Back transfer from activators to sensitizers.
 
 -  See the example `configuration file <https://github.com/pedvide/simetuc/blob/master/simetuc/config_file.cfg>`__ in
@@ -100,7 +100,7 @@ Features
    -  Simulate the concentration dependence of the dynamics or the
       steady state.
 
--  All results are plotted and saved in .hdf5 format.
+-  All results are plotted and saved in the .hdf5 format.
 -  For all options ``--average`` uses standard average rate equations
    instead of microscopic ones.
 
@@ -138,8 +138,8 @@ This software has been described and used in these publications:
    Meijerink, A. `Modeling Blue to UV Upconversion in β-NaYF4:
    Tm3+ <http://pubs.rsc.org/en/Content/ArticleLanding/2016/CP/C6CP04347J#!divAbstract>`__
 
-If you use this sofware in a scientific publication, please cite the
-appropiate articles above.
+If you use this software in a scientific publication, please cite the
+appropriate articles above.
 
 Acknowledgments
 ---------------
@@ -154,7 +154,7 @@ Krämer.
 License
 -------
 
-Copyright Pedro Villanueva Delgado, 2016.
+Copyright Pedro Villanueva Delgado, 2016-2017.
 
 Distributed under the terms of the `MIT <https://github.com/pedvide/simetuc/blob/master/LICENSE.txt>`__ license,
 simetuc is free and open source software.

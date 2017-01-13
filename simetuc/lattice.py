@@ -93,6 +93,9 @@ def _calculate_distances(atoms: ase.Atoms, min_im_conv: bool = True) -> np.array
     '''
     # calculate distances between the points in A
     # D = atoms.get_all_distances(mic=True, simple=True) # eats up ALL the ram N=30 MAX
+
+    # TODO: parallelize
+
     num_atoms = len(atoms)
     dist_array = np.zeros((num_atoms, num_atoms), dtype=np.float64)
     for i in tqdm(range(num_atoms), unit='atoms', total=num_atoms, desc='Calculating distances'):
@@ -410,7 +413,7 @@ def generate(cte: Dict, min_im_conv: bool = True,
 #
 #    cte['lattice']['S_conc'] = 2
 #    cte['lattice']['A_conc'] = 1
-#    cte['lattice']['N_uc'] = 30
+#    cte['lattice']['N_uc'] = 20
 ##    cte['states']['sensitizer_states'] = 0
 ##    cte['states']['activator_states'] = 4
 #
