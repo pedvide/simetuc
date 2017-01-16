@@ -34,6 +34,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% User specified LaTeX commands.
 \usepackage[dvipsnames]{xcolor}
 
+\@ifundefined{showcaptionsetup}{}{%
+ \PassOptionsToPackage{caption=false}{subfig}}
+\usepackage{subfig}
 \makeatother
 
 \usepackage{listings}
@@ -155,6 +158,26 @@ pip install simetuc
 
 That will download and install all necessary files.
 
+Check that the program was installed correctly with
+
+\begin{lstlisting}
+simetuc -h
+\end{lstlisting}
+
+
+which should display something similar to Figure \ref{fig:simetuc-h}.
+
+\begin{figure}
+\begin{centering}
+\includegraphics[width=1\textwidth]{figures/simetuc_help.PNG}
+\par\end{centering}
+
+\caption{\label{fig:simetuc-h}Results of \texttt{simetuc -h}.}
+
+
+\end{figure}
+
+
 
 \section{Update}
 
@@ -175,10 +198,11 @@ pip install -U simetuc
 
 \chapter{The configuration file}
 
-Some sections of the configuration file are mandatory (Sections \ref{sub:Version}-\ref{sub:Decay}),
-some are optional (Sections \ref{sub:Branching-ratios}-\ref{sub:Optimization-Method}),
-and some are only mandatory when performing a particular simulation
-type (Sections \ref{sub:Power-Dependence} and \ref{sub:Concentration-Dependence}).
+Some sections of the configuration file are mandatory (the starred
+Sections \ref{sub:Version}-\ref{sub:Decay}), some are optional (Sections
+\ref{sub:Branching-ratios}-\ref{sub:Optimization-Method}), and some
+are only mandatory when performing a particular simulation type (Sections
+\ref{sub:Power-Dependence} and \ref{sub:Concentration-Dependence}).
 
 Comments can be placed anywhere in the file starting with a hash symbol
 (\#).
@@ -218,7 +242,7 @@ A full example of a configuration file, showing all options, is shown
 in Listing \ref{lst:full_conf_file}.
 
 
-\section{\label{sub:Version}Version}
+\section{\label{sub:Version}Version{*}}
 
 At the moment, there is only one format for the configuration file;
 however, in the future, it is possible that an improved format is
@@ -232,7 +256,7 @@ version: 1
 
 
 
-\section{Lattice\label{sub:Lattice}}
+\section{Lattice{*}\label{sub:Lattice}}
 
 This section defines the name of the lattice, the unit cell parameters,
 the concentration of sensitizer and activator ions, and optionally,
@@ -254,7 +278,7 @@ expData (Section \ref{sub:The-expData-folder}), and results (Section
 numbers, and underscore (\_) characters (no spaces).
 \item [{The~number~of~unit~cells}] is an integer greater than zero.
 It specifies how many unit cells along the three directions a lattice
-will consist on. 
+will consist of. 
 \item [{The~concentration}] of sensitizer and activator, in percentages
 from 0 to 100\%. An ion with 0\% concentration will not participate
 in the equations and therefore will not make the simulation take longer.
@@ -263,7 +287,7 @@ in the equations and therefore will not make the simulation take longer.
     A_conc: 0.3
 \end{lstlisting}
 
-\item [{The~unit~cell~parameters}] consist on the three lattice distances
+\item [{The~unit~cell~parameters}] consist of the three lattice distances
 and three angles. The distances are given in Angstrom and the angles
 in degrees (between 0 and 360º). 
 \begin{lstlisting}
@@ -340,7 +364,7 @@ lattice:
 
 \end{description}
 
-\section{States\label{sub:States}}
+\section{States{*}\label{sub:States}}
 
 This section determines the number of energy states per ion and their
 labels.
@@ -369,7 +393,7 @@ ratios (Section \ref{sub:Branching-ratios}), and energy transfer
 processes (Section \ref{sub:Energy-Transfer}).
 
 
-\section{Excitation\label{sub:Excitation}}
+\section{Excitation{*}\label{sub:Excitation}}
 
 At the beginning of the simulation, all ions are in their ground state.
 An excitation source is necessary to pump them to an excited state.
@@ -449,7 +473,7 @@ excitations:
 
 
 
-\section{\label{sub:Decay}Decay}
+\section{\label{sub:Decay}Decay{*}}
 
 This section contains the decay lifetimes in seconds. There are two
 sections, one for the sensitizer and one for the activator. In both
@@ -586,7 +610,7 @@ $10^{5}$, $10^{6}$, and $\unit[10^{7}]{W\,cm^{-2}}$. See also Section
 \section{\label{sub:Concentration-Dependence}Concentration dependence}
 
 This section is mandatory only if a concentration dependence simulation
-is performed. It consists on a list of two lists; the first list gives
+is performed. It consists of a list of two lists; the first list gives
 the sensitizer concentrations at which the simulation will take place,
 the second gives the same for the activators.
 
@@ -712,41 +736,429 @@ The lattice folder, Section \ref{sub:The-latticeData-folder}.
 The experimental data folder, see Section \ref{sub:The-expData-folder}.
 
 
+\section{The HDF5 format\label{sec:The-HDF5-format}}
+
+This is a open binary format that can be open with many scientific
+software such as Matlab or Origin. A lightweight viewer is \href{https://support.hdfgroup.org/projects/compass/}{HDFCompass}.
+
+
 \chapter{Simulations}
 
 
 \section{Creating a lattice\label{sec:Creating-a-lattice}}
 
+This is the first step in any simulation. The lattice and states section
+of the configuration file determine the position of the doped ions
+and the number of energy states.
+
+The option for creating lattice is \texttt{-l}:
+
+\begin{lstlisting}
+simetuc config_file.txt -l
+\end{lstlisting}
+
+
+When given with the \texttt{-v} option to show the progress information,
+the results look like Figure \ref{fig:Lattice-creation}.
+
+\begin{figure}
+\begin{centering}
+\subfloat[]{\begin{centering}
+\includegraphics[width=1\textwidth]{figures/lattice_cmd.PNG}
+\par\end{centering}
+
+}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[]{\begin{centering}
+\includegraphics[width=0.8\columnwidth]{figures/lattice_plot.PNG}
+\par\end{centering}
+
+}\caption{\label{fig:Lattice-creation}Lattice creation. (a) shows the result
+of invoking the command \texttt{simetuc config\_file.txt -v -l}. (b)
+shows the positions of the doped ions, the sensitizers as red dots
+and the activators as blue dots.}
+
+\par\end{centering}
+
+\end{figure}
+
+
 
 \subsection{The latticeData folder\label{sub:The-latticeData-folder}}
+
+All created lattices are stored in a folder with the name of the lattice
+under the latticeData subfolder; the name of the lattice is given
+by the user in the configuration file, see Section \ref{sub:Lattice}.
+These saved files are used in subsequent simulations. The name format
+under which they are saved is
+
+\begin{lstlisting}
+data_XXuc_y.yS_z.zA.hdf5
+\end{lstlisting}
+
+
+where $XX$ is the number of unit cells, $y.y$ is the concentration
+of sensitizers and $z.z$ that of activators (both in percentage).
+
+The file format is HDF5, see Section \ref{sec:The-HDF5-format}.
 
 
 \section{Simulating the dynamics\label{sec:Simulating-the-dynamics}}
 
+The simulation of the dynamics of a sample consists of two parts,
+the excitation pulse and the subsequent relaxation. The dynamics simulation
+includes the excitation, decay, branching ratios, and energy transfer
+sections of the configuration file. The output is a plot of the average
+decay curve of each state of the sensitizer and activator. The results
+are saved to a file, see Section \ref{sec:The-results-folder}.
+
+The option for simulating the dynamics is \texttt{-d}:
+
+\begin{lstlisting}
+simetuc config_file.txt -d
+\end{lstlisting}
+
+
+When given with the \texttt{-v} option to show the progress information,
+the results look like Figure \ref{fig:Dynamics-simulation}.
+
+\begin{figure}
+\begin{centering}
+\subfloat[]{\begin{centering}
+\includegraphics[width=1\textwidth]{figures/dynamics_cmd.PNG}
+\par\end{centering}
+
+}
+\par\end{centering}
+
+\centering{}\subfloat[]{\begin{centering}
+\includegraphics[width=0.8\columnwidth]{figures/dynamics_plot.PNG}
+\par\end{centering}
+
+}\caption{\label{fig:Dynamics-simulation}Dynamics simulation. (a) shows the
+result of invoking the command \texttt{simetuc config\_file.txt -v
+-d}. (b) shows a plot with the decay curves of all states of the sensitizer
+and activator.}
+\end{figure}
+
+
 
 \section{Adding experimental data}
+
+The comparison of the experimental to the simulated data is important
+if to ensure that the energy transfer processes and their strengths
+truly represent an accurate picture of the sample's behavior.
+
+Decay experimental data is automatically loaded from the expData folder
+(see next section), normalized and compared to the simulated decay
+curve of the appropriate states. The deviation between the experimental
+data and simulation is calculated for each level, and then all state
+errors are added together to yield the total error.
 
 
 \subsection{The expData folder\label{sub:The-expData-folder}}
 
+This folder should contain a subfolders with the name of the lattice.
+Inside that subfolder several text files can be stored, each corresponding
+to an ion's state decay for a given concentration of sensitizers and
+activators. The name format is:
+
+\begin{lstlisting}
+decay_ION_STATE_exc_EXCLABEL_x.xION-S_y.yION-A.txt
+\end{lstlisting}
+
+
+where \texttt{ION}, \texttt{STATE}, and \texttt{EXCLABEL} are labels
+defined in the configuration file: \texttt{ION} is an ion label, \texttt{STATE}
+is an state label corresponding to \texttt{ION}, and \texttt{EXCLABEL}
+is an excitation label defined in the excitations section of the configuration
+file, see Section \ref{sub:Excitation}. $x.x$ and $y.y$ are the
+sensitizer (\texttt{ION-S}) and activator (\texttt{ION-A}) concentrations.
+
+As an example, the decay curve of the Tm$^{3+}$ state $^{1}$D$_{2}$
+for the \textgreek{b}-NaYF$_{4}$: 0.3\% Tm$^{3+}$ sample has a name:
+
+\begin{lstlisting}
+decay_Tm_1D2_exc_Vis_473_0.0Yb_0.3Tm.txt
+\end{lstlisting}
+
+
+and is stored in the folder \texttt{expData/bNaYF4}.
+
+The experimental data files must have two columns separated by spaces
+or tabs:
+\begin{enumerate}
+\item The first one with the time in seconds.
+\item The second one with the emission intensity in any units (it will be
+normalized).
+\end{enumerate}
+Lines starting with \texttt{\#} are ignored as comments. For example:
+
+\begin{lstlisting}
+# tau_em360_NYF_03Tm_EKSPLA473 
+# time in seconds
+0			0.405264768901133
+1.99999999999978E-7	0.42944597490052
+3.99999999999956E-7	0.432506887052342
+5.99999999999989E-7	0.43954698500153
+7.99999999999967E-7	0.4640342822161
+1E-6			0.468931741659014
+1.19999999999998E-6	0.498010407101316
+1.39999999999996E-6	0.48852157943067
+1.59999999999999E-6	0.51147842056933
+1.79999999999997E-6	0.513927150290787
+...
+\end{lstlisting}
+
+
+Once the experimental data files are in the right folder and with
+the right names, they will be loaded automatically, like shown in
+Figure \ref{fig:Dynamics-simulation-with-expdata}. The state and
+total errors will be shown in the commandline and recorded in the
+log files.
+
+\begin{figure}
+\begin{centering}
+\includegraphics[width=0.8\textwidth]{figures/dynamics_plot_expData.PNG}
+\par\end{centering}
+
+\caption{\label{fig:Dynamics-simulation-with-expdata}Dynamics simulation with
+experimental data.}
+
+
+\end{figure}
+
+
 
 \section{Optimizing the ET parameters\label{sec:Optimizing-the-ET-params}}
+
+The strength of the interactions is \textit{a priori} unknown, but,
+by fitting the simulations to the experimental data, it is possible
+to obtain realistic interaction strengths.
+
+The option for optimizing the dynamics is \texttt{-o}:
+
+\begin{lstlisting}
+simetuc config_file.txt -o
+\end{lstlisting}
+
+
+When given with the \texttt{-v} option to show the progress information,
+the results look like Figure \ref{fig:Optimization-of-the}. The total
+error has decreased from $0.2202$ to $0.1868$ when the energy transfer
+parameters changed from $\unit[1.3\,10^{9}]{s^{-1}\,\AA^{6}}$ to
+$\unit[2.4\,10^{9}]{s^{-1}\,\AA^{6}}$ for the parameter \texttt{CR50}
+and from $\unit[1.5\,10^{9}]{s^{-1}\,\AA^{6}}$ to $\unit[4.1\,10^{9}]{s^{-1}\,\AA^{6}}$
+for the parameter \texttt{ETU53}.
+
+The optimization procedure does not change the configuration file
+(\emph{simetuc} never does), so the parameter values should be changed
+by the user. It is advisable to re-run a dynamics simulation with
+the new parameters to check that the fit is satisfactory.
+
+\begin{figure}
+\begin{centering}
+\includegraphics[width=1\textwidth]{figures/optimize_cmd.PNG}
+\par\end{centering}
+
+\caption{\label{fig:Optimization-of-the}Optimization of the dynamics with
+the command \texttt{simetuc config\_file.txt -v -o}.}
+
+
+\end{figure}
+
 
 
 \section{Simulating the steady state\label{sec:Simulating-the-steady-state}}
 
+If the excitation source is not pulsed, but it is kept switched on
+continuously, the states will reach a steady state; that is, the states
+will have a population that does not change anymore with time. The
+time it takes for the system to reach the steady state depends on
+the lifetimes and energy transfer processes.
 
-\section{Simulating the power dependence of the steady state\label{sec:Simulating-the-power-dep}}
+The steady state populations are proportional to the emission intensity
+of each state under continuous excitation.
+
+The excitation source activated in the configuration file should have
+a realistic excitation power density; usually pulsed sources have
+much higher instantaneous powers, see Section \ref{sub:Excitation}.
+
+The option for simulating the steady state is \texttt{-s}:
+
+\begin{lstlisting}
+simetuc config_file.txt -s
+\end{lstlisting}
 
 
-\section{Simulating the concentration dependence of the the steady state or
-of the dynamics\label{sec:Simulating-the-concentration-dep}}
+When given with the \texttt{-v} option to show the progress information,
+the results look like Figure \ref{fig:Steady-state-simulation}.
+
+\begin{figure}
+\begin{centering}
+\subfloat[]{\begin{centering}
+\includegraphics[width=1\textwidth]{figures/steady_state_cmd.PNG}
+\par\end{centering}
+
+}
+\par\end{centering}
+
+\centering{}\subfloat[]{\begin{centering}
+\includegraphics[width=0.8\columnwidth]{figures/steady_state_plot.PNG}
+\par\end{centering}
+
+}\caption{\label{fig:Steady-state-simulation}Steady state simulation. (a) shows
+the result of invoking the command \texttt{simetuc config\_file.txt
+-v -s}. (b) shows a plot with the decay curves of all states of the
+sensitizer and activator. All states have reached their steady state.}
+\end{figure}
+
+
+
+\section[Simulating the power dependence]{Simulating the power dependence of the steady state\label{sec:Simulating-the-power-dep}}
+
+A standard upconversion experiment consists in measuring the emission
+intensity (usually the area under the emission peak, but also just
+the maximum) as a function of the excitation power. The power dependence
+of the emission $I$ usually follows a power law: $I=P^{n}$, where
+$P$ is the excitation power and $n$ is the number of photons involved
+in the mechanism; this is an approximation that only works at low
+excitation powers.
+
+This simulations are capable of producing the entire power dependence
+curve so it can be compared to the experimental one. \emph{simetuc}
+simulates the steady state for the excitation powers defined in the
+configuration file and shows the steady state populations in a log-log
+plot. See Section \ref{sub:Power-Dependence} for the configuration
+file options.
+
+The option for simulating the steady state is \texttt{-p}:
+
+\begin{lstlisting}
+simetuc config_file.txt -p
+\end{lstlisting}
+
+
+When given with the \texttt{-v} option to show the progress information,
+the results look like Figure \ref{fig:Steady-state-simulation}.
+
+\begin{figure}
+\begin{centering}
+\subfloat[]{\begin{centering}
+\includegraphics[width=1\textwidth]{figures/pow_dep_cmd.PNG}
+\par\end{centering}
+
+}
+\par\end{centering}
+
+\centering{}\subfloat[]{\begin{centering}
+\includegraphics[width=0.8\columnwidth]{figures/pow_dep_plot.PNG}
+\par\end{centering}
+
+}\caption{\label{fig:Power-dependence}Power dependence simulation. (a) shows
+the result of invoking the command \texttt{simetuc config\_file.txt
+-v -p}. (b) shows a plot with the emission power dependence of all
+states of the sensitizer and activator. The simulated excitation powers
+are taken from the configuration file. In this case, unrealistically
+high powers have been simulated to show the saturation regime.}
+\end{figure}
+
+
+
+\section[Simulating the concentration dependence]{Simulating the concentration dependence of the the steady state
+or of the dynamics\label{sec:Simulating-the-concentration-dep}}
+
+One of the strongest points of the microscopic rate equations that
+\emph{simetuc} solves is that once the lifetimes, branching ratios
+and energy transfer parameters are known, it is possible to change
+the concentrations of sensitizers and activators and simulate the
+decay curves or the steady state.
+
+Simulating the concentration dependence of the steady state is equivalent
+to simulate the emission efficiency of each state as a function of
+both concentrations. Simulating the concentration dependence of the
+dynamic is useful to compare it with experimental data, because decay
+curves are easier to measure than emission efficiencies.
+
+The option for simulating the concentration dependence of the steady
+state is \texttt{-c}:
+
+\begin{lstlisting}
+simetuc config_file.txt -c
+\end{lstlisting}
+
+
+When given with the \texttt{-v} option to show the progress information,
+the results look like Figure \ref{fig:Conc-dependence}.
+
+\begin{figure}
+\begin{centering}
+\subfloat[]{\begin{centering}
+\includegraphics[width=1\textwidth]{figures/conc_dep_steady_cmd.PNG}
+\par\end{centering}
+
+}
+\par\end{centering}
+
+\begin{centering}
+\subfloat[]{\begin{centering}
+\includegraphics[width=0.8\columnwidth]{figures/conc_dep_steady_plot.PNG}
+\par\end{centering}
+
+}
+\par\end{centering}
+
+\centering{}\subfloat[]{\begin{centering}
+\includegraphics[width=0.8\columnwidth]{figures/conc_dep_steady_plot_2D.PNG}
+\par\end{centering}
+
+}\caption{\label{fig:Conc-dependence}Concentration dependence simulation. (a)
+shows the result of invoking the command \texttt{simetuc config\_file.txt
+-v -c}. (b) and (c) show plots with the concentration dependence of
+the emission. The simulated concentrations are taken from the configuration
+file. In (b) the sensitizer concentration is fixed at 0\%, only the
+activator concentration changes. In (c) both concentrations change.}
+\end{figure}
+
+
+The option for simulating the concentration dependence of the dynamics
+is \texttt{-c d}:
+
+\begin{lstlisting}
+simetuc config_file.txt -c d
+\end{lstlisting}
+
+
+When given with the \texttt{-v} option to show the progress information,
+the results look like Figure \ref{fig:Conc-dependence-dyn}.
+
+\begin{figure}
+\begin{centering}
+\subfloat[]{\begin{centering}
+\includegraphics[width=1\textwidth]{figures/conc_dep_dyn_cmd.PNG}
+\par\end{centering}
+
+}
+\par\end{centering}
+
+\centering{}\subfloat[]{\begin{centering}
+\includegraphics[width=0.8\columnwidth]{figures/conc_dep_dyn_plot.PNG}
+\par\end{centering}
+
+}\caption{\label{fig:Conc-dependence-dyn}Concentration dependence simulation.
+(a) shows the result of invoking the command \texttt{simetuc config\_file.txt
+-v -c d}. (b) shows a plot with the decay curves at different concentrations.
+The simulated concentrations are taken from the configuration file.}
+\end{figure}
+
 
 
 \section{Microscopic or average rate equations}
 
 
-\chapter{Publications}
+\chapter{Publications and acknowledgments}
 
 This software has been described and used in these publications:
 \begin{itemize}
@@ -758,12 +1170,15 @@ C}, \textbf{2015}, \emph{119} (41), pp 23648\textendash 23657. \href{http://pubs
 Meijerink, A. Modeling Blue to UV Upconversion in \textgreek{b}-NaYF\textsubscript{4}:
 Tm\textsuperscript{3+}, \emph{Phys. Chem. Chem. Phys.}, \textbf{2016},
 \emph{18}, pp 27396-27404, \href{http://pubs.rsc.org/en/Content/ArticleLanding/2016/CP/C6CP04347J\#!divAbstract}{DOI: 10.1039/C6CP04347J}.
+\item Villanueva-Delgado, P. Upconversion in \textgreek{b}-NaYF\textsubscript{4}:
+Yb\textsuperscript{3+}, Tm\textsuperscript{3+}: Synthesis, Experiments,
+and Models. Ph.D. Dissertation, University of Bern, \textbf{2016}.
 \end{itemize}
 If you use this software in a scientific publication, please cite
 the appropriate articles above.
 
 
-\chapter{Acknowledgments}
+\section{Acknowledgments}
 
 The financial support of the EU FP7 ITN LUMINET (Grant agreement No.
 316906) is gratefully acknowledged.

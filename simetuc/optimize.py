@@ -38,7 +38,7 @@ def cache(function):
 
 def optim_fun_factory(sim: simulations.Simulations,
                       process_list: List[str], x0: np.array,
-                      average: bool = False) -> Callable:
+                      average: bool = False, pbar: tqdm.tqdm = None) -> Callable:
     '''Generate the function to be optimize.
         This function modifies the ET params and return the error
     '''
@@ -50,6 +50,10 @@ def optim_fun_factory(sim: simulations.Simulations,
 
         dynamics_sol = sim.simulate_dynamics(average=average)
         total_error = dynamics_sol.total_error
+        # if a progress bar is given, advance it
+        if pbar is not None:
+            pbar.update(1)
+
         return total_error
 
     return optim_fun
@@ -101,14 +105,14 @@ def optimize_dynamics(cte: Dict, method: str = None,
     tol = 1e-4
     bounds = ((0, 1e10),)*len(x0)
 
+    # select optimization method
     if method is None:
         method = 'SLSQP'
     logger.info('Optimization method: %s.', method)
 
-    _optim_fun = optim_fun_factory(sim, process_list, x0, average=average)
-
     # use the cache and print it if the method isn't brute force
     if method != 'brute_force':
+        _optim_fun = optim_fun_factory(sim, process_list, x0, average=average)
         _optim_fun = cache(_optim_fun)
         msg = '(' + ', '.join('{}'.format(proc) for proc in process_list)
         tqdm.tqdm.write(msg + '): RMS Error')
@@ -139,13 +143,17 @@ def optimize_dynamics(cte: Dict, method: str = None,
         pbar.close()
 
     elif method == 'brute_force':
-        rranges = ((1e-2, 6),)*len(x0)
-        N_points = 50
+        # range and number of points. Total number is 1+N_points**2
+        rranges = ((1e-1, 10),)*len(x0)
+        N_points = 10
         pbar = tqdm.tqdm(desc='Optimizing', total=1+N_points**2,
                          unit='points', disable=cte['no_console'])
+
+        _optim_fun = optim_fun_factory(sim, process_list, x0, average=average, pbar=pbar)
         res = optimize.brute(_optim_fun, ranges=rranges, Ns=N_points, full_output=True,
                              finish=None, disp=True)
         pbar.close()
+        print('')
         best_x = res[0]*x0
         min_f = res[1]
 
@@ -169,7 +177,7 @@ def optimize_dynamics(cte: Dict, method: str = None,
 
 #if __name__ == "__main__":
 #    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.INFO,
+#    logging.basicConfig(level=logging.WARNING,
 #                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 #
 #    logger.debug('Called from cmd.')

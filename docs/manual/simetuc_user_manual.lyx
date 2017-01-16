@@ -404,6 +404,84 @@ pip install simetuc
 That will download and install all necessary files.
 \end_layout
 
+\begin_layout Standard
+Check that the program was installed correctly with
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc -h
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+which should display something similar to Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:simetuc-h"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/simetuc_help.PNG
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:simetuc-h"
+
+\end_inset
+
+Results of 
+\family typewriter
+simetuc -h
+\family default
+.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Section
 Update
 \end_layout
@@ -737,7 +815,7 @@ unit
 
 cells is an integer greater than zero.
  It specifies how many unit cells along the three directions a lattice will
- consist on.
+ consist of.
  
 \end_layout
 
@@ -782,7 +860,7 @@ cell
 \begin_inset space ~
 \end_inset
 
-parameters consist on the three lattice distances and three angles.
+parameters consist of the three lattice distances and three angles.
  The distances are given in Angstrom and the angles in degrees (between
  0 and 360º).
  
@@ -2003,7 +2081,7 @@ Concentration dependence
 \begin_layout Standard
 This section is mandatory only if a concentration dependence simulation
  is performed.
- It consists on a list of two lists; the first list gives the sensitizer
+ It consists of a list of two lists; the first list gives the sensitizer
  concentrations at which the simulation will take place, the second gives
  the same for the activators.
 \end_layout
@@ -2628,7 +2706,7 @@ name "sec:Simulating-the-dynamics"
 \end_layout
 
 \begin_layout Standard
-The simulation of the dynamics of a sample consists on two parts, the excitation
+The simulation of the dynamics of a sample consists of two parts, the excitation
  pulse and the subsequent relaxation.
  The dynamics simulation includes the excitation, decay, branching ratios,
  and energy transfer sections of the configuration file.
@@ -2675,7 +2753,7 @@ When given with the
  option to show the progress information, the results look like Figure 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "fig:Lattice-creation-1"
+reference "fig:Dynamics-simulation"
 
 \end_inset
 
@@ -2773,8 +2851,8 @@ Dynamics simulation.
 simetuc config_file.txt -v -d
 \family default
 .
- (b) shows a plot with the decay curve of all states of the sensitizer and
- activator.
+ (b) shows a plot with the decay curves of all states of the sensitizer
+ and activator.
 \end_layout
 
 \end_inset
@@ -3114,7 +3192,138 @@ The strength of the interactions is
 \shape italic
 a priori
 \shape default
- unknown.
+ unknown, but, by fitting the simulations to the experimental data, it is
+ possible to obtain realistic interaction strengths.
+\end_layout
+
+\begin_layout Standard
+The option for optimizing the dynamics is 
+\family typewriter
+-o
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.txt -o
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When given with the 
+\family typewriter
+-v
+\family default
+ option to show the progress information, the results look like Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Optimization-of-the"
+
+\end_inset
+
+.
+ The total error has decreased from 
+\begin_inset Formula $0.2202$
+\end_inset
+
+ to 
+\begin_inset Formula $0.1868$
+\end_inset
+
+ when the energy transfer parameters changed from 
+\begin_inset Formula $\unit[1.3\,10^{9}]{s^{-1}\,\AA^{6}}$
+\end_inset
+
+ to 
+\begin_inset Formula $\unit[2.4\,10^{9}]{s^{-1}\,\AA^{6}}$
+\end_inset
+
+ for the parameter 
+\family typewriter
+CR50
+\family default
+ and from 
+\begin_inset Formula $\unit[1.5\,10^{9}]{s^{-1}\,\AA^{6}}$
+\end_inset
+
+ to 
+\begin_inset Formula $\unit[4.1\,10^{9}]{s^{-1}\,\AA^{6}}$
+\end_inset
+
+ for the parameter 
+\family typewriter
+ETU53
+\family default
+.
+\end_layout
+
+\begin_layout Standard
+The optimization procedure does not change the configuration file (
+\emph on
+simetuc
+\emph default
+ never does), so the parameter values should be changed by the user.
+ It is advisable to re-run a dynamics simulation with the new parameters
+ to check that the fit is satisfactory.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/optimize_cmd.PNG
+	lyxscale 70
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Optimization-of-the"
+
+\end_inset
+
+Optimization of the dynamics with the command 
+\family typewriter
+simetuc config_file.txt -v -o
+\family default
+.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section
@@ -3128,7 +3337,186 @@ name "sec:Simulating-the-steady-state"
 
 \end_layout
 
+\begin_layout Standard
+If the excitation source is not pulsed, but it is kept switched on continuously,
+ the states will reach a steady state; that is, the states will have a populatio
+n that does not change anymore with time.
+ The time it takes for the system to reach the steady state depends on the
+ lifetimes and energy transfer processes.
+\end_layout
+
+\begin_layout Standard
+The steady state populations are proportional to the emission intensity
+ of each state under continuous excitation.
+\end_layout
+
+\begin_layout Standard
+The excitation source activated in the configuration file should have a
+ realistic excitation power density; usually pulsed sources have much higher
+ instantaneous powers, see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Excitation"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The option for simulating the steady state is 
+\family typewriter
+-s
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.txt -s
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When given with the 
+\family typewriter
+-v
+\family default
+ option to show the progress information, the results look like Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Steady-state-simulation"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/steady_state_cmd.PNG
+	lyxscale 60
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/steady_state_plot.PNG
+	lyxscale 60
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Steady-state-simulation"
+
+\end_inset
+
+Steady state simulation.
+ (a) shows the result of invoking the command 
+\family typewriter
+simetuc config_file.txt -v -s
+\family default
+.
+ (b) shows a plot with the decay curves of all states of the sensitizer
+ and activator.
+ All states have reached their steady state.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Section
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Simulating the power dependence
+\end_layout
+
+\end_inset
+
 Simulating the power dependence of the steady state
 \begin_inset CommandInset label
 LatexCommand label
@@ -3139,12 +3527,556 @@ name "sec:Simulating-the-power-dep"
 
 \end_layout
 
+\begin_layout Standard
+A standard upconversion experiment consists in measuring the emission intensity
+ (usually the area under the emission peak, but also just the maximum) as
+ a function of the excitation power.
+ The power dependence of the emission 
+\begin_inset Formula $I$
+\end_inset
+
+ usually follows a power law: 
+\begin_inset Formula $I=P^{n}$
+\end_inset
+
+, where 
+\begin_inset Formula $P$
+\end_inset
+
+ is the excitation power and 
+\begin_inset Formula $n$
+\end_inset
+
+ is the number of photons involved in the mechanism; this is an approximation
+ that only works at low excitation powers.
+\end_layout
+
+\begin_layout Standard
+This simulations are capable of producing the entire power dependence curve
+ so it can be compared to the experimental one.
+ 
+\emph on
+simetuc
+\emph default
+ simulates the steady state for the excitation powers defined in the configurati
+on file and shows the steady state populations in a log-log plot.
+ See Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Power-Dependence"
+
+\end_inset
+
+ for the configuration file options.
+\end_layout
+
+\begin_layout Standard
+The option for simulating the steady state is 
+\family typewriter
+-p
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.txt -p
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When given with the 
+\family typewriter
+-v
+\family default
+ option to show the progress information, the results look like Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Steady-state-simulation"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status collapsed
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/pow_dep_cmd.PNG
+	lyxscale 60
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/pow_dep_plot.PNG
+	lyxscale 60
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Power-dependence"
+
+\end_inset
+
+Power dependence simulation.
+ (a) shows the result of invoking the command 
+\family typewriter
+simetuc config_file.txt -v -p
+\family default
+.
+ (b) shows a plot with the emission power dependence of all states of the
+ sensitizer and activator.
+ The simulated excitation powers are taken from the configuration file.
+ In this case, unrealistically high powers have been simulated to show the
+ saturation regime.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
 \begin_layout Section
+\begin_inset Argument 1
+status collapsed
+
+\begin_layout Plain Layout
+Simulating the concentration dependence
+\end_layout
+
+\end_inset
+
 Simulating the concentration dependence of the the steady state or of the
  dynamics
 \begin_inset CommandInset label
 LatexCommand label
 name "sec:Simulating-the-concentration-dep"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+One of the strongest points of the microscopic rate equations that 
+\emph on
+simetuc
+\emph default
+ solves is that once the lifetimes, branching ratios and energy transfer
+ parameters are known, it is possible to change the concentrations of sensitizer
+s and activators and simulate the decay curves or the steady state.
+\end_layout
+
+\begin_layout Standard
+Simulating the concentration dependence of the steady state is equivalent
+ to simulate the emission efficiency of each state as a function of both
+ concentrations.
+ Simulating the concentration dependence of the dynamic is useful to compare
+ it with experimental data, because decay curves are easier to measure than
+ emission efficiencies.
+\end_layout
+
+\begin_layout Standard
+The option for simulating the concentration dependence of the steady state
+ is 
+\family typewriter
+-c
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.txt -c
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When given with the 
+\family typewriter
+-v
+\family default
+ option to show the progress information, the results look like Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Conc-dependence"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/conc_dep_steady_cmd.PNG
+	lyxscale 60
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/conc_dep_steady_plot.PNG
+	lyxscale 60
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/conc_dep_steady_plot_2D.PNG
+	lyxscale 60
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Conc-dependence"
+
+\end_inset
+
+Concentration dependence simulation.
+ (a) shows the result of invoking the command 
+\family typewriter
+simetuc config_file.txt -v -c
+\family default
+.
+ (b) and (c) show plots with the concentration dependence of the emission.
+ The simulated concentrations are taken from the configuration file.
+ In (b) the sensitizer concentration is fixed at 0%, only the activator
+ concentration changes.
+ In (c) both concentrations change.
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The option for simulating the concentration dependence of the dynamics is
+ 
+\family typewriter
+-c d
+\family default
+:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.txt -c d
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When given with the 
+\family typewriter
+-v
+\family default
+ option to show the progress information, the results look like Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Conc-dependence-dyn"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/conc_dep_dyn_cmd.PNG
+	lyxscale 60
+	width 100text%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\align center
+\begin_inset Graphics
+	filename figures/conc_dep_dyn_plot.PNG
+	lyxscale 60
+	width 80col%
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\begin_inset Caption Standard
+
+\begin_layout Plain Layout
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Conc-dependence-dyn"
+
+\end_inset
+
+Concentration dependence simulation.
+ (a) shows the result of invoking the command 
+\family typewriter
+simetuc config_file.txt -v -c d
+\family default
+.
+ (b) shows a plot with the decay curves at different concentrations.
+ The simulated concentrations are taken from the configuration file.
+\end_layout
+
+\end_inset
+
+
+\end_layout
 
 \end_inset
 

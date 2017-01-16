@@ -49,7 +49,7 @@ def _change_console_logger(level: int) -> None:  # pragma: no cover
 def parse_args(args: Any) -> argparse.Namespace:
     '''Create a argparser and parse the args'''
     # parse arguments
-    parser = argparse.ArgumentParser(description=DESCRIPTION)
+    parser = argparse.ArgumentParser(description=DESCRIPTION+' '+VERSION)
     parser.add_argument('--version', action='version', version=DESCRIPTION+' '+VERSION)
     # verbose or quiet options
     group = parser.add_mutually_exclusive_group()
@@ -87,7 +87,7 @@ def parse_args(args: Any) -> argparse.Namespace:
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument('--no-save', help='don\'t save results',
                        action="store_true")
-    group.add_argument('--save-txt', help='save some) results in text format',
+    group.add_argument('--save-txt', help='save some results in text format',
                        action="store_true")
 
     # add plot subcommand
