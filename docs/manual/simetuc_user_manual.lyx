@@ -133,7 +133,7 @@ simetuc config_file.txt [options]
 \end_layout
 
 \begin_layout Itemize
-See all options below and with 
+See help and all options with 
 \begin_inset listings
 inline false
 status open
@@ -151,7 +151,7 @@ simetuc -h
 \end_deeper
 \begin_layout Itemize
 The simulation is controlled by a configuration text file that the user
- can edit with the parameters adequate to its system of study.
+ can edit with the parameters adequate to the system of study.
  It includes:
 \end_layout
 
@@ -308,10 +308,6 @@ status open
  uses standard average rate equations instead of microscopic ones.
 \end_layout
 
-\begin_layout Part
-User Guide
-\end_layout
-
 \begin_layout Chapter
 Installation
 \end_layout
@@ -341,7 +337,7 @@ shell
 \emph default
  for Linux and Mac):
 \begin_inset Foot
-status open
+status collapsed
 
 \begin_layout Plain Layout
 Some OSX users report problems using 
@@ -438,13 +434,14 @@ reference "fig:simetuc-h"
 \begin_inset Float figure
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
 	filename figures/simetuc_help.PNG
-	width 100text%
+	lyxscale 80
+	width 120text%
 
 \end_inset
 
@@ -1821,7 +1818,14 @@ strength of the interaction given in units of
  is the multipolarity.
  Optionally, an interaction strength for the average rate equation system
  can be given; this value is several orders of magnitude lower than the
- microscopic value.
+ microscopic value, see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Microscopic-or-average"
+
+\end_inset
+
+.
  If it is not given and the average rate equations are solved, the normal
  strength will be used.
 \end_layout
@@ -1883,6 +1887,78 @@ enery_transfer:
 \begin_layout Plain Layout
 
         strength: 4.50220614e+10
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Cooperative energy transfer
+\end_layout
+
+\begin_layout Standard
+Cooperative energy transfer processes involve three ions.
+ Two ions cooperatively transfer (receive) energy to (from) a third ion.
+ The format is very similar to the normal energy transfer processes, the
+ only field that changes is 
+\family typewriter
+process
+\family default
+.
+ It now must contain the ion and state labels of three initial states and
+ three final states, for example:
+\end_layout
+
+\begin_layout Standard
+\noindent
+\begin_inset Box Frameless
+position "c"
+hor_pos "c"
+has_inner_box 1
+inner_pos "c"
+use_parbox 0
+use_makebox 0
+width "110text%"
+special "none"
+height "1in"
+height_special "totalheight"
+status open
+
+\begin_layout Plain Layout
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+enery_transfer:
+\end_layout
+
+\begin_layout Plain Layout
+
+    coop:
+\end_layout
+
+\begin_layout Plain Layout
+
+        process:  Yb(ES) + Yb(ES) + Tm(3H4) -> Yb(GS) + Yb(GS) + Tm(1G4)
+\end_layout
+
+\begin_layout Plain Layout
+
+        multipolarity: 6
+\end_layout
+
+\begin_layout Plain Layout
+
+        strength: 1e5
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \end_inset
@@ -1955,22 +2031,32 @@ This optional section defines the method used to optimize the energy transfer
 \end_layout
 
 \begin_layout Itemize
+
+\family typewriter
 SLSQP
 \end_layout
 
 \begin_layout Itemize
+
+\family typewriter
 COBYLA
 \end_layout
 
 \begin_layout Itemize
+
+\family typewriter
 L-BFGS-B
 \end_layout
 
 \begin_layout Itemize
+
+\family typewriter
 basin_hopping
 \end_layout
 
 \begin_layout Itemize
+
+\family typewriter
 brute_force
 \end_layout
 
@@ -1988,8 +2074,35 @@ target "https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/scipy.optimi
 \end_inset
 
 .
- SLSQP (the default) or brute_force are recommended, as they seem to take
- the least time to arrive at the minimum.
+ 
+\family typewriter
+SLSQP
+\family default
+ (the default) or 
+\family typewriter
+brute_force
+\family default
+ are recommended, as they seem to take the least time to arrive at the minimum.
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+SLSQP
+\family default
+ minimizes the error using a method similar to Newton-Raphson, which iteratively
+ tries to find the parameter values that make the gradient zero.
+ 
+\family typewriter
+brute_force
+\family default
+ on the other hand computes the error at 100 points in a range from 0.1 to
+ 10 times the parameter values given in the configuration file and selects
+ the minimum; after it, it is advised to run an 
+\family typewriter
+SLSQP
+\family default
+ minimization to further refine the value.
 \end_layout
 
 \begin_layout Section
@@ -2102,9 +2215,32 @@ concentration_dependence: [[0, 0.5], [0.1, 0.2, 0.3, 0.4, 0.5]]
 \end_layout
 
 \begin_layout Standard
+The concentration of either ion can also be fixed, so only the other ion
+ changes:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+concentration_dependence: [[0], [0.1, 0.2, 0.3, 0.4, 0.5]]
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
 Note that everything else will remain constant; therefore, if the number
  of unit cells is not high enough, at lower concentrations the quality of
  the simulation may be low.
+ If the concentration is too high then the simulation may take a long time;
+ in this case it is recommended to split the simulation in two, with a higher
+ number of unit cells for the lower concentrations and vice versa.
  See also Section 
 \begin_inset CommandInset ref
 LatexCommand ref
@@ -2180,7 +2316,7 @@ status open
 \begin_inset Graphics
 	filename figures/correct_config_file.PNG
 	lyxscale 50
-	width 100col%
+	width 120col%
 
 \end_inset
 
@@ -2222,7 +2358,7 @@ status open
 \begin_inset Graphics
 	filename figures/config_file_wrong_lattice.PNG
 	lyxscale 50
-	width 100col%
+	width 120col%
 
 \end_inset
 
@@ -2249,6 +2385,7 @@ reference "sub:Error-logs"
 \end_inset
 
 ).
+ In this case the name of the lattice was omitted from the file.
 \end_layout
 
 \end_inset
@@ -2363,7 +2500,23 @@ simetuc.lattice
 simetuc.simulations
 \emph default
 .
- The log level can be DEBUG, INFO, WARNING, or ERROR.
+ The log level can be 
+\family typewriter
+DEBUG
+\family default
+, 
+\family typewriter
+INFO
+\family default
+, 
+\family typewriter
+WARNING
+\family default
+, or 
+\family typewriter
+ERROR
+\family default
+.
 \end_layout
 
 \begin_layout Subsection
@@ -2403,7 +2556,10 @@ name "sec:The-results-folder"
 \end_layout
 
 \begin_layout Standard
-All simulations produce some results that are stored in the subfolder results
+All simulations produce some results that are stored in the subfolder 
+\family typewriter
+results/latticeName
+\family default
  with the hdf5 format.
 \end_layout
 
@@ -2521,21 +2677,21 @@ reference "fig:Lattice-creation"
 \begin_inset Float figure
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
 \begin_inset Float figure
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
 	filename figures/lattice_cmd.PNG
 	lyxscale 60
-	width 100text%
+	width 120text%
 
 \end_inset
 
@@ -2564,14 +2720,14 @@ status collapsed
 \begin_inset Float figure
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
 \begin_inset Graphics
 	filename figures/lattice_plot.PNG
 	lyxscale 60
-	width 80col%
+	width 100col%
 
 \end_inset
 
@@ -2627,7 +2783,11 @@ simetuc config_file.txt -v -l
 \end_layout
 
 \begin_layout Subsection
-The latticeData folder
+The 
+\family typewriter
+latticeData
+\family default
+ folder
 \begin_inset CommandInset label
 LatexCommand label
 name "sub:The-latticeData-folder"
@@ -2764,7 +2924,7 @@ reference "fig:Dynamics-simulation"
 \begin_inset Float figure
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -2778,7 +2938,7 @@ status open
 \begin_inset Graphics
 	filename figures/dynamics_cmd.PNG
 	lyxscale 60
-	width 100text%
+	width 120text%
 
 \end_inset
 
@@ -2814,7 +2974,7 @@ status open
 \begin_inset Graphics
 	filename figures/dynamics_plot.PNG
 	lyxscale 60
-	width 80col%
+	width 100col%
 
 \end_inset
 
@@ -2885,7 +3045,11 @@ Decay experimental data is automatically loaded from the expData folder
 \end_layout
 
 \begin_layout Subsection
-The expData folder
+The 
+\family typewriter
+expData
+\family default
+ folder
 \begin_inset CommandInset label
 LatexCommand label
 name "sub:The-expData-folder"
@@ -3142,7 +3306,7 @@ status open
 \align center
 \begin_inset Graphics
 	filename figures/dynamics_plot_expData.PNG
-	width 80text%
+	width 100text%
 
 \end_inset
 
@@ -3278,6 +3442,27 @@ simetuc
 \end_layout
 
 \begin_layout Standard
+When optimizing a system for the first time it is recommended to first use
+ the 
+\family typewriter
+brute_force
+\family default
+ method, update the configuration file with its results, and then run the
+ optimization again with the 
+\family typewriter
+SLSQP
+\family default
+ method, see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Optimization-Method"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
 \begin_inset Float figure
 wide false
 sideways false
@@ -3288,7 +3473,7 @@ status open
 \begin_inset Graphics
 	filename figures/optimize_cmd.PNG
 	lyxscale 70
-	width 100text%
+	width 120text%
 
 \end_inset
 
@@ -3419,7 +3604,7 @@ status open
 \begin_inset Graphics
 	filename figures/steady_state_cmd.PNG
 	lyxscale 60
-	width 100text%
+	width 120text%
 
 \end_inset
 
@@ -3455,7 +3640,7 @@ status open
 \begin_inset Graphics
 	filename figures/steady_state_plot.PNG
 	lyxscale 60
-	width 80col%
+	width 100col%
 
 \end_inset
 
@@ -3626,7 +3811,7 @@ status open
 \begin_inset Graphics
 	filename figures/pow_dep_cmd.PNG
 	lyxscale 60
-	width 100text%
+	width 110text%
 
 \end_inset
 
@@ -3662,7 +3847,7 @@ status open
 \begin_inset Graphics
 	filename figures/pow_dep_plot.PNG
 	lyxscale 60
-	width 80col%
+	width 100col%
 
 \end_inset
 
@@ -3744,7 +3929,8 @@ simetuc
 \emph default
  solves is that once the lifetimes, branching ratios and energy transfer
  parameters are known, it is possible to change the concentrations of sensitizer
-s and activators and simulate the decay curves or the steady state.
+s and activators and simulate the decay curves or the steady state, thus
+ predicting the behavior of a new sample.
 \end_layout
 
 \begin_layout Standard
@@ -3757,7 +3943,16 @@ Simulating the concentration dependence of the steady state is equivalent
 \end_layout
 
 \begin_layout Standard
-The option for simulating the concentration dependence of the steady state
+The simulated concentration range is controlled with the configuration file,
+ see Section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sub:Concentration-Dependence"
+
+\end_inset
+
+.
+ The option for simulating the concentration dependence of the steady state
  is 
 \family typewriter
 -c
@@ -3799,7 +3994,7 @@ reference "fig:Conc-dependence"
 \begin_inset Float figure
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -3813,7 +4008,7 @@ status open
 \begin_inset Graphics
 	filename figures/conc_dep_steady_cmd.PNG
 	lyxscale 60
-	width 100text%
+	width 120text%
 
 \end_inset
 
@@ -3849,7 +4044,7 @@ status open
 \begin_inset Graphics
 	filename figures/conc_dep_steady_plot.PNG
 	lyxscale 60
-	width 80col%
+	width 100col%
 
 \end_inset
 
@@ -3885,7 +4080,7 @@ status open
 \begin_inset Graphics
 	filename figures/conc_dep_steady_plot_2D.PNG
 	lyxscale 60
-	width 80col%
+	width 100col%
 
 \end_inset
 
@@ -3916,7 +4111,7 @@ name "fig:Conc-dependence"
 
 \end_inset
 
-Concentration dependence simulation.
+Concentration dependence of the steady state.
  (a) shows the result of invoking the command 
 \family typewriter
 simetuc config_file.txt -v -c
@@ -3996,7 +4191,7 @@ status open
 \begin_inset Graphics
 	filename figures/conc_dep_dyn_cmd.PNG
 	lyxscale 60
-	width 100text%
+	width 110text%
 
 \end_inset
 
@@ -4032,7 +4227,7 @@ status open
 \begin_inset Graphics
 	filename figures/conc_dep_dyn_plot.PNG
 	lyxscale 60
-	width 80col%
+	width 100col%
 
 \end_inset
 
@@ -4063,7 +4258,7 @@ name "fig:Conc-dependence-dyn"
 
 \end_inset
 
-Concentration dependence simulation.
+Concentration dependence of the dynamics.
  (a) shows the result of invoking the command 
 \family typewriter
 simetuc config_file.txt -v -c d
@@ -4085,6 +4280,72 @@ simetuc config_file.txt -v -c d
 
 \begin_layout Section
 Microscopic or average rate equations
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Microscopic-or-average"
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+It is useful to compare the results of the microscopic rate equation model
+ to the standard average rate equation model.
+ All simulations can be performed with the average model using the 
+\family typewriter
+--average
+\family default
+ flag in a command, for example
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.txt -d --average
+\end_layout
+
+\end_inset
+
+will simulate the dynamics using the average model and 
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.txt -p --average
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+will simulate the power dependence of the average model.
+\end_layout
+
+\begin_layout Standard
+In the average model, all sensitizer ions are represented as one average
+ ion (same for the activators), therefore all energy migration processes
+ are ignored (technically speaking, the average model has infinite energy
+ migration between all states).
+\end_layout
+
+\begin_layout Standard
+The energy transfer parameters in the average model are not the microscopic
+ parameters between two ions, but an average of all interactions between
+ the ions in the sample, which are at different distances.
+ This means that knowledge of the average ET parameters for a sample with
+ a certain concentration does not give much information about the ET parameters
+ at other concentrations.
+ That is, fitting decay data with the average model gives limited information
+ (average ET strengths) about that sample and nothing about different samples.
 \end_layout
 
 \begin_layout Chapter
@@ -4347,12 +4608,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
  
 \end_layout
 
-\begin_layout Part
-Appendix
-\end_layout
-
 \begin_layout Chapter
-Example configuration file
+Appendix: Example configuration file
 \end_layout
 
 \begin_layout Standard

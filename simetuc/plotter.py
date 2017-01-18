@@ -157,7 +157,7 @@ def plot_power_dependence(sim_data_arr: np.ndarray, power_dens_arr: np.ndarray,
         plt.xlim(*np.array(plt.xlim())*margin_factor)
 
         plt.legend(loc="best")
-        plt.xlabel('Power density / W/cm^2')
+        plt.xlabel('Power density (W/cm\u00B2)')
 
         for i, txt in enumerate(slopes[num]):
             axis.annotate(txt, (power_dens_arr[i], sim_data[i]), xytext=(5, -7),

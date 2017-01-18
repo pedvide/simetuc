@@ -67,14 +67,14 @@ columns=flexible}
 simetuc config_file.txt [options]
 \end{lstlisting}
 
-\item See all options below and with 
+\item See help and all options with 
 \begin{lstlisting}
 simetuc -h
 \end{lstlisting}
 
 \end{itemize}
 \item The simulation is controlled by a configuration text file that the
-user can edit with the parameters adequate to its system of study.
+user can edit with the parameters adequate to the system of study.
 It includes:
 
 \begin{itemize}
@@ -130,9 +130,6 @@ state.
 equations instead of microscopic ones.
 \end{itemize}
 
-\part{User Guide}
-
-
 \chapter{Installation}
 
 Python 3.5 is required. Installing Anaconda is recommended; it works
@@ -169,7 +166,7 @@ which should display something similar to Figure \ref{fig:simetuc-h}.
 
 \begin{figure}
 \begin{centering}
-\includegraphics[width=1\textwidth]{figures/simetuc_help.PNG}
+\includegraphics[width=1.2\textwidth]{figures/simetuc_help.PNG}
 \par\end{centering}
 
 \caption{\label{fig:simetuc-h}Results of \texttt{simetuc -h}.}
@@ -536,9 +533,9 @@ Where the ion and state labels were defined in Section \ref{sub:States}.
 \item [{The~strength}] of the interaction given in units of $\unit{s^{-1}\,\AA^{n}}$,
 where $n$ is the multipolarity. Optionally, an interaction strength
 for the average rate equation system can be given; this value is several
-orders of magnitude lower than the microscopic value. If it is not
-given and the average rate equations are solved, the normal strength
-will be used.
+orders of magnitude lower than the microscopic value, see Section
+\ref{sec:Microscopic-or-average}. If it is not given and the average
+rate equations are solved, the normal strength will be used.
 \end{description}
 For example:
 
@@ -555,6 +552,28 @@ enery_transfer:
         strength: 4.50220614e+10
 \end{lstlisting}
 
+
+
+\subsection{Cooperative energy transfer}
+
+Cooperative energy transfer processes involve three ions. Two ions
+cooperatively transfer (receive) energy to (from) a third ion. The
+format is very similar to the normal energy transfer processes, the
+only field that changes is \texttt{process}. It now must contain the
+ion and state labels of three initial states and three final states,
+for example:
+
+\noindent %
+\begin{minipage}[c]{1.1\textwidth}%
+\begin{lstlisting}
+enery_transfer:
+    coop:
+        process:  Yb(ES) + Yb(ES) + Tm(3H4) -> Yb(GS) + Yb(GS) + Tm(1G4)
+        multipolarity: 6
+        strength: 1e5
+\end{lstlisting}
+%
+\end{minipage}
 
 
 \section{\label{sub:Optimization-Processes}Optimization processes}
@@ -578,15 +597,23 @@ This optional section defines the method used to optimize the energy
 transfer parameters to the experimental data. Several options are
 available:
 \begin{itemize}
-\item SLSQP
-\item COBYLA
-\item L-BFGS-B
-\item basin\_hopping
-\item brute\_force
+\item \texttt{SLSQP}
+\item \texttt{COBYLA}
+\item \texttt{L-BFGS-B}
+\item \texttt{basin\_hopping}
+\item \texttt{brute\_force}
 \end{itemize}
 See the \emph{Notes} section in the \href{https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/scipy.optimize.minimize.html}{scipy minimize documentation}.
-SLSQP (the default) or brute\_force are recommended, as they seem
-to take the least time to arrive at the minimum.
+\texttt{SLSQP} (the default) or \texttt{brute\_force} are recommended,
+as they seem to take the least time to arrive at the minimum.
+
+\texttt{SLSQP} minimizes the error using a method similar to Newton-Raphson,
+which iteratively tries to find the parameter values that make the
+gradient zero. \texttt{brute\_force} on the other hand computes the
+error at 100 points in a range from 0.1 to 10 times the parameter
+values given in the configuration file and selects the minimum; after
+it, it is advised to run an \texttt{SLSQP} minimization to further
+refine the value.
 
 
 \section{\label{sub:Power-Dependence}Power dependence}
@@ -619,9 +646,21 @@ concentration_dependence: [[0, 0.5], [0.1, 0.2, 0.3, 0.4, 0.5]]
 \end{lstlisting}
 
 
+The concentration of either ion can also be fixed, so only the other
+ion changes:
+
+\begin{lstlisting}
+concentration_dependence: [[0], [0.1, 0.2, 0.3, 0.4, 0.5]]
+\end{lstlisting}
+
+
 Note that everything else will remain constant; therefore, if the
 number of unit cells is not high enough, at lower concentrations the
-quality of the simulation may be low. See also Section \ref{sec:Simulating-the-concentration-dep}.
+quality of the simulation may be low. If the concentration is too
+high then the simulation may take a long time; in this case it is
+recommended to split the simulation in two, with a higher number of
+unit cells for the lower concentrations and vice versa. See also Section
+\ref{sec:Simulating-the-concentration-dep}.
 
 
 \section{Checking the configuration file}
@@ -649,7 +688,7 @@ this case, the name or the lattice has been omitted from the file.
 
 \begin{figure}
 \begin{centering}
-\includegraphics[width=1\columnwidth]{figures/correct_config_file.PNG}
+\includegraphics[width=1.2\columnwidth]{figures/correct_config_file.PNG}
 \par\end{centering}
 
 \caption{\label{fig:Example-conf_file_correct}Example of a correct configuration
@@ -659,12 +698,13 @@ file check with and without the verbose option.}
 
 \begin{figure}
 \begin{centering}
-\includegraphics[width=1\columnwidth]{figures/config_file_wrong_lattice.PNG}
+\includegraphics[width=1.2\columnwidth]{figures/config_file_wrong_lattice.PNG}
 \par\end{centering}
 
 \caption{\label{fig:Example-conf_file_wrong}Example of a wrong configuration
 file check. The two upper lines show the user-friendly error message;
-they can also be found in the error log (see Section \ref{sub:Error-logs}).}
+they can also be found in the error log (see Section \ref{sub:Error-logs}).
+In this case the name of the lattice was omitted from the file.}
 \end{figure}
 
 
@@ -706,8 +746,8 @@ YYYY-MM-DD HH:MM:SS,mmm - simetuc[.part]   : LEVEL    message
 
 The main program emits messages under the name \emph{simetuc}, other
 parts of the program have names such as \emph{simetuc.lattice} or
-\emph{simetuc.simulations}. The log level can be DEBUG, INFO, WARNING,
-or ERROR.
+\emph{simetuc.simulations}. The log level can be \texttt{DEBUG}, \texttt{INFO},
+\texttt{WARNING}, or \texttt{ERROR}.
 
 
 \subsection{\label{sub:Error-logs}Error log}
@@ -726,7 +766,7 @@ not important, but can be relevant in the case of errors.
 \section{The results folder\label{sec:The-results-folder}}
 
 All simulations produce some results that are stored in the subfolder
-results with the hdf5 format.
+\texttt{results/latticeName} with the hdf5 format.
 
 
 \section{Other folders}
@@ -764,7 +804,7 @@ the results look like Figure \ref{fig:Lattice-creation}.
 \begin{figure}
 \begin{centering}
 \subfloat[]{\begin{centering}
-\includegraphics[width=1\textwidth]{figures/lattice_cmd.PNG}
+\includegraphics[width=1.2\textwidth]{figures/lattice_cmd.PNG}
 \par\end{centering}
 
 }
@@ -772,7 +812,7 @@ the results look like Figure \ref{fig:Lattice-creation}.
 
 \begin{centering}
 \subfloat[]{\begin{centering}
-\includegraphics[width=0.8\columnwidth]{figures/lattice_plot.PNG}
+\includegraphics[width=1\columnwidth]{figures/lattice_plot.PNG}
 \par\end{centering}
 
 }\caption{\label{fig:Lattice-creation}Lattice creation. (a) shows the result
@@ -786,7 +826,7 @@ and the activators as blue dots.}
 
 
 
-\subsection{The latticeData folder\label{sub:The-latticeData-folder}}
+\subsection{The \texttt{latticeData} folder\label{sub:The-latticeData-folder}}
 
 All created lattices are stored in a folder with the name of the lattice
 under the latticeData subfolder; the name of the lattice is given
@@ -827,14 +867,14 @@ the results look like Figure \ref{fig:Dynamics-simulation}.
 \begin{figure}
 \begin{centering}
 \subfloat[]{\begin{centering}
-\includegraphics[width=1\textwidth]{figures/dynamics_cmd.PNG}
+\includegraphics[width=1.2\textwidth]{figures/dynamics_cmd.PNG}
 \par\end{centering}
 
 }
 \par\end{centering}
 
 \centering{}\subfloat[]{\begin{centering}
-\includegraphics[width=0.8\columnwidth]{figures/dynamics_plot.PNG}
+\includegraphics[width=1\columnwidth]{figures/dynamics_plot.PNG}
 \par\end{centering}
 
 }\caption{\label{fig:Dynamics-simulation}Dynamics simulation. (a) shows the
@@ -858,7 +898,7 @@ data and simulation is calculated for each level, and then all state
 errors are added together to yield the total error.
 
 
-\subsection{The expData folder\label{sub:The-expData-folder}}
+\subsection{The \texttt{expData} folder\label{sub:The-expData-folder}}
 
 This folder should contain a subfolders with the name of the lattice.
 Inside that subfolder several text files can be stored, each corresponding
@@ -921,7 +961,7 @@ log files.
 
 \begin{figure}
 \begin{centering}
-\includegraphics[width=0.8\textwidth]{figures/dynamics_plot_expData.PNG}
+\includegraphics[width=1\textwidth]{figures/dynamics_plot_expData.PNG}
 \par\end{centering}
 
 \caption{\label{fig:Dynamics-simulation-with-expdata}Dynamics simulation with
@@ -958,9 +998,14 @@ The optimization procedure does not change the configuration file
 by the user. It is advisable to re-run a dynamics simulation with
 the new parameters to check that the fit is satisfactory.
 
+When optimizing a system for the first time it is recommended to first
+use the \texttt{brute\_force} method, update the configuration file
+with its results, and then run the optimization again with the \texttt{SLSQP}
+method, see Section \ref{sub:Optimization-Method}.
+
 \begin{figure}
 \begin{centering}
-\includegraphics[width=1\textwidth]{figures/optimize_cmd.PNG}
+\includegraphics[width=1.2\textwidth]{figures/optimize_cmd.PNG}
 \par\end{centering}
 
 \caption{\label{fig:Optimization-of-the}Optimization of the dynamics with
@@ -999,14 +1044,14 @@ the results look like Figure \ref{fig:Steady-state-simulation}.
 \begin{figure}
 \begin{centering}
 \subfloat[]{\begin{centering}
-\includegraphics[width=1\textwidth]{figures/steady_state_cmd.PNG}
+\includegraphics[width=1.2\textwidth]{figures/steady_state_cmd.PNG}
 \par\end{centering}
 
 }
 \par\end{centering}
 
 \centering{}\subfloat[]{\begin{centering}
-\includegraphics[width=0.8\columnwidth]{figures/steady_state_plot.PNG}
+\includegraphics[width=1\columnwidth]{figures/steady_state_plot.PNG}
 \par\end{centering}
 
 }\caption{\label{fig:Steady-state-simulation}Steady state simulation. (a) shows
@@ -1047,14 +1092,14 @@ the results look like Figure \ref{fig:Steady-state-simulation}.
 \begin{figure}
 \begin{centering}
 \subfloat[]{\begin{centering}
-\includegraphics[width=1\textwidth]{figures/pow_dep_cmd.PNG}
+\includegraphics[width=1.1\textwidth]{figures/pow_dep_cmd.PNG}
 \par\end{centering}
 
 }
 \par\end{centering}
 
 \centering{}\subfloat[]{\begin{centering}
-\includegraphics[width=0.8\columnwidth]{figures/pow_dep_plot.PNG}
+\includegraphics[width=1\columnwidth]{figures/pow_dep_plot.PNG}
 \par\end{centering}
 
 }\caption{\label{fig:Power-dependence}Power dependence simulation. (a) shows
@@ -1074,7 +1119,8 @@ One of the strongest points of the microscopic rate equations that
 \emph{simetuc} solves is that once the lifetimes, branching ratios
 and energy transfer parameters are known, it is possible to change
 the concentrations of sensitizers and activators and simulate the
-decay curves or the steady state.
+decay curves or the steady state, thus predicting the behavior of
+a new sample.
 
 Simulating the concentration dependence of the steady state is equivalent
 to simulate the emission efficiency of each state as a function of
@@ -1082,8 +1128,10 @@ both concentrations. Simulating the concentration dependence of the
 dynamic is useful to compare it with experimental data, because decay
 curves are easier to measure than emission efficiencies.
 
-The option for simulating the concentration dependence of the steady
-state is \texttt{-c}:
+The simulated concentration range is controlled with the configuration
+file, see Section \ref{sub:Concentration-Dependence}. The option
+for simulating the concentration dependence of the steady state is
+\texttt{-c}:
 
 \begin{lstlisting}
 simetuc config_file.txt -c
@@ -1096,7 +1144,7 @@ the results look like Figure \ref{fig:Conc-dependence}.
 \begin{figure}
 \begin{centering}
 \subfloat[]{\begin{centering}
-\includegraphics[width=1\textwidth]{figures/conc_dep_steady_cmd.PNG}
+\includegraphics[width=1.2\textwidth]{figures/conc_dep_steady_cmd.PNG}
 \par\end{centering}
 
 }
@@ -1104,22 +1152,23 @@ the results look like Figure \ref{fig:Conc-dependence}.
 
 \begin{centering}
 \subfloat[]{\begin{centering}
-\includegraphics[width=0.8\columnwidth]{figures/conc_dep_steady_plot.PNG}
+\includegraphics[width=1\columnwidth]{figures/conc_dep_steady_plot.PNG}
 \par\end{centering}
 
 }
 \par\end{centering}
 
 \centering{}\subfloat[]{\begin{centering}
-\includegraphics[width=0.8\columnwidth]{figures/conc_dep_steady_plot_2D.PNG}
+\includegraphics[width=1\columnwidth]{figures/conc_dep_steady_plot_2D.PNG}
 \par\end{centering}
 
-}\caption{\label{fig:Conc-dependence}Concentration dependence simulation. (a)
-shows the result of invoking the command \texttt{simetuc config\_file.txt
--v -c}. (b) and (c) show plots with the concentration dependence of
-the emission. The simulated concentrations are taken from the configuration
-file. In (b) the sensitizer concentration is fixed at 0\%, only the
-activator concentration changes. In (c) both concentrations change.}
+}\caption{\label{fig:Conc-dependence}Concentration dependence of the steady
+state. (a) shows the result of invoking the command \texttt{simetuc
+config\_file.txt -v -c}. (b) and (c) show plots with the concentration
+dependence of the emission. The simulated concentrations are taken
+from the configuration file. In (b) the sensitizer concentration is
+fixed at 0\%, only the activator concentration changes. In (c) both
+concentrations change.}
 \end{figure}
 
 
@@ -1137,17 +1186,17 @@ the results look like Figure \ref{fig:Conc-dependence-dyn}.
 \begin{figure}
 \begin{centering}
 \subfloat[]{\begin{centering}
-\includegraphics[width=1\textwidth]{figures/conc_dep_dyn_cmd.PNG}
+\includegraphics[width=1.1\textwidth]{figures/conc_dep_dyn_cmd.PNG}
 \par\end{centering}
 
 }
 \par\end{centering}
 
 \centering{}\subfloat[]{\begin{centering}
-\includegraphics[width=0.8\columnwidth]{figures/conc_dep_dyn_plot.PNG}
+\includegraphics[width=1\columnwidth]{figures/conc_dep_dyn_plot.PNG}
 \par\end{centering}
 
-}\caption{\label{fig:Conc-dependence-dyn}Concentration dependence simulation.
+}\caption{\label{fig:Conc-dependence-dyn}Concentration dependence of the dynamics.
 (a) shows the result of invoking the command \texttt{simetuc config\_file.txt
 -v -c d}. (b) shows a plot with the decay curves at different concentrations.
 The simulated concentrations are taken from the configuration file.}
@@ -1155,7 +1204,37 @@ The simulated concentrations are taken from the configuration file.}
 
 
 
-\section{Microscopic or average rate equations}
+\section{Microscopic or average rate equations\label{sec:Microscopic-or-average}}
+
+It is useful to compare the results of the microscopic rate equation
+model to the standard average rate equation model. All simulations
+can be performed with the average model using the \texttt{-{}-average}
+flag in a command, for example
+
+\begin{lstlisting}
+simetuc config_file.txt -d --average
+\end{lstlisting}
+will simulate the dynamics using the average model and 
+\begin{lstlisting}
+simetuc config_file.txt -p --average
+\end{lstlisting}
+
+
+will simulate the power dependence of the average model.
+
+In the average model, all sensitizer ions are represented as one average
+ion (same for the activators), therefore all energy migration processes
+are ignored (technically speaking, the average model has infinite
+energy migration between all states).
+
+The energy transfer parameters in the average model are not the microscopic
+parameters between two ions, but an average of all interactions between
+the ions in the sample, which are at different distances. This means
+that knowledge of the average ET parameters for a sample with a certain
+concentration does not give much information about the ET parameters
+at other concentrations. That is, fitting decay data with the average
+model gives limited information (average ET strengths) about that
+sample and nothing about different samples.
 
 
 \chapter{Publications and acknowledgments}
@@ -1231,10 +1310,7 @@ OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE. 
 
 
-\part{Appendix}
-
-
-\chapter{Example configuration file}
+\chapter{Appendix: Example configuration file}
 
 \lstinputlisting[numbers=left,numberstyle={\footnotesize},stepnumber=5,firstnumber=1,numberfirstline=true,breaklines=true,xrightmargin={0cm},xleftmargin={0cm},linewidth=400pt,caption={Exampe configuration file},label={lst:full_conf_file}]{E:/Users/Villanueva/Simulaciones/python/simetuc/simetuc/config_file.cfg}
 \end{document}
