@@ -18,10 +18,10 @@ Created on Tue Nov  1 16:17:59 2016
 # build and upload to pypi as before.
 # then on directory python/conda delete folder simetuc
 # then conda skeleton pypi --setup-options="--single-version-externally-managed --record=record.txt" simetuc
-# conda build simetuc
+# conda build --py 3.5 --py 3.6 simetuc
 # conda convert -f --platform all PATH-TO-PACKAGE -o .
 # anaconda login
-# anaconda upload win-64¦win-32¦linux-32¦linux-64¦osx-64\PACKAGE-NAME
+# anaconda upload win-64¦win-32¦linux-32¦linux-64¦osx-64\PACKAGE-NAME-PYVERSION
 
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
@@ -65,7 +65,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
 
         # Indicate who your project is intended for
         'Intended Audience :: Science/Research',
@@ -82,6 +82,7 @@ setup(
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
     ],
 
     # What does your project relate to?

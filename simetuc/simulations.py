@@ -1032,6 +1032,7 @@ class Simulations():
 #    new_sol.plot()
 #
 #    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
+#    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3), (0.1, 0.1), (0.1, 0.2), (0.1, 0.3)]
 #    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
 #    solution.plot()
 #    solution.save()

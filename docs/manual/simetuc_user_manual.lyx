@@ -313,7 +313,7 @@ Installation
 \end_layout
 
 \begin_layout Standard
-Python 3.5 is required.
+Python 3.5 or 3.6 is required.
  Installing Anaconda is recommended; it works with Windows (64/32 bits),
  Linux (64/32 bits) and Mac (64 bits).
 \end_layout

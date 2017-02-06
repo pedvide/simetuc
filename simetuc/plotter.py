@@ -65,6 +65,7 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
             plt.semilogy(t_sol*1000, sim_data, sim_color, label=state_label, nonposy='clip')
             plt.yscale('log', nonposy='clip')
             plt.axis('tight')
+            plt.xlim(xmin=0.0)
             # add some white space above and below
             margin_factor = np.array([0.7, 1.3])
             plt.ylim(*np.array(plt.ylim())*margin_factor)
@@ -88,7 +89,7 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
                          exp_color, t_sol*1000, sim_data, sim_color, label=state_label)
             plt.axis('tight')
             plt.ylim(ymax=plt.ylim()[1]*1.2)  # add some white space on top
-            plt.xlim(xmax=exp_data[-1, 0]*1000)  # don't show beyond expData
+            plt.xlim(xmin=0.0, xmax=exp_data[-1, 0]*1000)  # don't show beyond expData
 
         plt.legend(loc="best", fontsize='small')
         plt.xlabel('t (ms)')
@@ -110,8 +111,9 @@ def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
     plt.semilogy(t_sol*1000, avg_sim, 'r', nonposy='clip', linewidth=5)
     plt.yscale('log', nonposy='clip')
     plt.axis('tight')
+    plt.xlim(xmin=0.0)
     # add some white space above and below
-    margin_factor = np.array([0.7, 1.3])
+    margin_factor = np.array([0.7, 1.1])
     plt.ylim(*np.array(plt.ylim())*margin_factor)
     if plt.ylim()[0] < atol:
         plt.ylim(ymin=atol)  # don't show noise below atol

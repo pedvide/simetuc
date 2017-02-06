@@ -11,7 +11,7 @@ Status| |Coverage Status|
 Installation
 ------------
 
-Python 3.5 is required. Installing
+Python 3.5 or 3.6 is required. Installing
 `Anaconda <https://www.continuum.io/downloads>`__ is recommended; it
 works with Windows (64/32 bits), Linux (64/32 bits) and Mac (64 bits).
 
@@ -107,7 +107,7 @@ Features
 Documentation
 -------------
 
-See the powerpoint `presentation <https://github.com/pedvide/simetuc/tree/master/docs/simetuc_presentation>`__.
+See the `manual <https://github.com/pedvide/simetuc/blob/master/docs/manual/simetuc_user_manual.pdf>`__.
 
 TODO
 ----

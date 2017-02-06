@@ -13,7 +13,7 @@ Simulating Energy Transfer and Upconversion
 
 ## Installation
 
-Python 3.5 is required.
+Python 3.5 or 3.6 is required.
 Installing [Anaconda](https://www.continuum.io/downloads) is recommended; it works with Windows (64/32 bits), Linux (64/32 bits) and Mac (64 bits).
 
 After installing Anaconda execute the following command at the command prompt (cmd.exe for Windows, shell for Linux and Mac):
@@ -76,7 +76,7 @@ If you installed it with pip, update with:
 
 ## Documentation
 
-See the powerpoint [presentation](docs/simetuc_presentation).
+See the [manual](docs/manual/simetuc_user_manual.pdf).
 
 ## TODO
 
