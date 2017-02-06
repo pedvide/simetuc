@@ -3,6 +3,7 @@ python:
 #  - "3.3" ase does not support python 3.3
 #  - "3.4" fails with tuple expansion in np.savetxt
   - "3.5"
+  - "3.6"
 
 # command to install dependencies
 #install: "pip install -r requirements.txt"
