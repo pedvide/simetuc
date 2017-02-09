@@ -20,7 +20,10 @@ prompt (cmd.exe for Windows, shell for Linux and Mac):
 
 ::
 
-    conda install -c pedvide simetuc
+    conda config --add channels conda-forge
+    conda config --add channels pedvide
+    conda install simetuc
+(The first two commands add packages repositories with up-to-date versions of all needed packages.)
 
 or
 
