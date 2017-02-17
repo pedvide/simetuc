@@ -65,7 +65,7 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
             plt.semilogy(t_sol*1000, sim_data, sim_color, label=state_label, nonposy='clip')
             plt.yscale('log', nonposy='clip')
             plt.axis('tight')
-            plt.xlim(xmin=0.0)
+            plt.xlim(xmin=t_sol[0]*1000.0)
             # add some white space above and below
             margin_factor = np.array([0.7, 1.3])
             plt.ylim(*np.array(plt.ylim())*margin_factor)
@@ -85,11 +85,12 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
             plt.ylim(ymin=min_y, ymax=max_y)
         else:  # exp data available
             # convert exp_data time to ms
-            plt.semilogy(exp_data[:, 0]*1000, exp_data[:, 1]*np.max(sim_data),
-                         exp_color, t_sol*1000, sim_data, sim_color, label=state_label)
+            plt.semilogy(exp_data[:, 0]*1000, exp_data[:, 1]*np.max(sim_data), exp_color,
+                         t_sol*1000, sim_data, sim_color, label=state_label)
             plt.axis('tight')
             plt.ylim(ymax=plt.ylim()[1]*1.2)  # add some white space on top
-            plt.xlim(xmin=0.0, xmax=exp_data[-1, 0]*1000)  # don't show beyond expData
+            tmin = min(exp_data[-1, 0], t_sol[0])
+            plt.xlim(xmin=tmin*1000.0, xmax=exp_data[-1, 0]*1000)  # don't show beyond expData
 
         plt.legend(loc="best", fontsize='small')
         plt.xlabel('t (ms)')

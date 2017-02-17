@@ -34,6 +34,7 @@ data*uc*
 simetuc/logs/
 simetuc/flake8.txt
 simetuc/results/
+simetuc/latticeData/
 *.old
 simetuc/config_file_TiO.cfg
 

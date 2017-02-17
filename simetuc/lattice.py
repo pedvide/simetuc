@@ -44,6 +44,23 @@ def _create_lattice(spacegroup: Union[int, str], cell_par: List[float], num_uc: 
     return atoms
 
 
+def _make_spherical(atoms: ase.Atoms, radius: float) -> ase.Atoms:
+    '''Makes the lattice spherical with the given radius by deleting all atoms outside.
+       It also places the center at 0,0,0'''
+
+    # find center of the lattice
+    max_pos = np.max(atoms.get_positions(), axis=0)
+    min_pos = np.min(atoms.get_positions(), axis=0)
+    center = (max_pos - min_pos)/2 + min_pos
+
+    # delete ions outside
+    del atoms[[at.index for at in atoms if np.linalg.norm((at.position-center)) > radius]]
+    # change positions so the center is at 0,0,0
+    for atom in atoms:
+        atom.position -= center
+
+    return atoms
+
 def _impurify_lattice(atoms: ase.Atoms, S_conc: float, A_conc: float) -> np.array:
     '''Impurifies the lattice atoms with the specified concentration of
        sensitizers and activators (in %).
@@ -230,9 +247,12 @@ def create_interaction_matrices(ion_type: np.array, dist_array: np.array,
 
 
 def make_full_path(folder_path: str, num_uc: int,
-                   S_conc: float, A_conc: float) -> str: # pragma: no cover
+                   S_conc: float, A_conc: float, radius: float = None) -> str: # pragma: no cover
     '''Makes the full path to a lattice in the folder.'''
-    filename = 'data_{}uc_{}S_{}A.hdf5'.format(int(num_uc), float(S_conc), float(A_conc))
+    if radius is not None:
+        filename = 'data_{}r_{}S_{}A.hdf5'.format(float(radius), float(S_conc), float(A_conc))
+    else:
+        filename = 'data_{}uc_{}S_{}A.hdf5'.format(int(num_uc), float(S_conc), float(A_conc))
     full_path = os.path.join(folder_path, filename)
     return full_path
 
@@ -261,6 +281,7 @@ def generate(cte: Dict, min_im_conv: bool = True,
     S_conc = float(cte['lattice']['S_conc'])
     A_conc = float(cte['lattice']['A_conc'])
     lattice_name = cte['lattice']['name']
+    radius = cte['lattice'].get('radius', None)
 
     if num_uc <= 0:
         logger.error('Wrong number of unit cells: %d.', num_uc)
@@ -284,7 +305,10 @@ def generate(cte: Dict, min_im_conv: bool = True,
     start_time = time.time()
 
     logger.info('Generating lattice %s...', lattice_name)
-    logger.info('Size: %dx%dx%d unit cells.', num_uc, num_uc, num_uc)
+    if radius is None:
+        logger.info('Size: %dx%dx%d unit cells.', num_uc, num_uc, num_uc)
+    else:
+        logger.info('Size: %.1f A.', radius)
     logger.info('Concentrations: %.2f%% Sensitizer, %.2f%% Activator.', S_conc, A_conc)
 
     # create a lattice of the given type
@@ -295,6 +319,13 @@ def generate(cte: Dict, min_im_conv: bool = True,
                             num_uc, cte['lattice']['sites_pos'], cte['lattice']['sites_occ'])
     num_atoms = len(atoms)
     logger.info('Total number of atoms: %d', num_atoms)
+
+    # make nanoparticle of a given radius
+    if radius is not None:
+#        print(f'number of atoms before: {len(atoms)}.')
+        atoms = _make_spherical(atoms, radius)
+#        print(f'number of atoms after: {len(atoms)}')
+        min_im_conv = False
 
     # modify a lattice to get the concentration of S and A ions
     # it deletes all non-doped ions from atoms and returns an array with ions types
@@ -342,6 +373,8 @@ def generate(cte: Dict, min_im_conv: bool = True,
     lattice_info['energy_states'] = num_states
     lattice_info['sensitizer_states'] = num_S_states
     lattice_info['activator_states'] = num_A_states
+    if radius is not None:
+        lattice_info['radius'] = radius
 
     indices_S_i, indices_A_j, initial_population = create_ground_states(ion_type, lattice_info)
 
@@ -357,7 +390,8 @@ def generate(cte: Dict, min_im_conv: bool = True,
         # check if folder exists
         if full_path is None: # pragma: no cover
             folder_path = os.path.join('latticeData', lattice_name)
-            full_path = make_full_path(folder_path, num_uc, S_conc, A_conc)
+            radius = cte['lattice'].get('radius', None)
+            full_path = make_full_path(folder_path, num_uc, S_conc, A_conc, radius=radius)
 
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with h5py.File(full_path, mode='w') as file:
@@ -411,9 +445,10 @@ def generate(cte: Dict, min_im_conv: bool = True,
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
 #
-#    cte['lattice']['S_conc'] = 2
-#    cte['lattice']['A_conc'] = 1
-#    cte['lattice']['N_uc'] = 20
+#    cte['lattice']['S_conc'] = 100
+#    cte['lattice']['A_conc'] = 0
+##    cte['lattice']['N_uc'] = 10
+#    cte['lattice']['radius'] = 30
 ##    cte['states']['sensitizer_states'] = 0
 ##    cte['states']['activator_states'] = 4
 #

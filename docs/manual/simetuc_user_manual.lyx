@@ -1,7 +1,9 @@
-#LyX 2.1 created this file. For more info see http://www.lyx.org/
-\lyxformat 474
+#LyX 2.2 created this file. For more info see http://www.lyx.org/
+\lyxformat 508
 \begin_document
 \begin_header
+\save_transient_properties true
+\origin unavailable
 \textclass memoir
 \begin_preamble
 \usepackage[dvipsnames]{xcolor}
@@ -13,16 +15,16 @@
 \language_package default
 \inputencoding auto
 \fontencoding global
-\font_roman lmodern
-\font_sans default
-\font_typewriter default
-\font_math auto
+\font_roman "lmodern" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
 \font_default_family default
 \use_non_tex_fonts false
 \font_sc false
 \font_osf false
-\font_sf_scale 100
-\font_tt_scale 100
+\font_sf_scale 100 100
+\font_tt_scale 100 100
 \graphics default
 \default_output_format default
 \output_sync 0
@@ -112,6 +114,10 @@ Features
 
 \begin_layout Itemize
 Command line interface program.
+\begin_inset Separator latexpar
+\end_inset
+
+
 \end_layout
 
 \begin_deeper
@@ -153,6 +159,10 @@ simetuc -h
 The simulation is controlled by a configuration text file that the user
  can edit with the parameters adequate to the system of study.
  It includes:
+\begin_inset Separator latexpar
+\end_inset
+
+
 \end_layout
 
 \begin_deeper
@@ -188,6 +198,10 @@ Other settings for the power and concentration dependence or optimization.
 simetuc
 \emph default
  works with any sensitizer and activator ion kind.
+\begin_inset Separator latexpar
+\end_inset
+
+
 \end_layout
 
 \begin_deeper
@@ -199,6 +213,10 @@ The examples are given for the Yb-Tm system.
 \end_deeper
 \begin_layout Itemize
 All kinds of energy transfer processes are supported:
+\begin_inset Separator latexpar
+\end_inset
+
+
 \end_layout
 
 \begin_deeper
@@ -234,6 +252,10 @@ Back transfer from activators to sensitizers.
 \end_deeper
 \begin_layout Itemize
 See the example configuration file in the simetuc folder.
+\begin_inset Separator latexpar
+\end_inset
+
+
 \end_layout
 
 \begin_deeper
@@ -253,6 +275,10 @@ Add decay experimental data as two column text data, separated by tabs or
 
 \begin_layout Itemize
 Different options:
+\begin_inset Separator latexpar
+\end_inset
+
+
 \end_layout
 
 \begin_deeper
@@ -267,6 +293,10 @@ Simulate the dynamics (rise and decay).
 \begin_layout Itemize
 Optimize the energy transfer parameters.
  
+\begin_inset Separator latexpar
+\end_inset
+
+
 \end_layout
 
 \begin_deeper
@@ -327,7 +357,7 @@ target "https://www.continuum.io/downloads"
 
 \end_inset
 
- execute the following command at the command prompt (
+, execute the following commands at the command prompt (
 \emph on
 cmd.exe
 \emph default
@@ -369,12 +399,27 @@ status open
 
 \begin_layout Plain Layout
 
-conda install -c pedvide simetuc
+conda config --add channels conda-forge
+\end_layout
+
+\begin_layout Plain Layout
+
+conda config --add channels pedvide
+\end_layout
+
+\begin_layout Plain Layout
+
+conda install simetuc
 \end_layout
 
 \end_inset
 
 
+\end_layout
+
+\begin_layout Standard
+(The first two commands add package repositories with up-to-date versions
+ of all needed packages.)
 \end_layout
 
 \begin_layout Standard
@@ -538,28 +583,28 @@ Some sections of the configuration file are mandatory (the starred Sections
  
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Version"
+reference "subsec:Version"
 
 \end_inset
 
 -
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Decay"
+reference "subsec:Decay"
 
 \end_inset
 
 ), some are optional (Sections 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Branching-ratios"
+reference "subsec:Branching-ratios"
 
 \end_inset
 
 -
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Optimization-Method"
+reference "subsec:Optimization-Method"
 
 \end_inset
 
@@ -567,14 +612,14 @@ reference "sub:Optimization-Method"
  (Sections 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Power-Dependence"
+reference "subsec:Power-Dependence"
 
 \end_inset
 
  and 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Concentration-Dependence"
+reference "subsec:Concentration-Dependence"
 
 \end_inset
 
@@ -689,7 +734,7 @@ reference "lst:full_conf_file"
 \begin_layout Section
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:Version"
+name "subsec:Version"
 
 \end_inset
 
@@ -723,7 +768,7 @@ version: 1
 Lattice*
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:Lattice"
+name "subsec:Lattice"
 
 \end_inset
 
@@ -770,14 +815,14 @@ name is an arbitrary text that describes the lattice.
  It will be used as a folder name under latticeData (Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:The-latticeData-folder"
+reference "subsec:The-latticeData-folder"
 
 \end_inset
 
 ), expData (Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:The-expData-folder"
+reference "subsec:The-expData-folder"
 
 \end_inset
 
@@ -1141,7 +1186,7 @@ lattice:
 States*
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:States"
+name "subsec:States"
 
 \end_inset
 
@@ -1227,28 +1272,28 @@ states:
 The ion and state labels will be used to define excitation (Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Excitation"
+reference "subsec:Excitation"
 
 \end_inset
 
 ), decay (Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Decay"
+reference "subsec:Decay"
 
 \end_inset
 
 ), branching ratios (Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Branching-ratios"
+reference "subsec:Branching-ratios"
 
 \end_inset
 
 ), and energy transfer processes (Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Energy-Transfer"
+reference "subsec:Energy-Transfer"
 
 \end_inset
 
@@ -1259,7 +1304,7 @@ reference "sub:Energy-Transfer"
 Excitation*
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:Excitation"
+name "subsec:Excitation"
 
 \end_inset
 
@@ -1294,7 +1339,7 @@ label is a short unique text.
  data files (see Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:The-expData-folder"
+reference "subsec:The-expData-folder"
 
 \end_inset
 
@@ -1368,7 +1413,7 @@ ion_label(state_label_i) -> ion_label(state_label_f)
  Where the ion and state labels were defined in Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:States"
+reference "subsec:States"
 
 \end_inset
 
@@ -1574,7 +1619,7 @@ excitations:
 \begin_layout Section
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:Decay"
+name "subsec:Decay"
 
 \end_inset
 
@@ -1649,7 +1694,7 @@ activator_decay:
 \begin_layout Section
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:Branching-ratios"
+name "subsec:Branching-ratios"
 
 \end_inset
 
@@ -1739,10 +1784,144 @@ activator_branching_ratios:
 
 \end_layout
 
+\begin_layout Subsection
+Multiphonon relaxation and thermalization
+\end_layout
+
+\begin_layout Standard
+When two states are close in energy, the upper one can decay nonradiatively
+ to the lower one in a process known as multiphonon relaxation.
+ This process can be described in the configuration file as a branching
+ ratio from the upper to the lower state with the appropriate value.
+ In the example above, the 
+\begin_inset Formula $^{3}$
+\end_inset
+
+F
+\begin_inset Formula $_{3}$
+\end_inset
+
+ state decays into the 
+\begin_inset Formula $^{3}$
+\end_inset
+
+H
+\begin_inset Formula $_{4}$
+\end_inset
+
+ state with a branching ratio of 0.999; this means that the MPR rate is 
+\begin_inset Formula $k_{MPR}=0.999\cdot k_{^{3}\hspace{-2bp}F_{3}}$
+\end_inset
+
+, where 
+\begin_inset Formula $k_{^{3}\hspace{-2bp}F_{3}}$
+\end_inset
+
+ is the total decay rate given in section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "subsec:Decay"
+
+\end_inset
+
+.
+ The radiative decay rate to the ground state is then 
+\begin_inset Formula $k_{rad}=(1-0.999)\cdot k_{^{3}\hspace{-2bp}F_{3}}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+The lower state can also populate the upper one via phonons, and after some
+ time a thermal equilibrium can be established.
+ The ratio of the populations of the upper and lower states is then given
+ by the Boltzmann distribution.
+ This process can be described in the configuration file as a branching
+ ratio from the lower to the upper state with the appropriate value.
+ For example, if there is a thermal equilibrium between the 
+\begin_inset Formula $^{3}$
+\end_inset
+
+F
+\begin_inset Formula $_{3}$
+\end_inset
+
+ and 
+\begin_inset Formula $^{3}$
+\end_inset
+
+H
+\begin_inset Formula $_{4}$
+\end_inset
+
+ states we need to define two branching ratios in the configuration file,
+ one for relaxation and the other for thermalization:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+activator_branching_ratios:
+\end_layout
+
+\begin_layout Plain Layout
+
+...
+\end_layout
+
+\begin_layout Plain Layout
+
+    3F3->3H4: 0.999 # multiphonon relaxation
+\end_layout
+
+\begin_layout Plain Layout
+
+    3H4->3F3: 5e-5 # multiphonon thermalization
+\end_layout
+
+\begin_layout Plain Layout
+
+...
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The value for the multiphonon thermalization branching ratio should be 
+\begin_inset Formula 
+\[
+k_{MPT}=k_{MPR}\exp\left(-\frac{\Delta E}{kT}\right)=0.999\exp(-10)\approx5\,10^{-5}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+where 
+\begin_inset Formula $\Delta E=\unit[2000]{cm^{-1}}$
+\end_inset
+
+ is the energy difference between the states and 
+\begin_inset Formula $\unit[kT_{r}=200]{cm^{-1}}$
+\end_inset
+
+ is the room temperature energy.
+\end_layout
+
 \begin_layout Section
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:Energy-Transfer"
+name "subsec:Energy-Transfer"
 
 \end_inset
 
@@ -1765,7 +1944,7 @@ label is a short unique text.
  
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Optimization-Processes"
+reference "subsec:Optimization-Processes"
 
 \end_inset
 
@@ -1787,7 +1966,7 @@ ion_label1(init_state) + ion_label2(init_state) -> ion_label1(end_state)
  Where the ion and state labels were defined in Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:States"
+reference "subsec:States"
 
 \end_inset
 
@@ -1924,6 +2103,11 @@ width "110text%"
 special "none"
 height "1in"
 height_special "totalheight"
+thickness "0.4pt"
+separation "3pt"
+shadowsize "4pt"
+framecolor "black"
+backgroundcolor "none"
 status open
 
 \begin_layout Plain Layout
@@ -1969,7 +2153,7 @@ enery_transfer:
 \begin_layout Section
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:Optimization-Processes"
+name "subsec:Optimization-Processes"
 
 \end_inset
 
@@ -2017,7 +2201,7 @@ CR50
 \begin_layout Section
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:Optimization-Method"
+name "subsec:Optimization-Method"
 
 \end_inset
 
@@ -2108,7 +2292,7 @@ SLSQP
 \begin_layout Section
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:Power-Dependence"
+name "subsec:Power-Dependence"
 
 \end_inset
 
@@ -2184,7 +2368,7 @@ reference "sec:Simulating-the-power-dep"
 \begin_layout Section
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:Concentration-Dependence"
+name "subsec:Concentration-Dependence"
 
 \end_inset
 
@@ -2380,7 +2564,7 @@ Example of a wrong configuration file check.
  be found in the error log (see Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Error-logs"
+reference "subsec:Error-logs"
 
 \end_inset
 
@@ -2417,7 +2601,7 @@ simetuc
  format, see Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:The-expData-folder"
+reference "subsec:The-expData-folder"
 
 \end_inset
 
@@ -2522,7 +2706,7 @@ ERROR
 \begin_layout Subsection
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:Error-logs"
+name "subsec:Error-logs"
 
 \end_inset
 
@@ -2571,7 +2755,7 @@ Other folders
 The lattice folder, Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:The-latticeData-folder"
+reference "subsec:The-latticeData-folder"
 
 \end_inset
 
@@ -2582,7 +2766,7 @@ reference "sub:The-latticeData-folder"
 The experimental data folder, see Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:The-expData-folder"
+reference "subsec:The-expData-folder"
 
 \end_inset
 
@@ -2790,7 +2974,7 @@ latticeData
  folder
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:The-latticeData-folder"
+name "subsec:The-latticeData-folder"
 
 \end_inset
 
@@ -2803,7 +2987,7 @@ All created lattices are stored in a folder with the name of the lattice
  user in the configuration file, see Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Lattice"
+reference "subsec:Lattice"
 
 \end_inset
 
@@ -3052,7 +3236,7 @@ expData
  folder
 \begin_inset CommandInset label
 LatexCommand label
-name "sub:The-expData-folder"
+name "subsec:The-expData-folder"
 
 \end_inset
 
@@ -3114,7 +3298,7 @@ EXCLABEL
  file, see Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Excitation"
+reference "subsec:Excitation"
 
 \end_inset
 
@@ -3455,7 +3639,7 @@ SLSQP
  method, see Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Optimization-Method"
+reference "subsec:Optimization-Method"
 
 \end_inset
 
@@ -3541,7 +3725,7 @@ The excitation source activated in the configuration file should have a
  instantaneous powers, see Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Excitation"
+reference "subsec:Excitation"
 
 \end_inset
 
@@ -3748,7 +3932,7 @@ on file and shows the steady state populations in a log-log plot.
  See Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Power-Dependence"
+reference "subsec:Power-Dependence"
 
 \end_inset
 
@@ -3947,7 +4131,7 @@ The simulated concentration range is controlled with the configuration file,
  see Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sub:Concentration-Dependence"
+reference "subsec:Concentration-Dependence"
 
 \end_inset
 
@@ -4615,7 +4799,7 @@ Appendix: Example configuration file
 \begin_layout Standard
 \begin_inset CommandInset include
 LatexCommand lstinputlisting
-filename "E:/Users/Villanueva/Simulaciones/python/simetuc/simetuc/config_file.cfg"
+filename "../../simetuc/config_file.cfg"
 lstparams "numbers=left,numberstyle={\\footnotesize},stepnumber=5,firstnumber=1,numberfirstline=true,breaklines=true,xrightmargin={0cm},xleftmargin={0cm},linewidth=400pt,caption={Exampe configuration file},label={lst:full_conf_file}"
 
 \end_inset

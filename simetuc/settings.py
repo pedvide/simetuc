@@ -6,6 +6,10 @@ Created on Fri Oct 14 13:33:57 2016
 """
 # pylint: disable=E1101
 
+### TODO: separate the checking of the values to the respective modules.
+# This module shouldn't deal with information that concerns other modules
+# It's too coupled now.
+
 from collections import OrderedDict
 import re
 from fractions import Fraction
@@ -107,11 +111,13 @@ def _ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
     return yaml.load(stream, OrderedLoader)
 
 
-def _check_values(needed_values_lst: List[str], present_values_dict: Dict,
-                  section: str = None, optional_values_lst: List[str] = None) -> None:
+def _check_values(needed_values_l: List[str], present_values_dict: Dict,
+                  section: str = None, optional_values_l: List[str] = None,
+                  exclusive_values_l: List[str] = None) -> None:
     ''' Check that the needed keys are present in section
-        Print error and exit if not
+        Print error if not
         Print warning in there are extra keys in section
+        Print error if mutually exclusive values are present
         Returns None
     '''
     logger = logging.getLogger(__name__)
@@ -119,16 +125,21 @@ def _check_values(needed_values_lst: List[str], present_values_dict: Dict,
     # check section is a dictionary
     try:
         present_values = set(present_values_dict.keys())
-        needed_values = set(needed_values_lst)
+        needed_values = set(needed_values_l)
     except (AttributeError, TypeError) as err:
         msg = 'Section "{}" is empty!'.format(section)
         logger.error(msg, exc_info=True)
         raise ConfigError(msg) from err
 
-    if optional_values_lst is None:
+    if optional_values_l is None:
         optional_values = set()  # type: Set
     else:
-        optional_values = set(optional_values_lst)
+        optional_values = set(optional_values_l)
+
+    if exclusive_values_l is None:
+        exclusive_values = set()  # type: Set
+    else:
+        exclusive_values = set(exclusive_values_l)
 
     # if present values don't include all needed values
     if not present_values.issuperset(needed_values):
@@ -153,6 +164,17 @@ def _check_values(needed_values_lst: List[str], present_values_dict: Dict,
             logger.warning('These sections should not be present in the file:')
         logger.warning(str(set_not_optional))
         warnings.warn('Some values or sections should not be present in the file.', ConfigWarning)
+
+    # check exclusive values.
+    # this only works for one set of exclusive values. change if more are needed
+    # so far only lattice has that (for N_uc and radius)
+    if exclusive_values in present_values:
+        if section is not None:
+            logger.error('The following values in section "%s" are mutually exclusive: ', section)
+        else:
+            logger.error('The following values are mutually exclusive: ')
+        logger.error(str(exclusive_values))
+        raise ConfigError('Only one of the values {} must be present.'.format(exclusive_values))
 
 
 def _get_ion_and_state_labels(string: str) -> List[Tuple[str, str]]:
@@ -319,26 +341,41 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
     logger = logging.getLogger(__name__)
 
     # LATTICE
-    needed_keys = ['name', 'N_uc', 'S_conc', 'A_conc', 'a', 'b', 'c',
+    needed_keys = ['name', 'S_conc', 'A_conc', 'a', 'b', 'c',
                    'alpha', 'beta', 'gamma', 'spacegroup',
                    'sites_pos', 'sites_occ']
-    optional_keys = ['d_max', 'd_max_coop']
+    exclusive_keys = ['N_uc', 'radius']
+    optional_keys = ['d_max', 'd_max_coop'] + exclusive_keys
+
     # check that all keys are in the file
-    _check_values(needed_keys, dict_lattice, 'lattice', optional_values_lst=optional_keys)
+    _check_values(needed_keys, dict_lattice, 'lattice',
+                  optional_values_l=optional_keys, exclusive_values_l=exclusive_keys)
 
     parsed_dict = {}  # type: Dict
 
     parsed_dict['name'] = _get_string_value(dict_lattice, 'name')
     parsed_dict['spacegroup'] = _get_string_value(dict_lattice, 'spacegroup')
-    parsed_dict['N_uc'] = _get_int_value(dict_lattice, 'N_uc')
+
     parsed_dict['S_conc'] = _get_float_value(dict_lattice, 'S_conc')
     parsed_dict['A_conc'] = _get_float_value(dict_lattice, 'A_conc')
+
     a_param = _get_float_value(dict_lattice, 'a')
     b_param = _get_float_value(dict_lattice, 'b')
     c_param = _get_float_value(dict_lattice, 'c')
     alpha_param = _get_float_value(dict_lattice, 'alpha')
     beta_param = _get_float_value(dict_lattice, 'beta')
     gamma_param = _get_float_value(dict_lattice, 'gamma')
+    parsed_dict['cell_par'] = [a_param, b_param, c_param,
+                               alpha_param, beta_param, gamma_param]
+
+    if 'N_uc' in dict_lattice:
+        parsed_dict['N_uc'] = _get_int_value(dict_lattice, 'N_uc')
+    elif 'radius' in dict_lattice:
+        parsed_dict['radius'] = _get_float_value(dict_lattice, 'radius')
+        # use enough unit cells for the radius
+        min_param = min(parsed_dict['cell_par'][0:3])
+        parsed_dict['N_uc'] = int(np.ceil(parsed_dict['radius']/min_param))
+
     if 'd_max' in dict_lattice:
         d_max = _get_float_value(dict_lattice, 'd_max')
     else:
@@ -351,7 +388,7 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
     parsed_dict['d_max_coop'] = d_max_coop
 
     # lattice constant should have reasonable values
-    if not 0 <= a_param or not 0 <= b_param or not 0 <= c_param:
+    if a_param < 0 or b_param < 0 or c_param < 0:
         msg = 'The lattice constants must be greater than zero.'
         logger.error(msg)
         raise ValueError(msg)
@@ -361,10 +398,6 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
         msg = 'The angles must be between 0° and 360°.'
         logger.error(msg)
         raise ValueError(msg)
-
-    # calculate cell parameters
-    parsed_dict['cell_par'] = [a_param, b_param, c_param,
-                               alpha_param, beta_param, gamma_param]
 
     # deal with the sites positions and occupancies
     list_sites_pos = dict_lattice['sites_pos']
@@ -460,7 +493,7 @@ def _parse_excitations(dict_excitations: Dict) -> Dict:
         # check that all keys are in each excitation
         _check_values(needed_keys, exc_dict,
                       'excitations {}'.format(excitation),
-                      optional_values_lst=optional_keys)
+                      optional_values_l=optional_keys)
 
         # process values and check they are correct
         # if ESA: process, degeneracy and pump_rate are lists
@@ -787,7 +820,7 @@ def _parse_simulation_params(user_settings: Dict = None) -> Dict:
     optional_keys = ['rtol', 'atol',
                      'N_steps_pulse', 'N_steps']
     # check that only recognized keys are in the file, warn user otherwise
-    _check_values([], user_settings, 'simulation_params', optional_values_lst=optional_keys)
+    _check_values([], user_settings, 'simulation_params', optional_values_l=optional_keys)
 
     # type of the parameters
     params_types = [float, float, int, int]  # type: List[Callable]
@@ -873,7 +906,7 @@ def load(filename: str) -> Dict:
                          'optimization_processes',
                          'enery_transfer', 'simulation_params', 'power_dependence',
                          'concentration_dependence', 'optimize_method']
-    _check_values(needed_sections, config_cte, optional_values_lst=optional_sections)
+    _check_values(needed_sections, config_cte, optional_values_l=optional_sections)
 
     cte = {}  # type: Dict
 
@@ -909,6 +942,8 @@ def load(filename: str) -> Dict:
     # not mandatory -> check
     if 'enery_transfer' in config_cte:
         cte['ET'] = _parse_ET(config_cte)
+    else:
+        cte['ET'] = {}
 
     # EXPERIMENTAL DATA # not used anymore
     # not mandatory -> check
@@ -955,6 +990,6 @@ def load(filename: str) -> Dict:
     return cte
 
 
-if __name__ == "__main__":
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
+#if __name__ == "__main__":
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file_simple.cfg')

@@ -829,6 +829,10 @@ class Simulations():
         formatted_time = time.strftime("%Mm %Ss", time.localtime(total_time))
         logger.info('Simulation finished! Total time: %s.', formatted_time)
 
+        # substract the pulse width from t_sol so that it starts with 0
+        # like it happens in a measurement
+        t_sol = t_sol - t_sol[0]
+
         # store solution and settings
         dynamics_sol = DynamicsSolution(t_sol, y_sol, index_S_i, index_A_j,
                                         self.cte, average=average)

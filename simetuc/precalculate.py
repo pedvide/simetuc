@@ -731,11 +731,15 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
     A_conc = float(cte['lattice']['A_conc'])
 
     num_uc = cte['lattice']['N_uc']
+    radius = cte['lattice'].get('radius', None)
     lattice_name = cte['lattice']['name']
 
     logger.info('Starting microscopic rate equations setup.')
     logger.info('Lattice: %s.', lattice_name)
-    logger.info('Size: %sx%sx%s unit cells.', num_uc, num_uc, num_uc)
+    if radius is None:
+        logger.info('Size: %sx%sx%s unit cells.', num_uc, num_uc, num_uc)
+    else:
+        logger.info('Size: %.1f A.', radius)
     logger.info('Concentrations: %.2f%% Sensitizer, %.2f%% Activator.', S_conc, A_conc)
 
     # check if data exists, otherwise create it
@@ -745,7 +749,8 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
         filename = full_path
     else:  # pragma: no cover
         folder_path = os.path.join('latticeData', lattice_name)
-        full_path = lattice.make_full_path(folder_path, num_uc, S_conc, A_conc)
+
+        full_path = lattice.make_full_path(folder_path, num_uc, S_conc, A_conc, radius=radius)
         filename = full_path
 
     try:
@@ -758,8 +763,8 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
         lattice_info = _load_lattice(filename)
 
         # check that the number of states is correct
-        if (lattice_info['sensitizer_states'] is not cte['states']['sensitizer_states'] or
-                lattice_info['activator_states'] is not cte['states']['activator_states']):
+        if (lattice_info['sensitizer_states'] != cte['states']['sensitizer_states'] or
+                lattice_info['activator_states'] != cte['states']['activator_states']):
             logger.info('Wrong number of states, recalculate lattice...')
             raise FileNotFoundError('Wrong number of states, recalculate lattice...')
 
@@ -1068,7 +1073,7 @@ def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = Non
 #     coop_jac_indices) = setup_microscopic_eqs(cte, full_path=full_path)
 #
 #
-##    ET_matrix = ET_matrix.toarray()
-##    coop_ET_matrix = coop_ET_matrix.toarray()
-##    total_abs_matrix = total_abs_matrix.toarray()
-##    decay_matrix = decay_matrix.toarray()
+#    ET_matrix = ET_matrix.toarray()
+#    coop_ET_matrix = coop_ET_matrix.toarray()
+#    total_abs_matrix = total_abs_matrix.toarray()
+#    decay_matrix = decay_matrix.toarray()
