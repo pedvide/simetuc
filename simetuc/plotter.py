@@ -141,9 +141,9 @@ def plot_power_dependence(sim_data_arr: np.ndarray, power_dens_arr: np.ndarray,
     # calculate the slopes for each consecutive pair of points in the curves
     Y = np.log10(sim_data_arr)[:-1, :]
     X = np.log10(power_dens_arr)
-    dX = (np.roll(X, -1, axis=0) - X)[:-1]
+    dX = list((np.roll(X, -1, axis=0) - X)[:-1])
     # list of slopes
-    slopes = [np.gradient(Y_arr, dX) for Y_arr in Y.T]
+    slopes = [np.gradient(Y_arr, dX[0]) for Y_arr in Y.T]
     slopes = np.around(slopes, 1)
 
     for num, state_label in enumerate(state_labels):  # for each state

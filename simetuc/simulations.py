@@ -1027,7 +1027,7 @@ class Simulations():
 #    solution.save()
 #    new_sol = DynamicsSolution.load('results/bNaYF4/DynamicsSolution.hdf5')
 #
-#    power_dens_list = np.logspace(1, 8, 8-1+1)
+#    power_dens_list = np.logspace(1, 4, 4)
 #    solution = sim.simulate_power_dependence(cte['power_dependence'])
 #    solution.plot()
 #    solution.save()
