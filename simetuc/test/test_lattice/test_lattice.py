@@ -78,7 +78,12 @@ def idfn(params):
                                     (6.0, 6.0, 5, 0, 0, False), # no S_states, A_states
                                     (5.0, 5.0, 10, 15, 0, False)], # no A_states
                          ids=idfn)
-def test_cte(setup_cte, params):
+@pytest.mark.parametrize('radius', [(None, True), # normal
+                                    (100, True), # normal
+                                    (-5, False), # negative radius
+                                    (0, False), # zero radius
+                                   ])
+def test_cte(setup_cte, params, radius):
     '''Test a lattice with different concentrations of S and A; different number of unit cells;
         and different number of S and A energy states
     '''
@@ -90,8 +95,9 @@ def test_cte(setup_cte, params):
     cte['lattice']['N_uc'] = params[2]
     cte['states']['sensitizer_states'] = params[3]
     cte['states']['activator_states'] = params[4]
+    cte['lattice']['radius'] = radius[0]
     # True for normal results, False for exception
-    normal_result = params[5]
+    normal_result = params[-1] and radius[-1]
 
     if normal_result:
         with temp_bin_filename() as temp_filename:
@@ -183,7 +189,63 @@ def test_cte(setup_cte, params):
                  index_A_l, dist_A_l) = lattice.generate(cte, full_path=temp_filename)
 
 
-def test_single_atom(setup_cte): # generate lattices with a single S or A
+def idfn_cell(cell_params):
+    '''Returns the name of the test according to the parameters'''
+    return '{}a_{}b_{}c_{}alfa_{}beta_{}gamma'.format(*cell_params)
+
+@pytest.mark.parametrize('cell_params', [(-5.9, 5.9, 3.5, 90, 90, 120), # negative param
+                                         (5.9, 5.9, 3.5, -90, 90, 0), # negative angle
+                                         (5.9, 5.9, 3.5, 90, 90, 500), # large angle
+                                        ], ids=idfn_cell)
+def test_unit_cell(setup_cte, cell_params):
+    '''Test a lattice with different unit cell parameters
+    '''
+
+    cte = setup_cte
+    cte['lattice']['cell_par'] = cell_params
+
+    with pytest.raises(lattice.LatticeError):
+        with temp_bin_filename() as temp_filename:
+            (dist_array, ion_type, doped_lattice,
+             initial_population, lattice_info,
+             index_S_i, index_A_j,
+             index_S_k, dist_S_k,
+             index_S_l, dist_S_l,
+             index_A_k, dist_A_k,
+             index_A_l, dist_A_l) = lattice.generate(cte, full_path=temp_filename)
+
+
+def idfn_sites(sites):
+    '''Returns the name of the test according to the parameters'''
+    return '{}pos_{}occs'.format(*sites)
+
+@pytest.mark.parametrize('sites', [([[0, 0, 0], [-2/3, 1/3, 1/2]], [1, 1/2]), # negative pos
+                                   ([[0, 0, 0], [3/2, 1/3, 1/2]], [1, 1/2]), # too large pos
+                                   ([[0, 0, 0], [2/3, 1/3, 1/2]], [1, -1/2]), # negative occ
+                                   ([[0, 0, 0], [2/2, 1/3, 1/2]], [1.5, 1/2]), # too large occ
+                                  ], ids=idfn_sites)
+def test_sites(setup_cte, sites):
+    '''Test a lattice with different unit cell parameters
+    '''
+
+    cte = setup_cte
+    cte['lattice']['sites_pos'] = sites[0]
+    cte['lattice']['sites_occ'] = sites[1]
+
+    with pytest.raises(lattice.LatticeError):
+        with temp_bin_filename() as temp_filename:
+            (dist_array, ion_type, doped_lattice,
+             initial_population, lattice_info,
+             index_S_i, index_A_j,
+             index_S_k, dist_S_k,
+             index_S_l, dist_S_l,
+             index_A_k, dist_A_k,
+             index_A_l, dist_A_l) = lattice.generate(cte, full_path=temp_filename)
+
+
+def test_single_atom(setup_cte):
+    '''Generate lattices with a single S or A'''
+
     cte = setup_cte
 
     cte['lattice']['N_uc'] = 1

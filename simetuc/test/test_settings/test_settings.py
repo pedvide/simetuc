@@ -246,22 +246,16 @@ activator_decay: asd
 # list of tuples of values for N_uc, S_conc, A_conc, a,b,c, alpha,
 lattice_values = [('dsa', 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [2/3, 1/3, 1/2]]', '[1, 1/2]'), # text instead of number
 (0.3, 0.3, 0.3, 'dsa', 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [2/3, 1/3, 1/2]]', '[1, 1/2]'), # text instead of number
-(0.3, 0.3, 0.3, -5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [2/3, 1/3, 1/2]]', '[1, 1/2]'), # negative number
-(0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 370, 90, 120, '[[0, 0, 0], [2/3, 1/3, 1/2]]', '[1, 1/2]'), # angle too large
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[]', '[]'), # empty occupancies
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '', ''), # empty occupancies 2
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '0, 0, 0', '[1.1, 1/2]'), # occupancy pos not a list
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0]]', '[1]'), # sites_pos must be list of 3 numbers
-(0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [-1/3, 1/3, 1/2]]', '[1, 1/2]'), # negative number
-(0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [1/3, 1/3, 1/2]]', '[-1, 1/2]'), # negative number
-(0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [1/3, 1/3, 1/2]]', '[1.1, 1/2]'), # occupancy larger than 1
-(0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [4/3, 1/3, 1/2]]', '[1, 1/2]'), # sites_pos larger than 1
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [one/5, 1/3, 1/2]]', '[1, 1/2]'), # sites_pos string
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0], [1/3, 1/3, 1/2]]', '[1/2]'), # different number of occ.
 (0.3, 0.3, 0.3, 5.9, 5.9, 3.5, 90, 90, 120, '[[0, 0, 0]]', '[1/2, 0.75]')] # different number of occ. 2
-ids=['text instead of number', 'text instead of number', 'negative number',\
-'angle too large', 'empty occupancies', 'empty occupancies 2', 'occupancies pos not a list', 'sites_pos: list of 3 numbers', 'negative number',\
-'negative number', 'occupancy larger than 1', 'sites_pos larger than 1', 'sites_pos string', 'different number of occ.', 'different number of occ. 2']
+ids=['text instead of number', 'text instead of number',\
+'empty occupancies', 'empty occupancies 2', 'occupancies pos not a list', 'sites_pos: list of 3 numbers',\
+'sites_pos string', 'different number of occ.', 'different number of occ. 2']
 @pytest.mark.parametrize('lattice_values', lattice_values, ids=ids)
 def test_lattice_config(lattice_values):
     data_format = data_lattice.format(*lattice_values)
@@ -327,15 +321,62 @@ lattice:
 '''
 def test_lattice_dmax():
     data = data_lattice_full + '''    d_max: 100.0
-    d_max_coop: 25.0'''
+    d_max_coop: 25.0
+states:
+    asd: dsa
+excitations:
+        asd: dsa
+sensitizer_decay:
+        asd: dsa
+activator_decay:
+        asd: dsa'''
     with pytest.raises(settings.ConfigError) as excinfo: # ok, error later
         with temp_config_filename(data) as filename:
             settings.load(filename)
     assert excinfo.match(r"The sections or values")
-    assert excinfo.match(r"excitations")
-    assert excinfo.match(r"activator_decay")
-    assert excinfo.match(r"states")
-    assert excinfo.match(r"sensitizer_decay")
+    assert excinfo.match(r"sensitizer_states_labels")
+    assert excinfo.match(r"activator_states_labels")
+    assert excinfo.match(r"sensitizer_ion_label")
+    assert excinfo.match(r"activator_ion_label")
+    assert excinfo.type == settings.ConfigError
+
+def test_lattice_radius():
+    data = data_lattice_full + '''states:
+    asd: dsa
+excitations:
+        asd: dsa
+sensitizer_decay:
+        asd: dsa
+activator_decay:
+        asd: dsa'''
+    data = data.replace('N_uc: 8', 'radius: 100.0')
+    with pytest.raises(settings.ConfigError) as excinfo: # ok, error later
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"The sections or values")
+    assert excinfo.match(r"sensitizer_states_labels")
+    assert excinfo.match(r"activator_states_labels")
+    assert excinfo.match(r"sensitizer_ion_label")
+    assert excinfo.match(r"activator_ion_label")
+    assert excinfo.type == settings.ConfigError
+
+def test_lattice_radius_and_N_uc():
+    data = data_lattice_full + '''    radius: 10.0
+states:
+    asd: dsa
+excitations:
+        asd: dsa
+sensitizer_decay:
+        asd: dsa
+activator_decay:
+        asd: dsa'''
+    with pytest.raises(settings.ConfigError) as excinfo:
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"Only one of the values")
+    assert excinfo.match(r"radius")
+    assert excinfo.match(r"N_uc")
+    assert excinfo.match(r"must be present")
     assert excinfo.type == settings.ConfigError
 
 data_lattice_ok = '''version: 1

@@ -541,13 +541,13 @@ def _create_coop_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET
     num_inter = len(processes_arr)
 #    logger.debug('Number of cooperative processes: %d', num_inter)
 
-    # no interactions
-    if num_inter == 0:
-        coop_ET_matrix = csr_matrix(np.zeros((num_energy_states, 0), dtype=np.float64))
-        coop_N_indices = np.column_stack((np.array([], dtype=np.uint32),
-                                          np.array([], dtype=np.uint32),
-                                          np.array([], dtype=np.uint32)))
-        return (coop_ET_matrix, coop_N_indices)
+    # no interactions, dealt with above
+#    if num_inter == 0:
+#        coop_ET_matrix = csr_matrix(np.zeros((num_energy_states, 0), dtype=np.float64))
+#        coop_N_indices = np.column_stack((np.array([], dtype=np.uint32),
+#                                          np.array([], dtype=np.uint32),
+#                                          np.array([], dtype=np.uint32)))
+#        return (coop_ET_matrix, coop_N_indices)
 
     # update the last columm of processes_arr with the distance between i and k
     i_ion_arr, k_ion_arr = get_i_k_ions(processes_arr['i'], processes_arr['k'], np.array(index_S_i))

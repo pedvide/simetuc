@@ -113,3 +113,19 @@ def test_cli_optim_method(mocker, no_logging):
         ext_args = [new_config_file, '--no-plot', '-o']
         commandline.main(ext_args)
         assert mocked_opt.call_count == 1
+
+def test_cli_optim_procs(mocker, no_logging):
+    '''Test that the optimization works without a user-given optimization processes list'''
+
+    mocked_opt = mocker.patch('simetuc.optimize.optimize_dynamics')
+    mocked_opt.return_value = (np.array([1.0]), 0.0)
+
+    # add optim method to config file
+    with open(config_file, 'rt') as file:
+        config_content = file.read()
+    data = config_content.replace('optimization_processes: [CR50]', '')
+
+    with temp_config_filename(data) as new_config_file:
+        ext_args = [new_config_file, '--no-plot', '-o']
+        commandline.main(ext_args)
+        assert mocked_opt.call_count == 1

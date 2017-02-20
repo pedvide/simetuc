@@ -27,6 +27,64 @@ class LatticeError(Exception):
     pass
 
 
+def _check_lattice_settings(cte: Dict):
+    '''Checks that the settings for the lattice are correct.'''
+    logger = logging.getLogger(__name__)
+
+    num_uc = cte['lattice']['N_uc']
+    S_conc = float(cte['lattice']['S_conc'])
+    A_conc = float(cte['lattice']['A_conc'])
+    radius = cte['lattice'].get('radius', None)
+
+    if num_uc <= 0:
+        logger.error('Wrong number of unit cells: %d.', num_uc)
+        logger.error('It must be a positive integer.')
+        raise LatticeError('Wrong number of unit cells.')
+
+    # radius must be positive
+    if radius and radius <= 0:
+        msg = 'The radius must be greater than zero.'
+        logger.error(msg)
+        raise LatticeError(msg)
+
+    # if the concentrations are not in the correct range
+    if not ((0.0 <= S_conc <= 100.0) and (0.0 <= A_conc <= 100.0) and
+            (0 <= S_conc+A_conc <= 100.0)):
+        logger.error('Wrong ion concentrations:' +
+                     '%.2f%% Sensitizer, %.2f%% Activator.', S_conc, A_conc)
+        logger.error('They must be between 0% and 100%, and their sum too.')
+        raise LatticeError('Wrong ion concentrations.')
+
+    num_S_states = cte['states']['sensitizer_states']
+    num_A_states = cte['states']['activator_states']
+    if (S_conc != 0 and num_S_states == 0) or (A_conc != 0 and num_A_states == 0):
+        logger.error('The number of states of each ion cannot be zero.')
+        raise LatticeError('Wrong number of states.')
+
+    # lattice constant should have reasonable values
+    if any(val < 0 for val in cte['lattice']['cell_par'][:3]):
+        msg = 'The lattice constants must be greater than zero.'
+        logger.error(msg)
+        raise LatticeError(msg)
+
+    # angles should have reasonable values
+    if not all(0 < val < 360 for val in cte['lattice']['cell_par'][3:]):
+        msg = 'The angles must be between 0° and 360°.'
+        logger.error(msg)
+        raise LatticeError(msg)
+
+    # occupancies and positions between 0 and 1
+    if not all(0 <= val <= 1 for val in cte['lattice']['sites_occ']):
+        msg = 'Occupancies must be between 0 and 1.'
+        logger.error(msg)
+        raise LatticeError(msg)
+
+    if not np.alltrue(np.array(cte['lattice']['sites_pos']) >= 0) or\
+       not np.alltrue(np.array(cte['lattice']['sites_pos']) <= 1):
+        msg = 'The sites positions must be between 0 and 1.'
+        logger.error(msg)
+        raise LatticeError(msg)
+
 def _create_lattice(spacegroup: Union[int, str], cell_par: List[float], num_uc: int,
                     sites_pos: List[float], sites_occ: List[float]) -> ase.Atoms:
     '''Creates the lattice with the specified parameters.
@@ -283,24 +341,7 @@ def generate(cte: Dict, min_im_conv: bool = True,
     lattice_name = cte['lattice']['name']
     radius = cte['lattice'].get('radius', None)
 
-    if num_uc <= 0:
-        logger.error('Wrong number of unit cells: %d.', num_uc)
-        logger.error('It must be a positive integer.')
-        raise LatticeError('Wrong number of unit cells.')
-
-    # if the concentrations are not in the correct range
-    if not ((0.0 <= S_conc <= 100.0) and (0.0 <= A_conc <= 100.0) and
-            (0 <= S_conc+A_conc <= 100.0)):
-        logger.error('Wrong ion concentrations:' +
-                     '%.2f%% Sensitizer, %.2f%% Activator.', S_conc, A_conc)
-        logger.error('They must be between 0% and 100%, and their sum too.')
-        raise LatticeError('Wrong ion concentrations.')
-
-    num_S_states = cte['states']['sensitizer_states']
-    num_A_states = cte['states']['activator_states']
-    if (S_conc != 0 and num_S_states == 0) or (A_conc != 0 and num_A_states == 0):
-        logger.error('The number of states of each ion cannot be zero.')
-        raise LatticeError('Wrong number of states.')
+    _check_lattice_settings(cte)
 
     start_time = time.time()
 
@@ -322,9 +363,7 @@ def generate(cte: Dict, min_im_conv: bool = True,
 
     # make nanoparticle of a given radius
     if radius is not None:
-#        print(f'number of atoms before: {len(atoms)}.')
         atoms = _make_spherical(atoms, radius)
-#        print(f'number of atoms after: {len(atoms)}')
         min_im_conv = False
 
     # modify a lattice to get the concentration of S and A ions
@@ -335,6 +374,8 @@ def generate(cte: Dict, min_im_conv: bool = True,
     num_doped_atoms = len(atoms)
     num_A = np.count_nonzero(ion_type)
     num_S = num_doped_atoms-num_A
+    num_S_states = cte['states']['sensitizer_states']
+    num_A_states = cte['states']['activator_states']
     num_states = num_S_states*num_S + num_A_states*num_A
 
     if num_doped_atoms == 0 or num_states == 0:

@@ -155,7 +155,7 @@ def _check_values(needed_values_l: List[str], present_values_dict: Dict,
 
     set_extra = present_values - needed_values
     # if there are extra values and they aren't optional
-    if len(set_extra) > 0 and not set_extra.issubset(optional_values):
+    if set_extra and not set_extra.issubset(optional_values):
         set_not_optional = set_extra - optional_values
         if section is not None:
             logger.warning('WARNING! The following values in section "%s" ' +
@@ -168,7 +168,7 @@ def _check_values(needed_values_l: List[str], present_values_dict: Dict,
     # check exclusive values.
     # this only works for one set of exclusive values. change if more are needed
     # so far only lattice has that (for N_uc and radius)
-    if exclusive_values in present_values:
+    if exclusive_values and exclusive_values.issubset(present_values):
         if section is not None:
             logger.error('The following values in section "%s" are mutually exclusive: ', section)
         else:
@@ -267,27 +267,28 @@ def _get_list(dictionary: Dict, value: str, val_type: Callable) -> List[Any]:
     return lst
 
 
-def _get_positive_value(dictionary: Dict, value: str, val_type: Callable) -> Union[int, float]:
-    '''Gets a value from the dict and raises a ValueError if it's negative'''
-    logger = logging.getLogger(__name__)
-
-    val = _get_value(dictionary, value, val_type)
-    if val < 0:
-        msg = '"{}" is a negative value'.format(value)
-        logger.error(msg, exc_info=True)
-        raise ValueError(msg)
-
-    return val
+# forcing values to be positive or negative is better dealt with at each module.
+#def _get_positive_value(dictionary: Dict, value: str, val_type: Callable) -> Union[int, float]:
+#    '''Gets a value from the dict and raises a ValueError if it's negative'''
+#    logger = logging.getLogger(__name__)
+#
+#    val = _get_value(dictionary, value, val_type)
+#    if val < 0:
+#        msg = '"{}" is a negative value'.format(value)
+#        logger.error(msg, exc_info=True)
+#        raise ValueError(msg)
+#
+#    return val
 
 
 def _get_int_value(dictionary: Dict, value: str) -> int:
     '''Gets an int from the dictionary'''
-    return int(_get_positive_value(dictionary, value, int))
+    return int(_get_value(dictionary, value, int))
 
 
 def _get_float_value(dictionary: Dict, value: str) -> float:
     '''Gets a float from the dictionary, it converts it into a Fraction first'''
-    return float(_get_positive_value(dictionary, value, Fraction))
+    return float(_get_value(dictionary, value, Fraction))
 
 
 def _get_normalized_float_value(dictionary: Dict, value: str) -> float:
@@ -295,7 +296,7 @@ def _get_normalized_float_value(dictionary: Dict, value: str) -> float:
         Value must be between 0 and 1, otherwise a ValueError is raised.
     '''
     logger = logging.getLogger(__name__)
-    val = float(_get_positive_value(dictionary, value, Fraction))
+    val = float(_get_value(dictionary, value, Fraction))
     if 0 <= val <= 1.0:
         return val
     else:
@@ -387,18 +388,6 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
         d_max_coop = np.inf
     parsed_dict['d_max_coop'] = d_max_coop
 
-    # lattice constant should have reasonable values
-    if a_param < 0 or b_param < 0 or c_param < 0:
-        msg = 'The lattice constants must be greater than zero.'
-        logger.error(msg)
-        raise ValueError(msg)
-
-    # angles should have reasonable values
-    if not 0 <= alpha_param <= 360 or not 0 <= beta_param <= 360 or not 0 <= gamma_param <= 360:
-        msg = 'The angles must be between 0° and 360°.'
-        logger.error(msg)
-        raise ValueError(msg)
-
     # deal with the sites positions and occupancies
     list_sites_pos = dict_lattice['sites_pos']
     if not isinstance(list_sites_pos, (list, tuple)) or len(list_sites_pos) < 1:
@@ -415,10 +404,6 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
         msg = 'The sites positions are lists of 3 numbers.'
         logger.error(msg)
         raise ValueError(msg)
-    if not np.alltrue(np.array(sites_pos) >= 0) or not np.alltrue(np.array(sites_pos) <= 1):
-        msg = 'The sites positions must be between 0 and 1.'
-        logger.error(msg)
-        raise ValueError(msg)
 
     list_sites_occ = dict_lattice['sites_occ']
     if not isinstance(list_sites_occ, (list, tuple)):
@@ -426,10 +411,6 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
     sites_occ = _get_list_floats(list_sites_occ)
     parsed_dict['sites_occ'] = sites_occ
 
-    if not all(0 <= val <= 1 for val in sites_occ):
-        msg = 'Occupancies must be between 0 and 1.'
-        logger.error(msg)
-        raise ValueError(msg)
     if not len(sites_pos) == len(sites_occ):
         msg = 'The number of sites must be the same in sites_pos and sites_occ.'
         logger.error(msg)

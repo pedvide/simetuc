@@ -12,5 +12,6 @@ exclude_lines =
     if settings.DEBUG
     raise AssertionError
     raise NotImplementedError
+    return NotImplemented
     if 0:
     if __name__ == .__main__.:
