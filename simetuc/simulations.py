@@ -334,11 +334,11 @@ class DynamicsSolution(Solution):
         logger.debug('Trying to read experimental data file: %s', filename)
 
         delimiters = [' ', '\t', ',', ';']
-
-        try:
-            with open(path, 'rt') as file:
-                for delim in delimiters:
+        for delim in delimiters:
+            try:
+                with open(path, 'rt') as file:
                     try:  # TODO: get a better way to read data, PANDAS?
+                        #  data = np.loadtxt(path, usecols=(0, 1)) # 10x slower
                         data = csv.reader(file, delimiter=delim)
                         # ignore emtpy lines and comments
                         data = [row for row in data if len(row) == 2 and not row[0].startswith('#')]
@@ -351,12 +351,12 @@ class DynamicsSolution(Solution):
                         continue
                     else:  # success
                         break
-    #        data = np.loadtxt(path, usecols=(0, 1)) # 10x slower
-        except FileNotFoundError:
-            # exp data doesn't exist. not a problem.
-            logger.debug('File not found.')
-            return None
+            except FileNotFoundError:
+                # exp data doesn't exist. not a problem.
+                logger.debug('File not found.')
+                return None
 
+        # make sure data is valid
         if not isinstance(data, np.ndarray) or len(data.shape) != 2 or data.shape[1] != 2:
             logger.debug('Invalid experimental data.')
             return None
@@ -1072,24 +1072,24 @@ class Simulations():
         return conc_dep_solution
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-
-    logger.info('Called from cmd.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
-
-    cte['no_console'] = False
-    cte['no_plot'] = False
-
-    sim = Simulations(cte)
-
-    solution = sim.simulate_dynamics()
-    solution.log_errors()
-    solution.plot()
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.DEBUG,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#
+#    logger.info('Called from cmd.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+#
+#    sim = Simulations(cte)
+#
+#    solution = sim.simulate_dynamics()
+#    solution.log_errors()
+#    solution.plot()
 #
 #    solution.plot(state=7)
 #
