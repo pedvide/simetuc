@@ -15,7 +15,6 @@ import logging.config
 import argparse
 # nice debug printing of settings
 import pprint
-import datetime
 import os
 from pkg_resources import resource_string
 from typing import Any, Union, List
@@ -28,6 +27,7 @@ import simetuc.lattice as lattice
 import simetuc.simulations as simulations
 import simetuc.settings as settings
 import simetuc.optimize as optimize
+from simetuc.util import change_console_logger_level as change_console_logger_level
 
 from simetuc import VERSION
 from simetuc import DESCRIPTION
@@ -35,16 +35,6 @@ from simetuc import DESCRIPTION
 
 # Union used in a # type: comment, but pylint and flake8 don't see it
 Union  # pylint: disable=W0104
-
-
-def _change_console_logger(level: int) -> None:  # pragma: no cover
-    ''' change the logging level of the console handler '''
-    logger = logging.getLogger()
-    for handler in logger.handlers:
-        if isinstance(handler, logging.StreamHandler):
-            if handler.stream == sys.stdout:  # type: ignore
-                handler.setLevel(level)
-
 
 def parse_args(args: Any) -> argparse.Namespace:
     '''Create a argparser and parse the args'''
@@ -199,10 +189,10 @@ def main(ext_args: List[str] = None) -> None:
 
         # change the logging level of the console handler
         # so it only prints warnings to screen while calculating all solutions
-        _change_console_logger(logging.WARNING)
+        change_console_logger_level(logging.WARNING)
         solution = sim.simulate_power_dependence(power_dens_list, average=args.average)
         # restore old level value
-        _change_console_logger(console_level)
+        change_console_logger_level(console_level)
         print('')
 
     elif args.conc_dependence:  # simulate concentration dependence
@@ -219,42 +209,18 @@ def main(ext_args: List[str] = None) -> None:
 
         # change the logging level of the console handler
         # so it only prints warnings to screen while calculating all solutions
-        _change_console_logger(logging.WARNING)
+        change_console_logger_level(logging.WARNING)
         solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics,
                                                          average=args.average)
         # restore old level value
-        _change_console_logger(console_level)
+        change_console_logger_level(console_level)
         print('')
 
     elif args.optimize:  # optimize
         logger.info('Optimizing ET parameters...')
 
         method = cte.get('optimize_method', None)
-        logger.info('Optimization method: %s.', method)
-
-        # read the starting values from the settings
-        if 'optimization_processes' in cte and cte['optimization_processes'] is not None:
-            # optimize only those ET parameters that the user has selected
-            process_list = [process for process in cte['ET']
-                            if process in cte['optimization_processes']]
-        else:
-            process_list = [process for process in cte['ET']]
-
-        _change_console_logger(logging.WARNING)
-        start_time = datetime.datetime.now()
         best_x, min_f = optimize.optimize_dynamics(cte, method, average=args.average)
-
-        _change_console_logger(console_level)
-#        print('\n')  # jump to the line after the progress bar
-
-        total_time = datetime.datetime.now() - start_time
-        hours, remainder = divmod(total_time.total_seconds(), 3600)
-        minutes, seconds = divmod(remainder, 60)
-        formatted_time = '{:.0f}h {:02.0f}m {:02.0f}s'.format(hours, minutes, seconds)
-        logger.info('Minimum reached! Total time: %s.', formatted_time)
-        logger.info('Optimized RMS error: %.3e.', min_f)
-        for proc, best_val in zip(process_list, best_x.T):
-            logger.info('%s: %.3e.', proc, best_val)
 
     # save results to disk
     if solution is not None:

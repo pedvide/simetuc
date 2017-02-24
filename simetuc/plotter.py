@@ -41,13 +41,16 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
     list_exp_data = list_exp_data or [None]*num_plots
     state_labels = state_labels or [None]*num_plots
 
+    list_t_sim = t_sol if len(t_sol) == num_plots else [t_sol]*num_plots
+
     if concentration is not None:
         conc_str = '_' + str(concentration.S_conc) + 'S_' + str(concentration.A_conc) + 'A'
         state_labels = [label+conc_str for label in state_labels]
 
-    for num, (sim_data, exp_data, state_label) in enumerate(zip(list_sim_data,
-                                                                list_exp_data,
-                                                                state_labels)):
+    for num, (sim_data, t_sim, exp_data, state_label) in enumerate(zip(list_sim_data,
+                                                                       list_t_sim,
+                                                                       list_exp_data,
+                                                                       state_labels)):
         if sim_data is None:
             continue
         if (np.isnan(sim_data)).any() or not np.any(sim_data > 0):
@@ -62,10 +65,10 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
         # no exp data: either a GS or simply no exp data available
         if exp_data is 0 or exp_data is None:
             # nonposy='clip': clip non positive values to a very small positive number
-            plt.semilogy(t_sol*1000, sim_data, sim_color, label=state_label, nonposy='clip')
+            plt.semilogy(t_sim*1000, sim_data, sim_color, label=state_label, nonposy='clip')
             plt.yscale('log', nonposy='clip')
             plt.axis('tight')
-            plt.xlim(xmin=t_sol[0]*1000.0)
+            plt.xlim(xmin=t_sim[0]*1000.0)
             # add some white space above and below
             margin_factor = np.array([0.7, 1.3])
             plt.ylim(*np.array(plt.ylim())*margin_factor)
@@ -79,17 +82,17 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
                     # last time it changes
                     max_index = change_indices[-1]
                     # show simData until it falls below atol
-                    plt.xlim(xmax=t_sol[max_index]*1000)
+                    plt.xlim(xmax=t_sim[max_index]*1000)
             min_y = min(*plt.ylim())
             max_y = max(*plt.ylim())
             plt.ylim(ymin=min_y, ymax=max_y)
         else:  # exp data available
             # convert exp_data time to ms
             plt.semilogy(exp_data[:, 0]*1000, exp_data[:, 1]*np.max(sim_data), exp_color,
-                         t_sol*1000, sim_data, sim_color, label=state_label)
+                         t_sim*1000, sim_data, sim_color, label=state_label)
             plt.axis('tight')
             plt.ylim(ymax=plt.ylim()[1]*1.2)  # add some white space on top
-            tmin = min(exp_data[-1, 0], t_sol[0])
+            tmin = min(exp_data[-1, 0], t_sim[0])
             plt.xlim(xmin=tmin*1000.0, xmax=exp_data[-1, 0]*1000)  # don't show beyond expData
 
         plt.legend(loc="best", fontsize='small')

@@ -15,6 +15,9 @@ import simetuc.plotter as plotter
 from simetuc.util import temp_config_filename, temp_bin_filename
 
 
+### TODO: Test loading exp data with different formats
+
+
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
 
 

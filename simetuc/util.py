@@ -4,11 +4,14 @@ Created on Wed Nov 23 16:45:32 2016
 
 @author: Pedro
 """
+
+import sys
 import tempfile
 from contextlib import contextmanager
 import os
 from collections import namedtuple
 from typing import Generator
+import logging
 
 
 # http://stackoverflow.com/a/11892712
@@ -40,3 +43,21 @@ def temp_bin_filename() -> Generator:
 
 # namedtuple for the concentration of solutions
 Conc = namedtuple('Concentration', ['S_conc', 'A_conc'])
+
+
+def get_console_logger_level() -> int:  # pragma: no cover
+    '''Get the logging level of the console handler '''
+    logger = logging.getLogger()
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            if handler.stream == sys.stdout:  # type: ignore
+                return handler.level  # type: ignore
+
+
+def change_console_logger_level(level: int) -> None:  # pragma: no cover
+    '''Change the logging level of the console handler '''
+    logger = logging.getLogger()
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            if handler.stream == sys.stdout:  # type: ignore
+                handler.setLevel(level)

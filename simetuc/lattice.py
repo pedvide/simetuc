@@ -486,10 +486,10 @@ def generate(cte: Dict, min_im_conv: bool = True,
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
 #
-#    cte['lattice']['S_conc'] = 100
-#    cte['lattice']['A_conc'] = 0
+##    cte['lattice']['S_conc'] = 100
+##    cte['lattice']['A_conc'] = 0
 ##    cte['lattice']['N_uc'] = 10
-#    cte['lattice']['radius'] = 30
+##    cte['lattice']['radius'] = 30
 ##    cte['states']['sensitizer_states'] = 0
 ##    cte['states']['activator_states'] = 4
 #

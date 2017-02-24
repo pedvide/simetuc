@@ -20,7 +20,7 @@ import pprint
 import warnings
 import os
 from pkg_resources import resource_string
-from typing import Dict, List, Tuple, Any, Union, Callable
+from typing import Dict, List, Tuple, Any, Callable
 
 import numpy as np
 
@@ -617,6 +617,15 @@ def _parse_decay_rates(cte: Dict) -> Tuple[List[Tuple[int, float]],
     return (pos_value_S, pos_value_A)
 
 
+def _get_branching_ratio_indices(process: str, label: List[str]) -> Tuple[int, int]:
+    '''Return the initial and final state indices involved in a branching ratio process.
+       The ion has the given label states'''
+    states_list = ''.join(process.split()).split('->')
+    state_i, state_f = (_get_state_index(label, s, section='branching ratio',
+                                         process=process) for s in states_list)
+    return (state_i, state_f)
+
+
 def _parse_branching_ratios(cte: Dict) -> Tuple[List[Tuple[int, int, float]],
                                                 List[Tuple[int, int, float]]]:
     '''Parse the branching ratios'''
@@ -626,27 +635,21 @@ def _parse_branching_ratios(cte: Dict) -> Tuple[List[Tuple[int, int, float]],
     activator_labels = cte['states']['activator_states_labels']
 
     try:
-        # list of tuples of states and decay rate
-        B_pos_value_S = []
-        B_pos_value_A = []
         branch_ratios_S = cte.get('sensitizer_branching_ratios', None)
         branch_ratios_A = cte.get('activator_branching_ratios', None)
         if branch_ratios_S is not None:
-            for num, key in enumerate(branch_ratios_S.keys()):
-                states_list = ''.join(key.split()).split('->')
-                state_i, state_f = (_get_state_index(sensitizer_labels, s,
-                                                     section='branching ratio',
-                                                     process=key, num=num) for s in states_list)
-                val = _get_normalized_float_value(branch_ratios_S, key)
-                B_pos_value_S.append((state_i, state_f, val))
+            # list of tuples of states and decay rate
+            B_pos_value_S = [(*_get_branching_ratio_indices(process, sensitizer_labels),
+                              _get_normalized_float_value(branch_ratios_S, process))
+                             for process in branch_ratios_S]
+        else:
+            B_pos_value_S = []
         if branch_ratios_A is not None:
-            for num, key in enumerate(branch_ratios_A.keys()):
-                states_list = ''.join(key.split()).split('->')
-                state_i, state_f = (_get_state_index(activator_labels, s,
-                                                     section='branching ratio',
-                                                     process=key, num=num) for s in states_list)
-                val = _get_normalized_float_value(branch_ratios_A, key)
-                B_pos_value_A.append((state_i, state_f, val))
+            B_pos_value_A = [(*_get_branching_ratio_indices(process, activator_labels),
+                              _get_normalized_float_value(branch_ratios_A, process))
+                             for process in branch_ratios_A]
+        else:
+            B_pos_value_A = []
     except ValueError as err:
         logger.error('Invalid value for parameter in branching ratios.')
         logger.error(str(err.args))
@@ -767,20 +770,48 @@ def _parse_ET(cte: Dict) -> Dict:
 #    return filenames
 
 
-def _parse_optim_params(dict_optim: Dict, dict_ET: Dict) -> Dict:
-    '''Parse the optional list of ET parameters to optimize'''
+def _parse_optim_params(dict_optim: Dict, dict_ET: Dict, dict_decay: Dict, dict_states: Dict) -> List:
+    '''Parse the optional list of parameters to optimize.
+       Some of the params are ET, other are branching ratios'''
 
     logger = logging.getLogger(__name__)
 
-    list_params = dict_optim
-    list_good_params = dict_ET.keys()
+    # ET params that the user has defined
+    set_good_ET_params = set(dict_ET.keys())
+    # branching ratio params that user has defined
+    set_good_B_params_S = set((i, f) for (i, f, v) in dict_decay['B_pos_value_S'])
+    set_good_B_params_A = set((i, f) for (i, f, v) in  dict_decay['B_pos_value_A'])
 
-    if not set(list_good_params).issuperset(set(list_params)):
+    set_params = set(dict_optim)
+
+    # set of ET params to optimize
+    set_ET_params = set_params.intersection(set_good_ET_params)
+
+    # other params should be branching ratios, we need to parse them into (i, f) tuples
+    set_other_params = set_params.difference(set_ET_params)
+
+    sensitizer_labels = dict_states['sensitizer_states_labels']
+    activator_labels = dict_states['activator_states_labels']
+
+    try:
+        if set_other_params:
+            # list of tuples of states and decay rate
+            B_pos_value_A = [_get_branching_ratio_indices(process, activator_labels)
+                             for process in set_other_params]
+            # make sure the branching ratio was defined before
+#            print(B_pos_value_A)
+#            print(set_good_B_params_A | set_good_B_params_S)
+            if not set(B_pos_value_A).issubset(set_good_B_params_A | set_good_B_params_S):
+                raise ValueError('Unrecognized parameters.')
+        else:
+             B_pos_value_A = []
+    except ValueError as err:
         msg = 'Wrong labels in optimization_processes!'
         logger.error(msg)
+        logger.error(str(err.args))
         raise LabelError(msg)
 
-    return dict_optim
+    return list(set_ET_params) + B_pos_value_A
 
 
 def _parse_simulation_params(user_settings: Dict = None) -> Dict:
@@ -935,7 +966,7 @@ def load(filename: str) -> Dict:
     # not mandatory -> check
     if 'optimization_processes' in config_cte:
         cte['optimization_processes'] = _parse_optim_params(config_cte['optimization_processes'],
-                                                            cte['ET'])
+                                                            cte['ET'], cte['decay'], cte['states'])
 
     # SIMULATION PARAMETERS
     # not mandatory -> check

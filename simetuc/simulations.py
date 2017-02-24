@@ -20,6 +20,7 @@ import numpy as np
 
 import scipy.signal as signal
 import scipy.interpolate as interpolate
+#from scipy import stats
 
 # nice progress bar
 from tqdm import tqdm
@@ -306,6 +307,7 @@ class DynamicsSolution(Solution):
 
         self._list_exp_data = []  # type: List[np.array]
         self._list_avg_data_ofs = []  # type: List[np.array]
+        self._list_binned_data = []  # type: List[np.array]
 
         self._total_error = None  # type: float
         self._errors = np.array([])
@@ -319,6 +321,8 @@ class DynamicsSolution(Solution):
         '''Load the experimental data from the expData/lattice_name folder.
            Two columns of numbers: first is time (seconds), second intensity
         '''
+        logger = logging.getLogger(__name__)
+
         # use absolute path from here
         if os.path.isdir("expData"):  # pragma: no cover
             path = os.path.join('expData', lattice_name, filename)
@@ -326,24 +330,38 @@ class DynamicsSolution(Solution):
             path = os.path.join(os.path.join('simetuc', 'expData'), lattice_name, filename)
         else:
             return None
+
+        logger.debug('Trying to read experimental data file: %s', filename)
+
+        delimiters = [' ', '\t', ',', ';']
+
         try:
             with open(path, 'rt') as file:
-                try:  # TODO: get a better way to read data
-                    data = csv.reader(file, delimiter='\t')
-                    data = [row for row in data if row[0][0] is not '#']
-                    data = np.array(data, dtype=np.float64)
-                    # print(path)
-                except ValueError:  # pragma: no cover
-                    data = csv.reader(file, delimiter=',')
-                    data = [row for row in data if row[0][0] is not '#']
-                    data = np.array(data, dtype=np.float64)
+                for delim in delimiters:
+                    try:  # TODO: get a better way to read data, PANDAS?
+                        data = csv.reader(file, delimiter=delim)
+                        # ignore emtpy lines and comments
+                        data = [row for row in data if len(row) == 2 and not row[0].startswith('#')]
+                        data = np.array(data, dtype=np.float64)
+
+                        # if data isn't right, retry with a different delimiter
+                        if not isinstance(data, np.ndarray) or len(data.shape) != 2 or data.shape[1] != 2:
+                            raise ValueError
+                    except ValueError:  # pragma: no cover
+                        continue
+                    else:  # success
+                        break
     #        data = np.loadtxt(path, usecols=(0, 1)) # 10x slower
         except FileNotFoundError:
             # exp data doesn't exist. not a problem.
+            logger.debug('File not found.')
             return None
 
-        if len(data) == 0:
+        if not isinstance(data, np.ndarray) or len(data.shape) != 2 or data.shape[1] != 2:
+            logger.debug('Invalid experimental data.')
             return None
+
+        logger.debug('Experimental data succesfully read.')
 
         # smooth the data to get an "average" of the maximum
         smooth_data = signal.savgol_filter(data[:, 1], filter_window, 2, mode='nearest')
@@ -377,9 +395,10 @@ class DynamicsSolution(Solution):
         return sim_data_ofs
 
     #@profile
+    ### TODO: change this to a staticmethod
     def _interpolate_sim_data(self) -> List[np.array]:
-        '''Interpolated simulated corrected data to exp data points
-        '''
+        '''Interpolate simulated corrected data to exp data points.'''
+
         # create function to interpolate
         list_iterp_sim_funcs = [interpolate.interp1d(self.t_sol, simData_corr,
                                                      fill_value='extrapolate')
@@ -393,20 +412,40 @@ class DynamicsSolution(Solution):
 
         return list_iterp_sim_data
 
+#    @staticmethod
+#    def _bin_sim_data(exp_data: np.array, sim_data: np.array, t_sim: np.array) -> List[np.array]:
+#        '''Bin simulated data to the same bin centers and width that the experimental data.
+#           Add all the counts in a bin.'''
+#
+#        if not np.any(exp_data):  # if there's no experimental data, don't do anything
+#            return sim_data
+#        if not np.any(sim_data):  # pragma: no cover
+#            return None
+#
+#        bin_sums, bin_edges, binnumber = stats.binned_statistic(t_sim,
+#                                                                sim_data,
+#                                                                statistic='median',
+#                                                                bins=len(exp_data[:, 0]))
+##        print(bin_sums, bin_edges, binnumber)
+#
+#        return bin_sums
+
     #@profile
     def _calc_errors(self) -> np.array:
         '''Calculate root-square-deviation between experiment and simulation.'''
         # get interpolated simulated data
-        list_iterp_sim_data = self._interpolate_sim_data()
+        list_sim_data = self._interpolate_sim_data()
+
+#        list_sim_data = self.list_binned_data
 
         # calculate the relative mean square deviation
         # error = 1/mean(y)*sqrt(sum( (y-yexp)^2 )/N )
         rmdevs = [(sim-exp[:, 1]*np.max(sim))**2
                   if (exp is not None) and (sim is not None) else 0
-                  for (sim, exp) in zip(list_iterp_sim_data, self.list_exp_data)]
+                  for (sim, exp) in zip(list_sim_data, self.list_exp_data)]
         errors = [1/np.mean(sim)*np.sqrt(1/len(sim)*np.sum(rmdev))
                   if rmdev is not 0 else 0
-                  for (rmdev, sim) in zip(rmdevs, list_iterp_sim_data)]
+                  for (rmdev, sim) in zip(rmdevs, list_sim_data)]
         errors = np.array(errors)
 
         return errors
@@ -436,6 +475,8 @@ class DynamicsSolution(Solution):
         '''Overrides the Solution method to plot
             the average offset-corrected simulated data (list_avg_data) and experimental data.
         '''
+
+#        list_t_sim = [data[:, 0] if data is not None else None for data in self.list_exp_data]
         plotter.plot_avg_decay_data(self.t_sol, self.list_avg_data_ofs,
                                     state_labels=self.state_labels,
                                     list_exp_data=self.list_exp_data,
@@ -484,6 +525,19 @@ class DynamicsSolution(Solution):
                                        for expData, simData
                                        in zip(self.list_exp_data, self.list_avg_data)]
         return self._list_avg_data_ofs
+
+#    @property
+#    def list_binned_data(self) -> List[np.array]:
+#        '''List of offset-corrected (due to experimental background) average populations
+#            for each state in the solution
+#        '''
+#        # if empty, calculate
+#        if not self._list_binned_data:
+#            self._list_binned_data = [DynamicsSolution._bin_sim_data(exp_data, sim_data,
+#                                                                     self.t_sol)
+#                                      for exp_data, sim_data in zip(self.list_exp_data,
+#                                                                    self.list_avg_data_ofs)]
+#        return self._list_binned_data
 
     @property
     def list_exp_data(self) -> List[np.array]:
@@ -761,9 +815,31 @@ class Simulations():
             raise
         return tf_p
 
+    def modify_param_value(self, process: str, new_value: float) -> None:
+        '''Change the value of the process.'''
+        if isinstance(process, str):
+            self.modify_ET_param_value(process, new_value)
+        elif isinstance(process, tuple):
+            self.modify_branching_ratio_value(process, new_value)
+
     def modify_ET_param_value(self, process: str, new_strength: float) -> None:
         '''Modify a ET parameter'''
         self.cte['ET'][process]['value'] = new_strength
+
+    def modify_branching_ratio_value(self, process: Tuple[int, int], new_value: float) -> None:
+        '''Modify a branching ratio param.'''
+        list_tups = self.cte['decay']['B_pos_value_A']
+        for num, tup in enumerate(list_tups):
+            if tup[:2] == process:
+                old_tup = self.cte['decay']['B_pos_value_A'][num]
+                self.cte['decay']['B_pos_value_A'][num] = (*old_tup[:2], new_value)
+
+    def get_branching_ratio_value(self, process: Tuple[int, int]) -> float:
+        '''Gets a branching ratio value.'''
+        list_tups = self.cte['decay']['B_pos_value_A']
+        for num, tup in enumerate(list_tups):
+            if tup[:2] == process:
+                return self.cte['decay']['B_pos_value_A'][num][2]
 
 #    @profile
     def simulate_dynamics(self, average: bool = False) -> DynamicsSolution:
@@ -808,6 +884,11 @@ class Simulations():
 
         # excitation pulse
         logger.info('Solving excitation pulse...')
+        logger.info('Active excitation(s): ')
+        for exc_val, exc_dict in self.cte['excitations'].items():
+            # if the current excitation is not active jump to the next one
+            if exc_dict['active'] is True:
+                logger.info(exc_val)
         t_pulse = np.linspace(t0_p, tf_p, N_steps_pulse, dtype=np.float64)
         y_pulse = odesolver.solve_pulse(t_pulse, initial_population.transpose(),
                                         total_abs_matrix, decay_matrix,
@@ -991,24 +1072,24 @@ class Simulations():
         return conc_dep_solution
 
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.INFO,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#
-#    logger.info('Called from cmd.')
-#
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
-#
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
-#
-#    sim = Simulations(cte)
-#
-#    solution = sim.simulate_dynamics()
-#    solution.log_errors()
-#    solution.plot()
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+
+    logger.info('Called from cmd.')
+
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')
+
+    cte['no_console'] = False
+    cte['no_plot'] = False
+
+    sim = Simulations(cte)
+
+    solution = sim.simulate_dynamics()
+    solution.log_errors()
+    solution.plot()
 #
 #    solution.plot(state=7)
 #

@@ -36,17 +36,18 @@ def cache(function):
         return f_val
     return wrapper
 
+
 def optim_fun_factory(sim: simulations.Simulations,
                       process_list: List[str], x0: np.array,
                       average: bool = False, pbar: tqdm.tqdm = None) -> Callable:
-    '''Generate the function to be optimize.
+    '''Generate the function to be optimized.
         This function modifies the ET params and return the error
     '''
     def optim_fun(x: np.array) -> float:
         '''Update ET strengths, simulate dynamics and return total error'''
         # update ET values if explicitly given
         for num, process in enumerate(process_list):
-            sim.modify_ET_param_value(process, x[num]*x0[num])  # precondition
+            sim.modify_param_value(process, x[num]*x0[num])  # precondition
 
         dynamics_sol = sim.simulate_dynamics(average=average)
         total_error = dynamics_sol.total_error
@@ -66,6 +67,14 @@ def optimize_dynamics(cte: Dict, method: str = None,
     '''
     logger = logging.getLogger(__name__)
 
+    from simetuc.util import change_console_logger_level as change_console_logger_level
+    from simetuc.util import get_console_logger_level as get_console_logger_level
+    old_level = get_console_logger_level()
+    # disable logging from other modules
+#    logging.getLogger('simetuc.simulations').setLevel(logging.WARNING)
+#    logging.getLogger('simetuc.precalculate').setLevel(logging.WARNING)
+#    logging.getLogger('simetuc.lattice').setLevel(logging.WARNING)
+
     # if @cache mypy syntax is fixed, add annotations here
     def callback_fun(Xi, *args):
         ''' This function is called after every minimization step
@@ -84,13 +93,8 @@ def optimize_dynamics(cte: Dict, method: str = None,
 
     start_time = datetime.datetime.now()
 
-    # Processes to optimize
-    if 'optimization_processes' in cte and cte['optimization_processes'] is not None:
-        # optimize only those ET parameters that the user has selected
-        process_list = [process for process in cte['ET']
-                        if process in cte['optimization_processes']]
-    else:
-        process_list = [process for process in cte['ET']]
+    # Processes to optimize. If not given, all ET parameters will be optimized
+    process_list = cte.get('optimization_processes', cte['ET'])
 
     # use the avg value if present
     ET_dict = cte['ET'].copy()
@@ -100,10 +104,16 @@ def optimize_dynamics(cte: Dict, method: str = None,
                 dict_process['value'] = dict_process['value_avg']
 
     # starting point
-    x0 = np.array([ET_dict[process]['value'] for process in process_list])
+    x0 = np.array([ET_dict[process]['value'] if isinstance(process, str) else sim.get_branching_ratio_value(process)
+                   for process in process_list])
 
     tol = 1e-4
-    bounds = ((0, 1e10),)*len(x0)
+    # the bounds depend on the type of process
+    # the bound are then normalized to x0
+    max_values = np.array([1e20 if isinstance(process, str) else 1 for process in process_list])
+    bounds = [(0, max_val) for max_val in max_values]
+    print(max_values)
+    print(bounds)
 
     # select optimization method
     if method is None:
@@ -116,59 +126,69 @@ def optimize_dynamics(cte: Dict, method: str = None,
         _optim_fun = cache(_optim_fun)
         msg = '(' + ', '.join('{}'.format(proc) for proc in process_list)
         tqdm.tqdm.write(msg + '): RMS Error')
+        change_console_logger_level(logging.WARNING)
 
-    if method == 'COBYLA':
-        # minimize error. The starting point is preconditioned to be 1
-        res = optimize.minimize(_optim_fun, np.ones_like(x0),
-                                method=method, tol=tol)
+        if method == 'COBYLA':
+            # minimize error. The starting point is preconditioned to be 1
+            res = optimize.minimize(_optim_fun, np.ones_like(x0),
+                                    method=method, tol=tol)
 
-    elif method == 'L-BFGS-B' or method == 'TNC' or method == 'SLSQP':
-        pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
-        logger.info('ET parameters. RMSD.')
-        res = optimize.minimize(_optim_fun, np.ones_like(x0), bounds=bounds,
-                                method=method, tol=tol, callback=callback_fun)
-        pbar.close()
+        elif method == 'L-BFGS-B' or method == 'TNC' or method == 'SLSQP':
+            pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
+            res = optimize.minimize(_optim_fun, np.ones_like(x0), bounds=bounds,
+                                    method=method, tol=tol, callback=callback_fun)
+            pbar.update(1)
+            pbar.close()
 
-    elif method == 'basin_hopping':
-        minimizer_kwargs = {"method": "SLSQP"}
+        elif method == 'basin_hopping':
+            minimizer_kwargs = {"method": "SLSQP"}
 
-#        def accept_test(f_new, x_new, f_old, x_old) :
-#            return np.alltrue(x_new > 0)
+    #        def accept_test(f_new, x_new, f_old, x_old) :
+    #            return np.alltrue(x_new > 0)
 
-        pbar = tqdm.tqdm(desc='Optimizing', unit=' points', disable=cte['no_console'])
-        logger.info('ET parameters. RMSD.')
-        res = optimize.basinhopping(_optim_fun, np.ones_like(x0),
-                                    minimizer_kwargs=minimizer_kwargs,
-                                    niter=10, stepsize=5, T=1e-2, callback=callback_fun)
-        pbar.close()
+            pbar = tqdm.tqdm(desc='Optimizing', unit=' points', disable=cte['no_console'])
+            res = optimize.basinhopping(_optim_fun, np.ones_like(x0),
+                                        minimizer_kwargs=minimizer_kwargs,
+                                        niter=10, stepsize=5, T=1e-2, callback=callback_fun)
+            pbar.update(1)
+            pbar.close()
+
+        best_x = res.x*x0
+        min_f = res.fun
 
     elif method == 'brute_force':
         # range and number of points. Total number is 1+N_points**2
         rranges = ((1e-1, 10),)*len(x0)
         N_points = 10
+        change_console_logger_level(logging.WARNING)
         pbar = tqdm.tqdm(desc='Optimizing', total=1+N_points**2,
                          unit='points', disable=cte['no_console'])
 
         _optim_fun = optim_fun_factory(sim, process_list, x0, average=average, pbar=pbar)
         res = optimize.brute(_optim_fun, ranges=rranges, Ns=N_points, full_output=True,
                              finish=None, disp=True)
+        pbar.update(1)
         pbar.close()
-        print('')
         best_x = res[0]*x0
         min_f = res[1]
 
-    if method != 'brute_force':
-        best_x = res.x*x0
-        min_f = res.fun
+    else:
+        msg = 'Wrong optimization method!'
+        logger.error(msg)
+        raise ValueError(msg)
+
+    change_console_logger_level(old_level)
 
     logger.debug(res)
 
     total_time = datetime.datetime.now() - start_time
     hours, remainder = divmod(total_time.total_seconds(), 3600)
     minutes, seconds = divmod(remainder, 60)
+    print('')
     formatted_time = '{:.0f}h {:02.0f}m {:02.0f}s'.format(hours, minutes, seconds)
     logger.info('Minimum reached! Total time: %s.', formatted_time)
     logger.info('Optimized RMS error: %.3e.', min_f)
+    logger.info('Parameters name and value:')
     for proc, best_val in zip(process_list, best_x.T):
         logger.info('%s: %.3e.', proc, best_val)
 
