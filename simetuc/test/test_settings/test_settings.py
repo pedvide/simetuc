@@ -19,7 +19,6 @@ def test_standard_config():
     filename = os.path.join(test_folder_path, 'test_standard_config.txt')
     cte = settings.load(filename)
 
-
     with open(filename, 'rt') as file:
         config_file = file.read()
 
@@ -89,7 +88,7 @@ def test_standard_config():
                                    ('init_state', [0, 2]),
                                    ('final_state', [3, 5]),
                                    ('ion_exc', ['A', 'A'])]))])),
-             ('optimization_processes', ['CR50']),
+             ('optimization', {'method': 'SLSQP', 'processes': ['CR50'], 'excitations': []}),
              ('power_dependence', [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0]),
              ('conc_dependence', [(0.0, 0.01), (0.0, 0.1), (0.0, 0.2), (0.0, 0.3), (0.0, 0.4), (0.0, 0.5)]),
              ('simulation_params', {'N_steps': 1000,
@@ -438,7 +437,7 @@ activator_decay: asd
     assert excinfo.match(r"Section \"states\" is empty")
     assert excinfo.type == settings.ConfigError
 
-def test_states_config1():
+def test_states_no_states_labels():
     data = data_lattice_ok + '''states:
     sensitizer_states_labels: [GS, ES]
     activator_ion_label: Tm
@@ -450,19 +449,33 @@ def test_states_config1():
     assert excinfo.match(r"sensitizer_ion_label")
     assert excinfo.type == settings.ConfigError
 
-def test_states_config2():
+def test_states_no_list():
     data = data_lattice_ok + '''states:
     sensitizer_ion_label: Yb
     sensitizer_states_labels:
     activator_ion_label: Tm
     activator_states_labels: [3H6, 3F4, 3H5, 3H4, 3F3, 1G4, 1D2]'''
-    with pytest.raises(ValueError) as excinfo: # empty key
+    with pytest.raises(ValueError) as excinfo: # empty S labels
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"sensitizer_states_labels must not be empty")
+    assert excinfo.match(r'Empty list')
+    assert excinfo.match(r'sensitizer_states_labels')
     assert excinfo.type == ValueError
 
-def test_states_config3():  # fractions in the state labels
+def test_states_empty_list():  # empty list for S states
+    data = data_lattice_ok + '''states:
+    sensitizer_ion_label: Yb
+    sensitizer_states_labels: [GS, ES]
+    activator_ion_label: Tm
+    activator_states_labels: []'''
+    with pytest.raises(ValueError) as excinfo: # empty S labels list
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r'Empty list')
+    assert excinfo.match(r'activator_states_labels')
+    assert excinfo.type == ValueError
+
+def test_states_fractions():  # fractions in the state labels
     data = data_lattice_ok + '''states:
     sensitizer_ion_label: Yb
     sensitizer_states_labels: [2F7/2, 2F5/2]
@@ -1134,13 +1147,23 @@ def test_ET_config7():
     assert excinfo.match(r"Label missing in")
     assert excinfo.type == settings.ConfigError
 
-def test_ET_config8(): # ok
+def test_ET_ok(): # ok
     data = data_branch_ok + '''enery_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
         multipolarity: 6
         strength: 1e3
         strength_avg: 1e1
+'''
+    with temp_config_filename(data) as filename:
+            settings.load(filename)
+
+def test_ET_coop_ok(): # ok
+    data = data_branch_ok + '''enery_transfer:
+    CR50:
+        process: Yb(ES) + Yb(ES) + Tm(3H6) -> Yb(GS) + Yb(GS) + Tm(1G4)
+        multipolarity: 6
+        strength: 1e3
 '''
     with temp_config_filename(data) as filename:
             settings.load(filename)
@@ -1279,22 +1302,65 @@ enery_transfer:
 #    assert excinfo.type == settings.LabelError
 
 
-# test optimization_processes
-def test_optim_config1():
-    data = data_ET_ok + '''optimization_processes: [ETU_does_no_exist]
+# test optimization processes
+def test_optim_wrong_proc():
+    '''Wrong ET optimization process'''
+    data = data_ET_ok + '''optimization:
+        processes: [ETU_does_no_exist]
 '''
     with pytest.raises(settings.LabelError) as excinfo: # wrong ET process label
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Wrong labels in optimization_processes!")
+    assert excinfo.match(r"Wrong labels in optimization: processes!")
     assert excinfo.type == settings.LabelError
 
-def test_optim_config2(): # ok
-    data = data_ET_ok + '''optimization_processes: [ETU53]
+def test_optim_wrong_B_proc():
+    '''Wrong branching ration optimization process'''
+    data = data_ET_ok + '''optimization:
+        processes: [3F3->3H5]
+'''
+    with pytest.raises(settings.LabelError) as excinfo: # wrong ET process label
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"Wrong labels in optimization: processes!")
+    assert excinfo.match(r"Unrecognized branching ratio process")
+    assert excinfo.type == settings.LabelError
+
+def test_optim_ok_proc(): # ok
+    data = data_ET_ok + '''optimization:
+        processes: [ETU53]
 '''
     with temp_config_filename(data) as filename:
         cte = settings.load(filename)
-    assert cte['optimization_processes'] == ['ETU53']
+    assert cte['optimization']['processes'] == ['ETU53']
+
+def test_optim_method(): # ok
+    data = data_ET_ok + '''optimization:
+        method: COBYLA'''
+
+    with temp_config_filename(data) as filename:
+        cte = settings.load(filename)
+
+    assert cte['optimization']['method'] == 'COBYLA'
+
+def test_optim_excitations(): # ok
+    data = data_ET_ok + '''optimization:
+        excitations: [Vis_473, NIR_980]'''
+
+    with temp_config_filename(data) as filename:
+        cte = settings.load(filename)
+    assert cte['optimization']['excitations'] ==  ['Vis_473', 'NIR_980']
+
+def test_optim_wrong_excitations(): # ok
+    data = data_ET_ok + '''optimization:
+        excitations: [Vis_473, wrong_label]'''
+
+    with pytest.raises(settings.LabelError) as excinfo:
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"in optimization: excitations")
+    assert excinfo.match(r"not found in excitations section above!")
+    assert excinfo.type == settings.LabelError
 
 # test simulation params
 data_sim_params = '''simulation_params:
@@ -1393,14 +1459,6 @@ def test_conc_dep_config4(): # negative number
             settings.load(filename)
     assert excinfo.match(r"Negative value in list")
     assert excinfo.type == ValueError
-
-def test_optim_method(): # ok
-    data = data_ET_ok + '''optimize_method: COBYLA'''
-
-    with temp_config_filename(data) as filename:
-        cte = settings.load(filename)
-
-    assert cte['optimize_method'] == 'COBYLA'
 
 
 # test extra value in section lattice

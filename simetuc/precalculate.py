@@ -950,13 +950,6 @@ def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = Non
         logger.error('The number of states of each ion cannot be zero.')
         raise LatticeError('Wrong number of states.')
 
-    num_states = num_S_states + num_A_states
-    if num_states == 0:
-        msg = ('No doped ions generated: the lattice or' +
-               ' the concentrations are too small, or the number of energy states is zero!')
-        logger.error(msg)
-        raise LatticeError(msg)
-
     logger.info('Number of ions: %d, sensitizers: %d, activators: %d.',
                 num_total_ions, num_sensitizers, num_activators)
     logger.info('Number of states: %d.', num_energy_states)
@@ -1048,32 +1041,32 @@ def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = Non
             coop_ET_matrix, coop_N_indices, coop_jac_indices)
 
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.INFO,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#    logger.debug('Called from main.')
-#
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
-##    logger.setLevel(logging.DEBUG)
-#
-##    cte['lattice']['S_conc'] = 0.0
-##    cte['lattice']['A_conc'] = 0.0
-#
-##    full_path='test/test_setup/data_3S_2A.hdf5'
-#    full_path = None
-#
-#    (cte, initial_population, index_S_i, index_A_j,
-#     total_abs_matrix, decay_matrix, ET_matrix,
-#     N_indices, jac_indices,
-#     coop_ET_matrix, coop_N_indices,
-#     coop_jac_indices) = setup_microscopic_eqs(cte, full_path=full_path)
-#
-#
-#    ET_matrix = ET_matrix.toarray()
-#    coop_ET_matrix = coop_ET_matrix.toarray()
-#    total_abs_matrix = total_abs_matrix.toarray()
-#    decay_matrix = decay_matrix.toarray()
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+    logger.debug('Called from main.')
+
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')
+    cte['no_console'] = False
+    cte['no_plot'] = False
+#    logger.setLevel(logging.DEBUG)
+
+#    cte['lattice']['S_conc'] = 0.0
+#    cte['lattice']['A_conc'] = 0.0
+
+#    full_path='test/test_setup/data_3S_2A.hdf5'
+    full_path = None
+
+    (cte, initial_population, index_S_i, index_A_j,
+     total_abs_matrix, decay_matrix, ET_matrix,
+     N_indices, jac_indices,
+     coop_ET_matrix, coop_N_indices,
+     coop_jac_indices) = setup_microscopic_eqs(cte, full_path=full_path)
+
+
+    ET_matrix = ET_matrix.toarray()
+    coop_ET_matrix = coop_ET_matrix.toarray()
+    total_abs_matrix = total_abs_matrix.toarray()
+    decay_matrix = decay_matrix.toarray()

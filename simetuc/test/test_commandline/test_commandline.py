@@ -107,7 +107,8 @@ def test_cli_optim_method(mocker, no_logging):
     # add optim method to config file
     with open(config_file, 'rt') as file:
         config_content = file.read()
-    data = config_content + '''optimize_method: SLSQP'''
+    data = config_content.replace('processes: [CR50]', '''processes: [CR50]
+    method: SLSQP''')
 
     with temp_config_filename(data) as new_config_file:
         ext_args = [new_config_file, '--no-plot', '-o']
@@ -120,10 +121,10 @@ def test_cli_optim_procs(mocker, no_logging):
     mocked_opt = mocker.patch('simetuc.optimize.optimize_dynamics')
     mocked_opt.return_value = (np.array([1.0]), 0.0)
 
-    # add optim method to config file
+    # remove optim method from config file
     with open(config_file, 'rt') as file:
         config_content = file.read()
-    data = config_content.replace('optimization_processes: [CR50]', '')
+    data = config_content.replace('processes: [CR50]', '')
 
     with temp_config_filename(data) as new_config_file:
         ext_args = [new_config_file, '--no-plot', '-o']

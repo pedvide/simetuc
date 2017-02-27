@@ -193,12 +193,13 @@ def test_lattice_1A(setup_cte):
                                   [0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00,-1.48148148e+04]], dtype=np.float64)
     assert np.allclose(good_decay_matrix, decay_matrix)
 
-    good_UC_matrix = np.array([], dtype=np.float64).reshape((7, 0))
-    assert np.allclose(good_UC_matrix, UC_matrix)
-
+    assert np.all(np.array([], dtype=np.float64).reshape((7, 0)) == UC_matrix)
     assert np.all(np.array([], dtype=np.uint64).reshape((0, 2)) == N_indices)
-
     assert np.all(np.array([], dtype=np.uint64).reshape((0, 3)) == jac_indices)
+
+    assert np.all(np.array([], dtype=np.float64).reshape((7, 0)) == coop_ET_matrix)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 3)) == coop_N_indices)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 4)) == coop_jac_indices)
 
 def test_lattice_1A_ESA(setup_cte): # use the ESA processes in NIR_800 excitation
     '''Test a lattice with just one activator'''
@@ -252,12 +253,13 @@ def test_lattice_1A_ESA(setup_cte): # use the ESA processes in NIR_800 excitatio
                                   [0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00,-1.48148148e+04]], dtype=np.float64)
     assert np.allclose(good_decay_matrix, decay_matrix)
 
-    good_UC_matrix = np.array([], dtype=np.float64).reshape((7, 0))
-    assert np.allclose(good_UC_matrix, UC_matrix)
-
+    assert np.all(np.array([], dtype=np.float64).reshape((7, 0)) == UC_matrix)
     assert np.all(np.array([], dtype=np.uint64).reshape((0, 2)) == N_indices)
-
     assert np.all(np.array([], dtype=np.uint64).reshape((0, 3)) == jac_indices)
+
+    assert np.all(np.array([], dtype=np.float64).reshape((7, 0)) == coop_ET_matrix)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 3)) == coop_N_indices)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 4)) == coop_jac_indices)
 
 
 def test_lattice_1A_two_color(setup_cte): # use two color excitation
@@ -313,12 +315,13 @@ def test_lattice_1A_two_color(setup_cte): # use two color excitation
                                   [0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00,-1.48148148e+04]], dtype=np.float64)
     assert np.allclose(good_decay_matrix, decay_matrix)
 
-    good_UC_matrix = np.array([], dtype=np.float64).reshape((7, 0))
-    assert np.allclose(good_UC_matrix, UC_matrix)
-
+    assert np.all(np.array([], dtype=np.float64).reshape((7, 0)) == UC_matrix)
     assert np.all(np.array([], dtype=np.uint64).reshape((0, 2)) == N_indices)
-
     assert np.all(np.array([], dtype=np.uint64).reshape((0, 3)) == jac_indices)
+
+    assert np.all(np.array([], dtype=np.float64).reshape((7, 0)) == coop_ET_matrix)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 3)) == coop_N_indices)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 4)) == coop_jac_indices)
 
 def test_lattice_2A(setup_cte):
     '''Test a lattice with two activators'''
@@ -403,6 +406,10 @@ def test_lattice_2A(setup_cte):
                                  [ 3,  3, 12]], dtype=np.uint64)
     assert np.all(good_jac_indices == jac_indices)
 
+    assert np.all(np.array([], dtype=np.float64).reshape((14, 0)) == coop_ET_matrix)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 3)) == coop_N_indices)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 4)) == coop_jac_indices)
+
 def test_lattice_1S(setup_cte):
     '''Test a lattice with just one sensitizer'''
 
@@ -428,12 +435,13 @@ def test_lattice_1S(setup_cte):
                                   [0.,-400.]], dtype=np.float64)
     assert np.allclose(good_decay_matrix, decay_matrix)
 
-    good_UC_matrix = np.array([], dtype=np.float64).reshape((2, 0))
-    assert np.allclose(good_UC_matrix, UC_matrix)
-
+    assert np.all(np.array([], dtype=np.float64).reshape((2, 0)) == UC_matrix)
     assert np.all(np.array([], dtype=np.uint64).reshape((0, 2)) == N_indices)
-
     assert np.all(np.array([], dtype=np.uint64).reshape((0, 3)) == jac_indices)
+
+    assert np.all(np.array([], dtype=np.float64).reshape((2, 0)) == coop_ET_matrix)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 3)) == coop_N_indices)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 4)) == coop_jac_indices)
 
 def test_lattice_2S(setup_cte):
     '''Test a lattice with two sensitizers'''
@@ -477,6 +485,10 @@ def test_lattice_2S(setup_cte):
                                  [1, 0, 3]], dtype=np.uint64)
     assert np.all(good_jac_indices == jac_indices)
 
+    assert np.all(np.array([], dtype=np.float64).reshape((4, 0)) == coop_ET_matrix)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 3)) == coop_N_indices)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 4)) == coop_jac_indices)
+
 def test_lattice_1S_1A(setup_cte):
     '''Test a lattice with one sensitizer and one activator'''
 
@@ -484,7 +496,8 @@ def test_lattice_1S_1A(setup_cte):
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
-     N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
+     N_indices, jac_indices,
+     coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
@@ -555,6 +568,10 @@ def test_lattice_1S_1A(setup_cte):
                                  [1, 0, 8]], dtype=np.uint64)
     assert np.all(good_jac_indices == jac_indices)
 
+    assert np.all(np.array([], dtype=np.float64).reshape((9, 0)) == coop_ET_matrix)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 3)) == coop_N_indices)
+    assert np.all(np.array([], dtype=np.uint64).reshape((0, 4)) == coop_jac_indices)
+
 def test_lattice_2S_2A(setup_cte):
     '''Test a lattice with two sensitizers and two activators'''
 
@@ -564,6 +581,7 @@ def test_lattice_2S_2A(setup_cte):
      total_abs_matrix, decay_matrix, UC_matrix,
      N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(setup_cte, full_path=test_filename)
     UC_matrix = UC_matrix.toarray()
+    coop_ET_matrix = coop_ET_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
 
@@ -679,6 +697,38 @@ def test_lattice_2S_2A(setup_cte):
                                    [13,  9, 14]], dtype=np.uint64)
     assert np.all(good_jac_indices == jac_indices)
 
+    good_coop_ET_matrix = np.array([[ -2.15306935e-07,   0.00000000e+00],
+                                   [  0.00000000e+00,   0.00000000e+00],
+                                   [  0.00000000e+00,   0.00000000e+00],
+                                   [  0.00000000e+00,   0.00000000e+00],
+                                   [  0.00000000e+00,   0.00000000e+00],
+                                   [  2.15306935e-07,   0.00000000e+00],
+                                   [  0.00000000e+00,   0.00000000e+00],
+                                   [  2.15306935e-07,   4.12893747e-08],
+                                   [ -2.15306935e-07,  -4.12893747e-08],
+                                   [  2.15306935e-07,   4.12893747e-08],
+                                   [ -2.15306935e-07,  -4.12893747e-08],
+                                   [  0.00000000e+00,  -4.12893747e-08],
+                                   [  0.00000000e+00,   0.00000000e+00],
+                                   [  0.00000000e+00,   0.00000000e+00],
+                                   [  0.00000000e+00,   0.00000000e+00],
+                                   [  0.00000000e+00,   0.00000000e+00],
+                                   [  0.00000000e+00,   4.12893747e-08],
+                                   [  0.00000000e+00,   0.00000000e+00]], dtype=np.float64)
+    assert np.allclose(good_coop_ET_matrix, coop_ET_matrix)
+
+    good_coop_N_indices = np.array([[ 8, 10,  0],
+                                   [ 8, 10, 11]], dtype=np.uint64)
+    assert np.allclose(good_coop_N_indices, coop_N_indices)
+
+    good_coop_jac_indices = np.array([[ 0,  0,  8, 10],
+                                       [ 0, 10,  8,  0],
+                                       [ 0,  8, 10,  0],
+                                       [ 1, 11,  8, 10],
+                                       [ 1, 10,  8, 11],
+                                       [ 1,  8, 10, 11]], dtype=np.uint64)
+    assert np.allclose(good_coop_jac_indices, coop_jac_indices)
+
 # RANDOMIZED TESTS, WE DON'T CHECK THE ACTUAL VALUES, JUST THE SHAPES OF THE
 # MATRICES RETURNED
 
@@ -735,11 +785,13 @@ def test_random_lattice(setup_cte, params, absorption, problem):
 
     with temp_bin_filename() as temp_filename:
         (cte, initial_population, index_S_i, index_A_j,
-         total_abs_matrix, decay_matrix, ET_matrix,
-         N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = setup_func(cte, full_path=temp_filename)
+         total_abs_matrix, decay_matrix,
+         ET_matrix, N_indices, jac_indices,
+         coop_ET_matrix, coop_N_indices, coop_jac_indices) = setup_func(cte, full_path=temp_filename)
 
     # some matrices can grow very large. Make sure it's returned as sparse
     assert sparse.issparse(ET_matrix)
+    assert sparse.issparse(coop_ET_matrix)
     assert sparse.issparse(total_abs_matrix)
     assert sparse.issparse(decay_matrix)
 
@@ -750,6 +802,7 @@ def test_random_lattice(setup_cte, params, absorption, problem):
                                                 cte['ions']['sensitizers']*cte['states']['sensitizer_states']
     num_states = cte['states']['energy_states']
     num_interactions = N_indices.shape[0]
+    num_coop_interactions = coop_N_indices.shape[0]
 
     assert initial_population.shape == (num_states, )
 
@@ -792,6 +845,30 @@ def test_random_lattice(setup_cte, params, absorption, problem):
         assert np.max(jac_indices[:, 1]) <= num_states-1
         assert np.max(jac_indices[:, 2]) <= num_states-1
 
+
+    assert coop_ET_matrix.shape == (num_states, num_coop_interactions)
+    # sum of all rows is zero for each column
+    assert np.allclose(np.sum(coop_ET_matrix, axis=0), 0.0)
+    # each column has 4 nonzero values
+    assert coop_ET_matrix.getnnz() == 6*num_coop_interactions
+    assert np.all([col.getnnz() == 6 for col in coop_ET_matrix.T])
+
+    assert coop_N_indices.shape == (num_coop_interactions, 3)
+    if num_coop_interactions != 0: # np.min and np.max don't work with empty arrays
+        assert np.min(coop_N_indices) >= 0
+        assert np.max(coop_N_indices) <= num_states-1
+
+    assert coop_jac_indices.shape == (3*num_coop_interactions, 4)
+    if num_coop_interactions != 0: # np.min and np.max don't work with empty arrays
+        assert np.min(coop_jac_indices) >= 0
+        # first column has interaction number
+        assert np.max(coop_jac_indices[:, 0]) <= num_coop_interactions-1
+        # second and third have pupulation indices
+        assert np.max(coop_jac_indices[:, 1]) <= num_states-1
+        assert np.max(coop_jac_indices[:, 2]) <= num_states-1
+        assert np.max(coop_jac_indices[:, 3]) <= num_states-1
+
+
 @pytest.mark.parametrize('problem', ['setup_microscopic_eqs', 'setup_average_eqs']) # micro or average problem?
 @pytest.mark.parametrize('absorption', ['NIR_980', 'Vis_473', 'NIR_800']) # absorption of S or A
 @pytest.mark.parametrize('params', [# TEST NEGATIVE AND EXCESSIVE CONCS AND N_UC
@@ -807,7 +884,7 @@ def test_random_lattice(setup_cte, params, absorption, problem):
                                     # TEST NUMBER OF ENERGY STATES
                                     (5.0, 5.0, 10, 2, 0), # no A_states
                                     (10.0, 1.0, 8, 0, 7), # no S_states
-                                    (6.0, 6.0, 5, 0, 0), # no S_states, A_states
+                                    (6.0, 0.0, 5, 0, 0), # no S_states, A_states
                                     (5.0, 0.0, 10, 5, 0), # no A_states, no A_conc
                                     (0.0, 1.0, 8, 0, 4), # no S_states, no S_conc
                                     (5.0, 5.0, 10, 2, 1), # low A_states
@@ -883,3 +960,20 @@ def test_wrong_number_states(setup_cte):
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
          N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
+
+
+def test_radius(setup_cte):
+
+    cte = setup_cte
+    cte['lattice']['S_conc'] = 10.5
+    cte['lattice']['A_conc'] = 5.2
+    cte['lattice']['radius'] = 70
+    cte['states']['sensitizer_states'] = 2
+    cte['states']['activator_states'] = 7
+
+    with temp_bin_filename() as temp_filename:
+        (cte, initial_population, index_S_i, index_A_j,
+         total_abs_matrix, decay_matrix, ET_matrix,
+         N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
+
+    assert cte['lattice']['radius'] == 70

@@ -219,8 +219,7 @@ def main(ext_args: List[str] = None) -> None:
     elif args.optimize:  # optimize
         logger.info('Optimizing ET parameters...')
 
-        method = cte.get('optimize_method', None)
-        best_x, min_f = optimize.optimize_dynamics(cte, method, average=args.average)
+        best_x, min_f = optimize.optimize_dynamics(cte, average=args.average)
 
     # save results to disk
     if solution is not None:

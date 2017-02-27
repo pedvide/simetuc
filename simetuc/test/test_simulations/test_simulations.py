@@ -119,7 +119,7 @@ def setup_cte():
           'spacegroup': 'P-6'},
          'no_console': False,
          'no_plot': False,
-         'optimization_processes': ['CR50', 'ETU53'],
+         'optimization': {'method': 'SLSQP', 'processes': ['CR50', 'ETU53']},
          'simulation_params': {'N_steps': 1000,
           'N_steps_pulse': 100,
           'atol': 1e-15,

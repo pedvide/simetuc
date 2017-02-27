@@ -169,10 +169,8 @@ def _check_values(needed_values_l: List[str], present_values_dict: Dict,
     # this only works for one set of exclusive values. change if more are needed
     # so far only lattice has that (for N_uc and radius)
     if exclusive_values and exclusive_values.issubset(present_values):
-        if section is not None:
-            logger.error('The following values in section "%s" are mutually exclusive: ', section)
-        else:
-            logger.error('The following values are mutually exclusive: ')
+        logger.error('The following values ' + 'in section "%s"' if section else '' +
+                     ' are mutually exclusive: ', section)
         logger.error(str(exclusive_values))
         raise ConfigError('Only one of the values {} must be present.'.format(exclusive_values))
 
@@ -258,27 +256,20 @@ def _get_list(dictionary: Dict, value: str, val_type: Callable) -> List[Any]:
     try:
         list_vals = dictionary[value]
         lst = [val_type(elem) for elem in list_vals]
+        if len(lst) == 0:
+            raise TypeError
     except ValueError as err:
         msg = 'Invalid value in list "{}"'.format(list_vals)
         logger.error(msg, exc_info=True)
         logger.error(str(err.args))
         raise ValueError(msg) from err
+    except TypeError as err:
+        msg = 'Empty list "{}"'.format(value)
+        logger.error(msg, exc_info=True)
+        logger.error(str(err.args))
+        raise ValueError(msg) from err
 
     return lst
-
-
-# forcing values to be positive or negative is better dealt with at each module.
-#def _get_positive_value(dictionary: Dict, value: str, val_type: Callable) -> Union[int, float]:
-#    '''Gets a value from the dict and raises a ValueError if it's negative'''
-#    logger = logging.getLogger(__name__)
-#
-#    val = _get_value(dictionary, value, val_type)
-#    if val < 0:
-#        msg = '"{}" is a negative value'.format(value)
-#        logger.error(msg, exc_info=True)
-#        raise ValueError(msg)
-#
-#    return val
 
 
 def _get_int_value(dictionary: Dict, value: str) -> int:
@@ -422,18 +413,12 @@ def _parse_lattice(dict_lattice: Dict) -> Dict:
 def _parse_states(dict_states: Dict) -> Dict:
     '''Parses the states section of the settings.
         Returns the parsed states dict'''
-    logger = logging.getLogger(__name__)
 
     needed_keys = ['sensitizer_ion_label', 'sensitizer_states_labels',
                    'activator_ion_label', 'activator_states_labels']
     # check that all keys are in the file
     _check_values(needed_keys, dict_states, 'states')
-    # check that no value is None or empty
-    for key, value in dict_states.items():
-        if value is None or not value:
-            msg = '{} must not be empty'.format(key)
-            logger.error(msg)
-            raise ValueError(msg)
+
     # store values
     parsed_dict = {}  # type: Dict
     parsed_dict['sensitizer_ion_label'] = _get_string_value(dict_states, 'sensitizer_ion_label')
@@ -734,45 +719,42 @@ def _parse_ET(cte: Dict) -> Dict:
 
     return ET_dict
 
-#def _parse_exp_data(cte):  # pragma: no cover
-#    '''Parse the experimental data'''
-#
-#    sensitizer_labels = cte['states']['sensitizer_states_labels']
-#    activator_labels = cte['states']['activator_states_labels']
-#    tuple_state_labels = (sensitizer_labels, activator_labels)
-#
-#    sensitizer_ion_label = cte['states']['sensitizer_ion_label']
-#    activator_ion_label = cte['states']['activator_ion_label']
-#    list_ion_label = [sensitizer_ion_label, activator_ion_label]
-#
-#    # EXPERIMENTAL DATA
-#    # get the ion and state labels
-#    ion_label_list = [(_get_ion_and_state_labels(ion_state)[0], filename)
-#                      for ion_state, filename in cte['experimental_data'].items()]
-#
-#    list_ions_num = [_get_ion(list_ion_label, ion) for (ion, state), filename in ion_label_list]
-#    # add sensitizer_states to activators so they are in the right position
-#    offset = cte['states']['sensitizer_states']
-#    offset_list = [offset if num == 1  else 0 for num in list_ions_num]
-#    # get state numbers and make sure they exist
-#    list_indices = [_get_state_index(tuple_state_labels[ion_num], state_label,
-#                                     section='experimental data')
-#                    for ion_num, ((ion_label, state_label), filename)
-#                    in zip(list_ions_num, ion_label_list)]
-#
-#    # add the offset to activators
-#    ion_number_list = [a+b for a, b in zip(list_indices, offset_list)]
-#    # list of filenames, None if the user didn't supply it
-#    filenames = (len(sensitizer_labels)+len(activator_labels))*[None]
-#    for num, state in enumerate(ion_number_list):
-#        filenames[state] = ion_label_list[num][1]
-#
-#    return filenames
+
+def _parse_optimization(dict_optim: Dict, dict_ET: Dict,
+                        dict_decay: Dict, dict_states: Dict, dict_exc: Dict) -> List:
+    '''Parse the optional optimization settings.'''
+    logger = logging.getLogger(__name__)
+
+    if not dict_optim:
+        return {}
+
+    optim_dict = {}  # type: Dict
+
+    if 'processes' in dict_optim:
+        optim_dict['processes'] = _parse_optim_params(dict_optim['processes'],
+                                                      dict_ET, dict_decay, dict_states)
+
+    optim_dict['method'] = dict_optim.get('method', None)
+
+    if 'excitations' in dict_optim:
+        optim_dict['excitations'] = _get_list_strings(dict_optim, 'excitations')
+        for label in optim_dict['excitations']:
+            if label not in dict_exc:
+                msg = ('Label "{}" in optimization: excitations '.format(label)
+                        + 'not found in excitations section above!')
+                logger.error(msg)
+                raise LabelError(msg)
+    else:
+        optim_dict['excitations'] = []
+
+    return optim_dict
 
 
-def _parse_optim_params(dict_optim: Dict, dict_ET: Dict, dict_decay: Dict, dict_states: Dict) -> List:
+def _parse_optim_params(dict_optim: Dict, dict_ET: Dict,
+                        dict_decay: Dict, dict_states: Dict) -> List:
     '''Parse the optional list of parameters to optimize.
        Some of the params are ET, other are branching ratios'''
+       # TODO: this only works for activator branching ratios
 
     logger = logging.getLogger(__name__)
 
@@ -790,7 +772,7 @@ def _parse_optim_params(dict_optim: Dict, dict_ET: Dict, dict_decay: Dict, dict_
     # other params should be branching ratios, we need to parse them into (i, f) tuples
     set_other_params = set_params.difference(set_ET_params)
 
-    sensitizer_labels = dict_states['sensitizer_states_labels']
+#    sensitizer_labels = dict_states['sensitizer_states_labels']
     activator_labels = dict_states['activator_states_labels']
 
     try:
@@ -802,17 +784,15 @@ def _parse_optim_params(dict_optim: Dict, dict_ET: Dict, dict_decay: Dict, dict_
 #            print(B_pos_value_A)
 #            print(set_good_B_params_A | set_good_B_params_S)
             if not set(B_pos_value_A).issubset(set_good_B_params_A | set_good_B_params_S):
-                raise ValueError('Unrecognized parameters.')
+                raise ValueError('Unrecognized branching ratio process.')
         else:
-             B_pos_value_A = []
+            B_pos_value_A = []
     except ValueError as err:
-        msg = 'Wrong labels in optimization_processes!'
+        msg = 'Wrong labels in optimization: processes! ' + str(err.args[0])
         logger.error(msg)
-        logger.error(str(err.args))
-        raise LabelError(msg)
+        raise LabelError(msg) from err
 
     return list(set_ET_params) + B_pos_value_A
-
 
 def _parse_simulation_params(user_settings: Dict = None) -> Dict:
     '''Parse the optional simulation parameters
@@ -879,11 +859,6 @@ def _parse_conc_dependence(user_list: Tuple[List[float], List[float]] = None
     return conc_list
 
 
-def _parse_optim_method(optim_val: str) -> str:
-    '''Parse and return the optimization method.'''
-    return str(optim_val)
-
-
 def load(filename: str) -> Dict:
     ''' Load filename and extract the settings for the simulations
         If mandatory values are missing, errors are logged
@@ -915,9 +890,9 @@ def load(filename: str) -> Dict:
     needed_sections = ['lattice', 'states', 'excitations',
                        'sensitizer_decay', 'activator_decay']
     optional_sections = ['sensitizer_branching_ratios', 'activator_branching_ratios',
-                         'optimization_processes',
+                         'optimization',
                          'enery_transfer', 'simulation_params', 'power_dependence',
-                         'concentration_dependence', 'optimize_method']
+                         'concentration_dependence']
     _check_values(needed_sections, config_cte, optional_values_l=optional_sections)
 
     cte = {}  # type: Dict
@@ -957,16 +932,12 @@ def load(filename: str) -> Dict:
     else:
         cte['ET'] = {}
 
-    # EXPERIMENTAL DATA # not used anymore
+    # OPTIMIZATION
     # not mandatory -> check
-#    if 'experimental_data' in config_cte:
-#        cte['experimental_data'] = _parse_exp_data(config_cte)
-
-    # OPTIMIZATION PARAMETERS
-    # not mandatory -> check
-    if 'optimization_processes' in config_cte:
-        cte['optimization_processes'] = _parse_optim_params(config_cte['optimization_processes'],
-                                                            cte['ET'], cte['decay'], cte['states'])
+    if 'optimization' in config_cte:
+        cte['optimization'] = _parse_optimization(config_cte['optimization'],
+                                                  cte['ET'], cte['decay'],
+                                                  cte['states'], cte['excitations'])
 
     # SIMULATION PARAMETERS
     # not mandatory -> check
@@ -985,11 +956,6 @@ def load(filename: str) -> Dict:
     if 'concentration_dependence' in config_cte:
         cte['conc_dependence'] = _parse_conc_dependence(config_cte['concentration_dependence'])
 
-    # OPTIMIZE METHOD
-    # not mandatory -> check
-    if 'optimize_method' in config_cte:
-        cte['optimize_method'] = _parse_optim_method(config_cte['optimize_method'])
-
     # log cte
     # use pretty print
     logger.debug('Settings dump:')
@@ -1004,4 +970,4 @@ def load(filename: str) -> Dict:
 
 #if __name__ == "__main__":
 #    import simetuc.settings as settings
-#    cte = settings.load('config_file_simple.cfg')
+#    cte = settings.load('config_file.cfg')

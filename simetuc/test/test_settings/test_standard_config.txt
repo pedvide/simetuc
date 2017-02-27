@@ -124,7 +124,9 @@ enery_transfer:
         multipolarity: 6
         strength: 4.50220614e+10
 
-optimization_processes: [CR50]
+optimization:
+    processes: [CR50]
+    method: SLSQP
 
 simulation_params: # default values for certain parameters in the ODE solver
     rtol: 1e-3 # relative tolerance

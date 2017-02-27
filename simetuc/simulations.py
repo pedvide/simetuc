@@ -818,21 +818,30 @@ class Simulations():
     def modify_param_value(self, process: str, new_value: float) -> None:
         '''Change the value of the process.'''
         if isinstance(process, str):
-            self.modify_ET_param_value(process, new_value)
+            self._modify_ET_param_value(process, new_value)
         elif isinstance(process, tuple):
-            self.modify_branching_ratio_value(process, new_value)
+            self._modify_branching_ratio_value(process, new_value)
 
-    def modify_ET_param_value(self, process: str, new_strength: float) -> None:
+    def _modify_ET_param_value(self, process: str, new_strength: float) -> None:
         '''Modify a ET parameter'''
         self.cte['ET'][process]['value'] = new_strength
 
-    def modify_branching_ratio_value(self, process: Tuple[int, int], new_value: float) -> None:
+    def _modify_branching_ratio_value(self, process: Tuple[int, int], new_value: float) -> None:
         '''Modify a branching ratio param.'''
         list_tups = self.cte['decay']['B_pos_value_A']
         for num, tup in enumerate(list_tups):
             if tup[:2] == process:
                 old_tup = self.cte['decay']['B_pos_value_A'][num]
                 self.cte['decay']['B_pos_value_A'][num] = (*old_tup[:2], new_value)
+
+    def get_ET_param_value(self, process: str, average: bool = False) -> None:
+        '''Get a ET parameter value.
+            Return the average value if it exists.
+        '''
+        if average:
+            return self.cte['ET'][process].get('value_avg', self.cte['ET'][process]['value'])
+        else:
+            return self.cte['ET'][process]['value']
 
     def get_branching_ratio_value(self, process: Tuple[int, int]) -> float:
         '''Gets a branching ratio value.'''
@@ -966,6 +975,11 @@ class Simulations():
 
         # steady state
         logger.info('Solving steady state...')
+        logger.info('Active excitation(s): ')
+        for exc_val, exc_dict in self.cte['excitations'].items():
+            # if the current excitation is not active jump to the next one
+            if exc_dict['active'] is True:
+                logger.info(exc_val)
         t_pulse = np.linspace(t0_p, tf_p, N_steps_pulse)
         y_pulse = odesolver.solve_pulse(t_pulse, initial_population.transpose(),
                                         total_abs_matrix, decay_matrix,

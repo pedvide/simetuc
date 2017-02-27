@@ -110,8 +110,7 @@ def setup_cte():
           'spacegroup': 'P-6'},
          'no_console': False,
          'no_plot': False,
-         'optimization_processes': ['CR50'],
-         'optimize_method': 'SLSQP',
+         'optimization': {'method': 'SLSQP', 'processes': ['CR50']},
          'simulation_params': {'N_steps': 1000,
           'N_steps_pulse': 100,
           'atol': 1e-15,
@@ -128,9 +127,17 @@ def setup_cte():
     cte['no_plot'] = True
     return cte
 
-@pytest.mark.parametrize('method', [None, 'COBYLA', 'L-BFGS-B',
-                                    'TNC', 'SLSQP', 'brute_force', 'basin_hopping'])
-def test_optim(setup_cte, mocker, method):
+def idfn_param(param):
+    '''Returns the name of the test according to the parameters'''
+    return 'method={}'.format(param)
+def idfn_avg(param):
+    '''Returns the name of the test according to the parameters'''
+    return 'avg={}'.format(param)
+@pytest.mark.parametrize('method', [None, 'COBYLA', 'L-BFGS-B', 'TNC',
+                                    'SLSQP', 'brute_force', 'basin_hopping'],
+                                    ids=idfn_param)
+@pytest.mark.parametrize('average', [True, False], ids=idfn_avg)
+def test_optim(setup_cte, mocker, method, average):
     '''Test that the optimization works'''
 
     # mock the simulation by returning an error that goes to 0
@@ -143,26 +150,8 @@ def test_optim(setup_cte, mocker, method):
         return value
     mocked_opt_dyn.return_value = minimize
 
-    optimize.optimize_dynamics(setup_cte, method)
-
-    assert mocked_opt_dyn.called
-
-@pytest.mark.parametrize('method', [None, 'COBYLA', 'L-BFGS-B',
-                                    'TNC', 'SLSQP', 'brute_force', 'basin_hopping'])
-def test_optim_avg(setup_cte, mocker, method):
-    '''Test that the optimization works with average rate eqs'''
-
-    # mock the simulation by returning an error that goes to 0
-    mocked_opt_dyn = mocker.patch('simetuc.optimize.optim_fun_factory')
-    value = 20
-    def minimize(x):
-        nonlocal value
-        if value != 0:
-            value -= 1
-        return value
-    mocked_opt_dyn.return_value = minimize
-
-    optimize.optimize_dynamics(setup_cte, method, average=True)
+    setup_cte['optimization']['method'] = method
+    optimize.optimize_dynamics(setup_cte, average=average)
 
     assert mocked_opt_dyn.called
 
@@ -179,19 +168,44 @@ def test_optim_no_dict_params(setup_cte, mocker):
         return value
     mocked_opt_dyn.return_value = minimize
 
-    del setup_cte['optimization_processes']
+    del setup_cte['optimization']
 
-    optimize.optimize_dynamics(setup_cte, method='SLSQP')
+    optimize.optimize_dynamics(setup_cte)
 
     assert mocked_opt_dyn.called
 
 
-def test_opti_fun_factory(setup_cte, mocker):
+def test_optim_wrong_method(setup_cte, mocker):
+    '''Test that the optimization works without the optimization params being present in cte'''
+
+    # mock the simulation by returning an error that goes to 0
+    mocked_opt_dyn = mocker.patch('simetuc.optimize.optim_fun_factory')
+    value = 20
+    def minimize(x):
+        nonlocal value
+        if value != 0:
+            value -= 1
+        return value
+    mocked_opt_dyn.return_value = minimize
+
+    setup_cte['optimization']['method'] = 'wrong_method'
+
+    with pytest.raises(ValueError) as excinfo:
+        optimize.optimize_dynamics(setup_cte)
+    assert excinfo.match(r"Wrong optimization method!")
+    assert excinfo.type == ValueError
+
+
+@pytest.mark.parametrize('excitations', [[], ['Vis_473', 'NIR_980']], ids=['default_exc', 'two_exc'])
+def test_opti_fun_factory(setup_cte, mocker, excitations):
     '''Test optim_fun_factory'''
     mocked_dyn = mocker.patch('simetuc.simulations.Simulations.simulate_dynamics')
     sim = simulations.Simulations(setup_cte)
-    process_list = setup_cte['optimization_processes']
-    x0 = np.array([setup_cte['ET'][process]['value'] for process in process_list])
+    sim.cte['optimization']['excitations'] = excitations
+    process_list = ['CR50', (3, 1)]
+    x0 = np.array([sim.get_ET_param_value(process) if isinstance(process, str)
+                      else sim.get_branching_ratio_value(process)
+                   for process in process_list])
 
     _update_ET_and_simulate = optimize.optim_fun_factory(sim, process_list, x0)
     _update_ET_and_simulate(x0*1.5)
