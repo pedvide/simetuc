@@ -834,7 +834,7 @@ class Simulations():
                 old_tup = self.cte['decay']['B_pos_value_A'][num]
                 self.cte['decay']['B_pos_value_A'][num] = (*old_tup[:2], new_value)
 
-    def get_ET_param_value(self, process: str, average: bool = False) -> None:
+    def get_ET_param_value(self, process: str, average: bool = False) -> float:
         '''Get a ET parameter value.
             Return the average value if it exists.
         '''

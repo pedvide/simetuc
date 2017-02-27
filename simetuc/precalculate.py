@@ -1041,32 +1041,32 @@ def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = Non
             coop_ET_matrix, coop_N_indices, coop_jac_indices)
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-    logger.debug('Called from main.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
-    cte['no_console'] = False
-    cte['no_plot'] = False
-#    logger.setLevel(logging.DEBUG)
-
-#    cte['lattice']['S_conc'] = 0.0
-#    cte['lattice']['A_conc'] = 0.0
-
-#    full_path='test/test_setup/data_3S_2A.hdf5'
-    full_path = None
-
-    (cte, initial_population, index_S_i, index_A_j,
-     total_abs_matrix, decay_matrix, ET_matrix,
-     N_indices, jac_indices,
-     coop_ET_matrix, coop_N_indices,
-     coop_jac_indices) = setup_microscopic_eqs(cte, full_path=full_path)
-
-
-    ET_matrix = ET_matrix.toarray()
-    coop_ET_matrix = coop_ET_matrix.toarray()
-    total_abs_matrix = total_abs_matrix.toarray()
-    decay_matrix = decay_matrix.toarray()
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#    logger.debug('Called from main.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+##    logger.setLevel(logging.DEBUG)
+#
+##    cte['lattice']['S_conc'] = 0.0
+##    cte['lattice']['A_conc'] = 0.0
+#
+##    full_path='test/test_setup/data_3S_2A.hdf5'
+#    full_path = None
+#
+#    (cte, initial_population, index_S_i, index_A_j,
+#     total_abs_matrix, decay_matrix, ET_matrix,
+#     N_indices, jac_indices,
+#     coop_ET_matrix, coop_N_indices,
+#     coop_jac_indices) = setup_microscopic_eqs(cte, full_path=full_path)
+#
+#
+#    ET_matrix = ET_matrix.toarray()
+#    coop_ET_matrix = coop_ET_matrix.toarray()
+#    total_abs_matrix = total_abs_matrix.toarray()
+#    decay_matrix = decay_matrix.toarray()

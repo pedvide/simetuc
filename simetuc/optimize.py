@@ -71,7 +71,7 @@ def optim_fun_factory(sim: simulations.Simulations,
             for num, process in enumerate(process_list):
                 sim.modify_param_value(process, x[num]*x0[num])  # precondition
 
-            total_error = 0
+            total_error = 0.0
             # go through all required excitations, calculate errors and add all of them
             for exc_label in sim.cte['optimization']['excitations']:
                 # switch on one excitation, solve and switch off again
@@ -120,7 +120,7 @@ def optimize_dynamics(cte: Dict, average: bool = False) -> Tuple[np.array, float
     # starting point
     x0 = np.array([sim.get_ET_param_value(process, average) if isinstance(process, str)
                       else sim.get_branching_ratio_value(process)
-                   for process in process_list])
+                   for process in process_list], dtype=np.float64)
 
     tol = 1e-4
     # the bounds depend on the type of process
@@ -216,19 +216,19 @@ def optimize_dynamics(cte: Dict, average: bool = False) -> Tuple[np.array, float
     return best_x, min_f
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-
-    logger.debug('Called from cmd.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
-
-#    cte['optimization']['excitations'] = []
-
-    cte['no_console'] = False
-    cte['no_plot'] = True
-
-    optimize_dynamics(cte, average=False)
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#
+#    logger.debug('Called from cmd.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')
+#
+##    cte['optimization']['excitations'] = []
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = True
+#
+#    optimize_dynamics(cte, average=False)

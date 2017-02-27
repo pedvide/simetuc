@@ -721,7 +721,7 @@ def _parse_ET(cte: Dict) -> Dict:
 
 
 def _parse_optimization(dict_optim: Dict, dict_ET: Dict,
-                        dict_decay: Dict, dict_states: Dict, dict_exc: Dict) -> List:
+                        dict_decay: Dict, dict_states: Dict, dict_exc: Dict) -> Dict[str, Any]:
     '''Parse the optional optimization settings.'''
     logger = logging.getLogger(__name__)
 
