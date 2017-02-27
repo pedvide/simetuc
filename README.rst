@@ -12,10 +12,10 @@ Installation
 ------------
 
 Python 3.5 or 3.6 is required. Installing
-`Anaconda <https://www.continuum.io/downloads>`__ is recommended; it
+`Anaconda <https://www.continuum.io/downloads>`_ is recommended; it
 works with Windows (64/32 bits), Linux (64/32 bits) and Mac (64 bits).
 
-After installing Anaconda execute the following command at the command
+After installing Anaconda execute the following commands at the command
 prompt (cmd.exe for Windows, shell for Linux and Mac):
 
 ::
@@ -23,7 +23,9 @@ prompt (cmd.exe for Windows, shell for Linux and Mac):
     conda config --add channels conda-forge
     conda config --add channels pedvide
     conda install simetuc
-(The first two commands add packages repositories with up-to-date versions of all needed packages.)
+
+(The first two commands add packages repositories with up-to-date
+versions of all needed packages.)
 
 or
 
@@ -86,7 +88,7 @@ Features
    -  Energy transfer from sensitizers to activators.
    -  Back transfer from activators to sensitizers.
 
--  See the example `configuration file <https://github.com/pedvide/simetuc/blob/master/simetuc/config_file.cfg>`__ in
+-  See the example `configuration file <https://github.com/pedvide/simetuc/blob/master/simetuc/config_file.cfg>`_ in
    the simetuc folder.
 -  Add decay experimental data as two column text data, separated by
    tabs or spaces.
@@ -110,7 +112,7 @@ Features
 Documentation
 -------------
 
-See the `manual <https://github.com/pedvide/simetuc/blob/master/docs/manual/simetuc_user_manual.pdf>`__.
+See the `manual <https://github.com/pedvide/simetuc/blob/master/docs/manual/simetuc_user_manual.pdf>`_.
 
 TODO
 ----
@@ -139,7 +141,7 @@ This software has been described and used in these publications:
    Tm3+ <http://pubs.acs.org/doi/10.1021/acs.jpcc.5b06770>`__
 -  Villanueva-Delgado, P.; Krämer, K. W.; Valiente, R.; de Jong, M. &
    Meijerink, A. `Modeling Blue to UV Upconversion in β-NaYF4:
-   Tm3+ <http://pubs.rsc.org/en/Content/ArticleLanding/2016/CP/C6CP04347J#!divAbstract>`__
+   Tm3+ <http://pubs.rsc.org/en/Content/ArticleLanding/2016/CP/C6CP04347J#!divAbstract>`_
 
 If you use this software in a scientific publication, please cite the
 appropriate articles above.
@@ -159,7 +161,7 @@ License
 
 Copyright Pedro Villanueva Delgado, 2016-2017.
 
-Distributed under the terms of the `MIT <https://github.com/pedvide/simetuc/blob/master/LICENSE.txt>`__ license,
+Distributed under the terms of the `MIT <https://github.com/pedvide/simetuc/blob/master/LICENSE.txt>`_ license,
 simetuc is free and open source software.
 
 .. |License| image:: https://img.shields.io/github/license/pedvide/simetuc.svg

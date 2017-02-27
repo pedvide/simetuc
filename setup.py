@@ -21,7 +21,7 @@ Created on Tue Nov  1 16:17:59 2016
 # conda build --py 3.5 --py 3.6 simetuc
 # conda convert -f --platform all PATH-TO-PACKAGE -o .
 # anaconda login
-# anaconda upload win-64¦win-32¦linux-32¦linux-64¦osx-64\PACKAGE-NAME-PYVERSION
+# anaconda upload */simetuc-*
 
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
