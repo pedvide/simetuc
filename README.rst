@@ -46,7 +46,7 @@ If you installed it using conda, update with:
 
 ::
 
-    conda update -c pedvide simetuc
+    conda update simetuc
 
 If you installed it with pip, update with:
 
