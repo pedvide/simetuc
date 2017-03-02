@@ -13,7 +13,7 @@ import numpy as np
 import simetuc.simulations as simulations
 import simetuc.plotter as plotter
 from simetuc.util import temp_config_filename, temp_bin_filename
-
+from simetuc.settings import Settings
 
 ### TODO: Test loading exp data with different formats
 
@@ -135,12 +135,14 @@ def setup_cte():
     cte['config_file'] = 'config_file_text'
     cte['no_console'] = True
     cte['no_plot'] = False
-    return cte
+    return Settings(cte)
 
 def test_sim(setup_cte):
     '''Test that the simulations work'''
     setup_cte['lattice']['S_conc'] = 0
     sim = simulations.Simulations(setup_cte)
+    print(sim.cte)
+    assert sim.cte
     assert sim
 
 def test_sim_dyn1(setup_cte):
@@ -382,12 +384,13 @@ def test_sim_power_dep4(setup_cte, mocker):
         mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
 
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
-        power_dens_list = np.logspace(1, 2, 3)
+        power_dens_list = np.logspace(1, 3, 3)
         solution = sim.simulate_power_dependence(power_dens_list)
         assert mocked.call_count == len(power_dens_list)
 
-    for num, power_dens in enumerate(power_dens_list):
-        assert solution[num].power_dens == power_dens
+    for num, pow_dens in enumerate(power_dens_list):
+        print(num, pow_dens)
+        assert solution[num].power_dens == pow_dens
 
 def test_sim_conc_dep1(setup_cte, mocker):
     '''Test that the concentration dependence works'''

@@ -15,6 +15,7 @@ import scipy.sparse as sparse
 import simetuc.precalculate as precalculate
 import simetuc.lattice as lattice # for the LatticeError exception
 from simetuc.util import temp_bin_filename
+from simetuc.settings import Settings
 
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
@@ -151,7 +152,7 @@ def setup_cte():
 
     cte['no_console'] = True
     cte['no_plot'] = True
-    return cte
+    return Settings(cte_dict=cte)
 
 # SIMPLE LATTICES WITH 1 OR 2 ACTIVATORS AND SENSITIZERS
 # THESE RESULTS HAVE BEEN CHECKED BY HAND

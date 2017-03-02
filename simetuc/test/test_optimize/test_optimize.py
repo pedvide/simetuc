@@ -9,6 +9,7 @@ import numpy as np
 
 import simetuc.optimize as optimize
 import simetuc.simulations as simulations
+from simetuc.settings import Settings
 
 @pytest.fixture(scope='function')
 def setup_cte():
@@ -125,7 +126,7 @@ def setup_cte():
 
     cte['no_console'] = False
     cte['no_plot'] = True
-    return cte
+    return Settings(cte_dict=cte)
 
 def idfn_param(param):
     '''Returns the name of the test according to the parameters'''

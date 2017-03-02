@@ -146,7 +146,7 @@ def test_standard_config():
                              'value': 45022061400.0})]))])
     cte_good['config_file'] = config_file
 
-    assert cte == cte_good
+    assert cte == settings.Settings(cte_good)
 
 def test_non_existing_config():
     with pytest.raises(settings.ConfigError) as excinfo:
@@ -291,7 +291,7 @@ ids=['one pos and occ', 'one pos and occ list of lists']
 def test_lattice_config_ok_occs(lattice_values):
     data_format = data_lattice_occ_ok.format(*lattice_values)
     lattice_dict = yaml.load(data_format)
-    parsed_lattice_dict = settings._parse_lattice(lattice_dict)
+    parsed_lattice_dict = settings.Settings._parse_lattice(lattice_dict)
     for elem in ['name', 'spacegroup', 'N_uc', 'S_conc',
                  'A_conc', 'cell_par', 'sites_pos', 'sites_occ']:
         assert elem in parsed_lattice_dict
@@ -612,7 +612,7 @@ def test_excitations_config8():
     pump_rate: 9.3e-4 # cm2/J
 '''
     exc_dict = yaml.load(data_exc)
-    settings._parse_excitations(exc_dict)
+    settings.Settings._parse_excitations(exc_dict)
 
 def test_abs_config1():
     data = data_states_ok + '''excitations:
@@ -1274,33 +1274,6 @@ enery_transfer:
         multipolarity: 6
         strength: 4.50220614e+10
 '''
-#@pytest.mark.skip # not used anymore
-#def test_expData_config1():
-#    data = data_ET_ok + '''experimental_data:
-#    T(1D2): tau_Tm_1D2_exc_Vis_473.txt
-#    Tm(1G4): tau_Tm_1G4_exc_Vis_473.txt
-#    Tm(3H4): tau_Tm_3H4_exc_Vis_473.txt
-#    Tm(3F4): tau_Tm_3F4_exc_Vis_473.txt
-#'''
-#    with pytest.raises(settings.LabelError) as excinfo: # wrong ion label
-#        with temp_config_filename(data) as filename:
-#            settings.load(filename)
-#    assert excinfo.match(r"is not a valid ion label")
-#    assert excinfo.type == settings.LabelError
-#@pytest.mark.skip
-#def test_expData_config2():
-#    data = data_ET_ok + '''experimental_data:
-#    Tm(1D2): tau_Tm_1D2_exc_Vis_473.txt
-#    Tm(1G4): tau_Tm_1G4_exc_Vis_473.txt
-#    Tm(3H4): tau_Tm_3H4_exc_Vis_473.txt
-#    Tm(34): tau_Tm_3F4_exc_Vis_473.txt
-#'''
-#    with pytest.raises(settings.LabelError) as excinfo: # wrong state label
-#        with temp_config_filename(data) as filename:
-#            settings.load(filename)
-#    assert excinfo.match(r"is not a valid state label")
-#    assert excinfo.type == settings.LabelError
-
 
 # test optimization processes
 def test_optim_wrong_proc():

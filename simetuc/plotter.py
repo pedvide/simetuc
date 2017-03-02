@@ -60,7 +60,8 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
 #        ax.set_title(state_label)
 
         sim_color = colors[0]
-        exp_color = colors[1]
+        exp_color = '.'+colors[1]
+        exp_size = 2  # marker size
 
         # no exp data: either a GS or simply no exp data available
         if exp_data is 0 or exp_data is None:
@@ -89,7 +90,7 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
         else:  # exp data available
             # convert exp_data time to ms
             plt.semilogy(exp_data[:, 0]*1000, exp_data[:, 1]*np.max(sim_data), exp_color,
-                         t_sim*1000, sim_data, sim_color, label=state_label)
+                         t_sim*1000, sim_data, sim_color, markersize=exp_size, label=state_label)
             plt.axis('tight')
             plt.ylim(ymax=plt.ylim()[1]*1.2)  # add some white space on top
             tmin = min(exp_data[-1, 0], t_sim[0])

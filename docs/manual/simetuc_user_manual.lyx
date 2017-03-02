@@ -2157,63 +2157,44 @@ name "subsec:Optimization-Processes"
 
 \end_inset
 
-Optimization processes
+Optimization
 \end_layout
 
-\begin_layout Standard
-An optional list of energy transfer labels.
- When optimizing the energy transfer parameters to the experimental data
- (see Section 
-\begin_inset CommandInset ref
-LatexCommand ref
-reference "sec:Optimizing-the-ET-params"
-
-\end_inset
-
-), by default all parameters will be used.
- This section restricts the optimization parameters to those in the list,
- for example
-\end_layout
-
-\begin_layout Standard
+\begin_layout Description
+processes An optional list of energy transfer or branching ratio labels.
+ If empty or not present, all ET processes will be optimized (and no branching
+ ratio).
+ If present and not empty, this option restricts the optimization parameters
+ to those in the list, for example
 \begin_inset listings
 inline false
 status open
 
 \begin_layout Plain Layout
 
-optimization_processes: [CR50]
+processes: [CR50, 3H4->3F4]
 \end_layout
 
 \end_inset
 
-
-\end_layout
-
-\begin_layout Standard
-will optimize only the parameter 
+will optimize only the parameters 
 \family typewriter
 CR50
+\family default
+ and 
+\family typewriter
+3H4->3F4
 \family default
 , and not any other.
 \end_layout
 
-\begin_layout Section
-\begin_inset CommandInset label
-LatexCommand label
-name "subsec:Optimization-Method"
-
-\end_inset
-
-Optimization method
-\end_layout
-
-\begin_layout Standard
-This optional section defines the method used to optimize the energy transfer
- parameters to the experimental data.
+\begin_layout Description
+method This optional section defines the method used to optimize the energy
+ transfer parameters to the experimental data.
  Several options are available:
 \end_layout
 
+\begin_deeper
 \begin_layout Itemize
 
 \family typewriter
@@ -2276,17 +2257,46 @@ SLSQP
 \family default
  minimizes the error using a method similar to Newton-Raphson, which iteratively
  tries to find the parameter values that make the gradient zero.
- 
+\end_layout
+
+\begin_layout Standard
+
 \family typewriter
 brute_force
 \family default
- on the other hand computes the error at 100 points in a range from 0.1 to
+ on the other hand computes the error at 10 points in a range from 0.1 to
  10 times the parameter values given in the configuration file and selects
  the minimum; after it, it is advised to run an 
 \family typewriter
 SLSQP
 \family default
  minimization to further refine the value.
+ If the parameter to optimize is a branching ratio, the maximum value is
+ 1.
+\end_layout
+
+\end_deeper
+\begin_layout Description
+excitations is a optional list of excitation labels.
+ If empty, the simulations will use the active excitation(s) in the configuratio
+n file.
+ If not empty, the dynamics will be simulated several times, one per excitation
+ label present, with each excitation successively set as active; the error
+ of each simulation will be averaged and that error will be minimized.
+ This is useful when experimental data for different excitations exist.
+ For example:
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+excitations: [Vis_473, NIR_980]
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section

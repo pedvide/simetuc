@@ -10,6 +10,7 @@ import numpy as np
 # pylint: disable=E1101
 
 import simetuc.lattice as lattice
+from simetuc.settings import Settings
 from simetuc.util import temp_bin_filename
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
@@ -42,7 +43,7 @@ def setup_cte():
 
     cte['no_console'] = True
     cte['no_plot'] = False
-    return cte
+    return Settings(cte_dict=cte)
 
 
 def idfn(params):

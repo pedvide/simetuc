@@ -49,8 +49,8 @@ def optim_fun_factory(sim: simulations.Simulations,
         def optim_fun(x: np.array) -> float:
             '''Update ET strengths, simulate dynamics and return total error'''
             # update ET values if explicitly given
-            for num, process in enumerate(process_list):
-                sim.modify_param_value(process, x[num]*x0[num])  # precondition
+            for process, value in zip(process_list, x*x0):
+                sim.modify_param_value(process, value)  # precondition
 
             dynamics_sol = sim.simulate_dynamics(average=average)
             total_error = dynamics_sol.total_error
@@ -68,8 +68,8 @@ def optim_fun_factory(sim: simulations.Simulations,
         def optim_fun_all_exc(x: np.array) -> float:
             '''Update ET strengths, simulate dynamics for all excitations and return total error.'''
             # update ET values if explicitly given
-            for num, process in enumerate(process_list):
-                sim.modify_param_value(process, x[num]*x0[num])  # precondition
+            for process, value in zip(process_list, x*x0):
+                sim.modify_param_value(process, value)  # precondition
 
             total_error = 0.0
             # go through all required excitations, calculate errors and add all of them
@@ -115,7 +115,8 @@ def optimize_dynamics(cte: Dict, average: bool = False) -> Tuple[np.array, float
     start_time = datetime.datetime.now()
 
     # Processes to optimize. If not given, all ET parameters will be optimized
-    process_list = cte.get('optimization', {}).get('processes', cte['ET'])
+    process_list = cte.get('optimization', {}).get('processes', cte['energy_transfer'])
+    print(process_list)
 
     # starting point
     x0 = np.array([sim.get_ET_param_value(process, average) if isinstance(process, str)
@@ -147,6 +148,7 @@ def optimize_dynamics(cte: Dict, average: bool = False) -> Tuple[np.array, float
 
         if method == 'COBYLA':
             # minimize error. The starting point is preconditioned to be 1
+            pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
             res = optimize.minimize(_optim_fun, np.ones_like(x0),
                                     method=method, tol=tol)
 

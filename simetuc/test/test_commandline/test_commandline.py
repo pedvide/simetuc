@@ -43,7 +43,7 @@ def test_cli_verbose_quiet(mocker, no_logging):
     ext_args = [config_file, '--no-plot', '-v', '-l']
     commandline.main(ext_args)
     assert mocked_generate.call_count == 1
-    assert type(mocked_generate.call_args[0][0]) == dict
+    assert isinstance(mocked_generate.call_args[0][0], dict)
 
     ext_args = [config_file, '--no-plot', '-q', '-l']
     commandline.main(ext_args)

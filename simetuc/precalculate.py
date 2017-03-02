@@ -841,7 +841,7 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
 
     # ET matrices
     logger.info('Energy transfer matrices...')
-    ET_matrix, N_indices = _create_ET_matrices(index_S_i, index_A_j, cte['ET'],
+    ET_matrix, N_indices = _create_ET_matrices(index_S_i, index_A_j, cte['energy_transfer'],
                                                indices_S_k, indices_S_l,
                                                indices_A_k, indices_A_l,
                                                dists_S_k, dists_S_l,
@@ -854,7 +854,7 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
     logger.info('Cooperative energy transfer matrices...')
     d_max_coop = cte['lattice'].get('d_max_coop', np.inf)
     (coop_ET_matrix,
-     coop_N_indices) = _create_coop_ET_matrices(index_S_i, index_A_j, cte['ET'],
+     coop_N_indices) = _create_coop_ET_matrices(index_S_i, index_A_j, cte['energy_transfer'],
                                                 indices_S_k, indices_S_l,
                                                 indices_A_k, indices_A_l,
                                                 dists_S_k, dists_S_l,
@@ -997,7 +997,7 @@ def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = Non
     # ET matrices
     logger.info('Energy transfer matrices...')
     # use the avg value if present
-    ET_dict = cte['ET'].copy()
+    ET_dict = cte['energy_transfer'].copy()
     for dict_process in ET_dict.values():
         if 'value_avg' in dict_process:
             dict_process['value'] = dict_process['value_avg']

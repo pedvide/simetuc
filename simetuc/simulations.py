@@ -9,7 +9,6 @@ import time
 import csv
 import logging
 import warnings
-import copy
 import os
 from typing import Dict, List, Tuple, Iterator, Sequence
 
@@ -20,7 +19,7 @@ import numpy as np
 
 import scipy.signal as signal
 import scipy.interpolate as interpolate
-#from scipy import stats
+from scipy import stats
 
 # nice progress bar
 from tqdm import tqdm
@@ -30,6 +29,7 @@ import simetuc.odesolver as odesolver
 #import simetuc.odesolver_assimulo as odesolver  # warning: it's slower!
 import simetuc.plotter as plotter
 from simetuc.util import Conc
+from simetuc.settings import Settings
 
 
 class Solution():
@@ -45,7 +45,7 @@ class Solution():
         # list of average population for each state
         self._list_avg_data = np.array([])
         # settings
-        self.cte = copy.deepcopy(cte)
+        self.cte = Settings(cte)
         # sensitizer and activator indices of their ground states
         self.index_S_i = index_S_i
         self.index_A_j = index_A_j
@@ -63,7 +63,7 @@ class Solution():
 
     def __bool__(self) -> bool:
         '''Instance is True if all its data structures have been filled out'''
-        return (self.t_sol.size != 0 and self.y_sol.size != 0 and self.cte != {} and
+        return (self.t_sol.size != 0 and self.y_sol.size != 0 and bool(self.cte) and
                 len(self.index_S_i) != 0 and len(self.index_A_j) != 0)
 
     def __eq__(self, other: object) -> bool:
@@ -308,6 +308,7 @@ class DynamicsSolution(Solution):
         self._list_exp_data = []  # type: List[np.array]
         self._list_avg_data_ofs = []  # type: List[np.array]
         self._list_binned_data = []  # type: List[np.array]
+        self._list_interp_data = []  # type: List[np.array]
 
         self._total_error = None  # type: float
         self._errors = np.array([])
@@ -317,7 +318,7 @@ class DynamicsSolution(Solution):
 
     #@profile
     @staticmethod
-    def _load_exp_data(filename: str, lattice_name: str, filter_window: int = 11) -> np.array:
+    def _load_exp_data(filename: str, lattice_name: str, filter_window: int = 35) -> np.array:
         '''Load the experimental data from the expData/lattice_name folder.
            Two columns of numbers: first is time (seconds), second intensity
         '''
@@ -364,9 +365,22 @@ class DynamicsSolution(Solution):
         logger.debug('Experimental data succesfully read.')
 
         # smooth the data to get an "average" of the maximum
-        smooth_data = signal.savgol_filter(data[:, 1], filter_window, 2, mode='nearest')
+        smooth_data = signal.savgol_filter(data[:, 1], filter_window, 5, mode='nearest')
+        smooth_data = smooth_data.clip(min=0)
+
+        # average maximum
+        max_point = np.where(smooth_data == max(smooth_data))[0][0]
+        # average over 0.5% of points around max_point
+        delta = int(0.005*len(smooth_data))
+        delta = delta if delta > 1 else 1  # at least 1 point
+        if max_point == 0:
+            avg_max = max(smooth_data)
+        elif max_point > delta//2:
+            avg_max = np.mean(smooth_data[max_point-delta//2:max_point+delta//2])
+        else:
+            avg_max = np.mean(smooth_data[:max_point+delta//2])
         # normalize data
-        data[:, 1] = (data[:, 1]-min(smooth_data))/(max(smooth_data)-min(smooth_data))
+        data[:, 1] = (data[:, 1]-min(smooth_data))/(avg_max-min(smooth_data))
         # set negative values to zero
         data = data.clip(min=0)
         return data
@@ -395,48 +409,51 @@ class DynamicsSolution(Solution):
         return sim_data_ofs
 
     #@profile
-    ### TODO: change this to a staticmethod
-    def _interpolate_sim_data(self) -> List[np.array]:
+    @staticmethod
+    def _interpolate_sim_data(exp_data: np.array, sim_data: np.array,
+                              t_sol: np.array, t_interp: np.array = None) -> List[np.array]:
         '''Interpolate simulated corrected data to exp data points.'''
 
+        if not np.any(exp_data):  # if there's no experimental data, don't do anything
+            return sim_data
+        if not np.any(sim_data):  # pragma: no cover
+            return None
+
+        if t_interp is None:
+            t_interp = exp_data[:, 0]
+
         # create function to interpolate
-        list_iterp_sim_funcs = [interpolate.interp1d(self.t_sol, simData_corr,
-                                                     fill_value='extrapolate')
-                                if simData_corr is not None else None
-                                for simData_corr in self.list_avg_data_ofs]
-        # interpolate them to the experimental data times
-        list_iterp_sim_data = [iterpFun(expData[:, 0])
-                               if (expData is not None) and (iterpFun is not None) else None
-                               for iterpFun, expData in zip(list_iterp_sim_funcs,
-                                                            self.list_exp_data)]
+        iterp_sim_func = interpolate.interp1d(t_sol, sim_data, fill_value='extrapolate')
+        # interpolate them to the experimental data times (or the requested times)
+        iterp_sim_data = iterp_sim_func(t_interp)
 
-        return list_iterp_sim_data
+        return iterp_sim_data
 
-#    @staticmethod
-#    def _bin_sim_data(exp_data: np.array, sim_data: np.array, t_sim: np.array) -> List[np.array]:
-#        '''Bin simulated data to the same bin centers and width that the experimental data.
-#           Add all the counts in a bin.'''
-#
-#        if not np.any(exp_data):  # if there's no experimental data, don't do anything
-#            return sim_data
-#        if not np.any(sim_data):  # pragma: no cover
-#            return None
-#
-#        bin_sums, bin_edges, binnumber = stats.binned_statistic(t_sim,
-#                                                                sim_data,
-#                                                                statistic='median',
-#                                                                bins=len(exp_data[:, 0]))
-##        print(bin_sums, bin_edges, binnumber)
-#
-#        return bin_sums
+    @staticmethod
+    def _bin_sim_data(exp_data: np.array, sim_data: np.array, t_sim: np.array) -> List[np.array]:
+        '''Bin simulated data to the same bin centers and width that the experimental data.
+           Add all the counts in a bin.'''
+
+        if not np.any(exp_data):  # if there's no experimental data, don't do anything
+            return sim_data
+        if not np.any(sim_data):  # pragma: no cover
+            return None
+
+        exp_time = exp_data[:, 0]
+        bin_time = np.linspace(exp_time[0], exp_time[-1], 10*len(exp_time))
+        bin_sums, bin_edges, binnumber = stats.binned_statistic(bin_time,
+                                                                sim_data,
+                                                                statistic='sum',
+                                                                bins=len(exp_time))
+#        print(bin_sums, bin_edges, binnumber)
+
+        return bin_sums
 
     #@profile
     def _calc_errors(self) -> np.array:
         '''Calculate root-square-deviation between experiment and simulation.'''
         # get interpolated simulated data
-        list_sim_data = self._interpolate_sim_data()
-
-#        list_sim_data = self.list_binned_data
+        list_sim_data = self.list_interp_data
 
         # calculate the relative mean square deviation
         # error = 1/mean(y)*sqrt(sum( (y-yexp)^2 )/N )
@@ -475,9 +492,9 @@ class DynamicsSolution(Solution):
         '''Overrides the Solution method to plot
             the average offset-corrected simulated data (list_avg_data) and experimental data.
         '''
+        list_t_sim = [data[:, 0] if data is not None else self.t_sol for data in self.list_exp_data]
 
-#        list_t_sim = [data[:, 0] if data is not None else None for data in self.list_exp_data]
-        plotter.plot_avg_decay_data(self.t_sol, self.list_avg_data_ofs,
+        plotter.plot_avg_decay_data(list_t_sim, self.list_binned_data,
                                     state_labels=self.state_labels,
                                     list_exp_data=self.list_exp_data,
                                     colors=self.cte['colors'])
@@ -515,6 +532,20 @@ class DynamicsSolution(Solution):
         return self._total_error
 
     @property
+    def list_interp_data(self) -> List[np.array]:
+        '''List of offset-corrected (due to experimental background) average populations
+            for each state in the solution
+        '''
+        # if empty, calculate
+        if not self._list_interp_data:
+            self._list_interp_data = [DynamicsSolution._interpolate_sim_data(expData,
+                                                                             simData,
+                                                                             self.t_sol)
+                                      for expData, simData in zip(self.list_exp_data,
+                                                                  self.list_avg_data_ofs)]
+        return self._list_interp_data
+
+    @property
     def list_avg_data_ofs(self) -> List[np.array]:
         '''List of offset-corrected (due to experimental background) average populations
             for each state in the solution
@@ -526,18 +557,26 @@ class DynamicsSolution(Solution):
                                        in zip(self.list_exp_data, self.list_avg_data)]
         return self._list_avg_data_ofs
 
-#    @property
-#    def list_binned_data(self) -> List[np.array]:
-#        '''List of offset-corrected (due to experimental background) average populations
-#            for each state in the solution
-#        '''
-#        # if empty, calculate
-#        if not self._list_binned_data:
-#            self._list_binned_data = [DynamicsSolution._bin_sim_data(exp_data, sim_data,
-#                                                                     self.t_sol)
-#                                      for exp_data, sim_data in zip(self.list_exp_data,
-#                                                                    self.list_avg_data_ofs)]
-#        return self._list_binned_data
+    @property
+    def list_binned_data(self) -> List[np.array]:
+        '''List of offset-corrected (due to experimental background) average populations
+            for each state in the solution
+        '''
+        # if empty, calculate
+        if not self._list_binned_data:
+            def bin_time(expdata):
+                if expdata is not None:
+                    return np.linspace(expdata[0, 0], expdata[-1, 0], 10*len(expdata[:, 0]))
+
+            list_interp_data = [DynamicsSolution._interpolate_sim_data(expData, simData,
+                                                                       self.t_sol, bin_time(expData))
+                                for expData, simData in zip(self.list_exp_data, self.list_avg_data_ofs)]
+
+            self._list_binned_data = [DynamicsSolution._bin_sim_data(exp_data, sim_data,
+                                                                     self.t_sol)
+                                      for exp_data, sim_data in zip(self.list_exp_data,
+                                                                    list_interp_data)]
+        return self._list_binned_data
 
     @property
     def list_exp_data(self) -> List[np.array]:
@@ -774,12 +813,12 @@ class Simulations():
 
     def __init__(self, cte: Dict, full_path: str = None) -> None:
         # settings
-        self.cte = copy.deepcopy(cte)
+        self.cte = Settings(cte)
         self.full_path = full_path
 
     def __bool__(self) -> bool:
         '''Instance is True if the cte dict has been filled'''
-        return self.cte != {}
+        return bool(self.cte)
 
     def __eq__(self, other: object) -> bool:
         '''Two solutions are equal if all its vars are equal.'''
@@ -795,10 +834,15 @@ class Simulations():
 
     def __repr__(self) -> str:
         '''Representation of a simulation.'''
-        return '{}(lattice={}, n_uc={}, num_states={})'.format(self.__class__.__name__,
+        if 'energy_states' in self.cte.states:
+            return '{}(lattice={}, n_uc={}, num_states={})'.format(self.__class__.__name__,
                                                                self.cte['lattice']['name'],
                                                                self.cte['lattice']['N_uc'],
                                                                self.cte['states']['energy_states'])
+        else:
+            return '{}(lattice={}, n_uc={}, before precalculate)'.format(self.__class__.__name__,
+                                                               self.cte['lattice']['name'],
+                                                               self.cte['lattice']['N_uc'])
 
     def _get_t_pulse(self) -> float:
         '''Return the pulse width of the simulation'''
@@ -817,38 +861,17 @@ class Simulations():
 
     def modify_param_value(self, process: str, new_value: float) -> None:
         '''Change the value of the process.'''
-        if isinstance(process, str):
-            self._modify_ET_param_value(process, new_value)
-        elif isinstance(process, tuple):
-            self._modify_branching_ratio_value(process, new_value)
-
-    def _modify_ET_param_value(self, process: str, new_strength: float) -> None:
-        '''Modify a ET parameter'''
-        self.cte['ET'][process]['value'] = new_strength
-
-    def _modify_branching_ratio_value(self, process: Tuple[int, int], new_value: float) -> None:
-        '''Modify a branching ratio param.'''
-        list_tups = self.cte['decay']['B_pos_value_A']
-        for num, tup in enumerate(list_tups):
-            if tup[:2] == process:
-                old_tup = self.cte['decay']['B_pos_value_A'][num]
-                self.cte['decay']['B_pos_value_A'][num] = (*old_tup[:2], new_value)
+        self.cte.modify_param_value(process, new_value)
 
     def get_ET_param_value(self, process: str, average: bool = False) -> float:
         '''Get a ET parameter value.
             Return the average value if it exists.
         '''
-        if average:
-            return self.cte['ET'][process].get('value_avg', self.cte['ET'][process]['value'])
-        else:
-            return self.cte['ET'][process]['value']
+        return self.cte.get_ET_param_value(process, average)
 
     def get_branching_ratio_value(self, process: Tuple[int, int]) -> float:
         '''Gets a branching ratio value.'''
-        list_tups = self.cte['decay']['B_pos_value_A']
-        for num, tup in enumerate(list_tups):
-            if tup[:2] == process:
-                return self.cte['decay']['B_pos_value_A'][num][2]
+        return self.cte.get_branching_ratio_value(process)
 
 #    @profile
     def simulate_dynamics(self, average: bool = False) -> DynamicsSolution:
@@ -866,14 +889,14 @@ class Simulations():
             setup_func = precalculate.setup_average_eqs
 
         # get matrices of interaction, initial conditions, abs, decay, etc
-        (cte, initial_population, index_S_i, index_A_j,
+        (cte_updated, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
          ET_matrix, N_indices, jac_indices,
          coop_ET_matrix, coop_N_indices,
          coop_jac_indices) = setup_func(self.cte, full_path=self.full_path)
 
         # update cte
-        self.cte = cte
+        self.cte = Settings(cte_updated)
 
         # initial and final times for excitation and relaxation
         t0 = 0
@@ -921,7 +944,7 @@ class Simulations():
 
         # substract the pulse width from t_sol so that it starts with 0
         # like it happens in a measurement
-        t_sol = t_sol - t_sol[0]
+#        t_sol = t_sol - t_sol[0]
 
         # store solution and settings
         dynamics_sol = DynamicsSolution(t_sol, y_sol, index_S_i, index_A_j,
@@ -951,14 +974,14 @@ class Simulations():
             setup_func = precalculate.setup_average_eqs
 
         # get matrices of interaction, initial conditions, abs, decay, etc
-        (cte, initial_population, index_S_i, index_A_j,
+        (cte_updated, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
          ET_matrix, N_indices, jac_indices,
          coop_ET_matrix, coop_N_indices,
          coop_jac_indices) = setup_func(self.cte, full_path=self.full_path)
 
         # update cte
-        self.cte = cte
+        self.cte = Settings(cte_updated)
 
         # initial and final times for excitation and relaxation
         t0 = 0
