@@ -964,8 +964,6 @@ class Simulations():
         '''
         logger = logging.getLogger(__name__)
 
-        cte = self.cte
-
         start_time = time.time()
         logger.info('Starting simulation...')
 
@@ -985,13 +983,13 @@ class Simulations():
 
         # initial and final times for excitation and relaxation
         t0 = 0
-        tf = (10*np.max(precalculate.get_lifetimes(cte))).round(8)  # total simulation time
+        tf = (10*np.max(precalculate.get_lifetimes(self.cte))).round(8)  # total simulation time
         t0_p = t0
         tf_p = tf
-        N_steps_pulse = cte['simulation_params']['N_steps']
+        N_steps_pulse = self.cte['simulation_params']['N_steps']
 
-        rtol = cte['simulation_params']['rtol']
-        atol = cte['simulation_params']['atol']
+        rtol = self.cte['simulation_params']['rtol']
+        atol = self.cte['simulation_params']['atol']
 
         start_time_ODE = time.time()
         logger.info('Solving equations...')
@@ -1019,7 +1017,7 @@ class Simulations():
 
         # store solution and settings
         steady_sol = SteadyStateSolution(t_pulse, y_pulse, index_S_i, index_A_j,
-                                         cte, average=average)
+                                         self.cte, average=average)
         return steady_sol
 
     def simulate_avg_steady_state(self) -> SteadyStateSolution:
@@ -1076,8 +1074,6 @@ class Simulations():
         logger = logging.getLogger(__name__)
         logger.info('Simulating power dependence curves...')
 
-        cte = self.cte
-
         start_time = time.time()
 
         # make sure it's a list of tuple of two floats
@@ -1087,11 +1083,11 @@ class Simulations():
         solutions = []  # type: List[Solution]
 
         for concs in tqdm(concentration_list, unit='points',
-                          total=num_conc_steps, disable=cte['no_console'],
+                          total=num_conc_steps, disable=self.cte['no_console'],
                           desc='Total progress'):
             # update concentrations
-            cte['lattice']['S_conc'] = concs[0]
-            cte['lattice']['A_conc'] = concs[1]
+            self.cte['lattice']['S_conc'] = concs[0]
+            self.cte['lattice']['A_conc'] = concs[1]
             # simulate
             if dynamics:
                 sol = self.simulate_dynamics(average=average)  # type: Solution
@@ -1109,21 +1105,21 @@ class Simulations():
         return conc_dep_solution
 
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.DEBUG,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#
-#    logger.info('Called from cmd.')
-#
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
-#
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
-#
-#    sim = Simulations(cte)
-#
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+
+    logger.info('Called from cmd.')
+
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')
+
+    cte['no_console'] = False
+    cte['no_plot'] = False
+
+    sim = Simulations(cte)
+
 #    solution = sim.simulate_dynamics()
 #    solution.log_errors()
 #    solution.plot()
@@ -1155,9 +1151,10 @@ class Simulations():
 #
 #    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
 #    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3), (0.1, 0.1), (0.1, 0.2), (0.1, 0.3)]
-#    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
-#    solution.plot()
-#    solution.save()
+    conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
+    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
+    solution.plot()
+    solution.save()
 #
 #    new_sol = ConcentrationDependenceSolution()
 #    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_conc_dep.hdf5')

@@ -97,7 +97,9 @@ class Settings(dict):
     def __bool__(self) -> bool:
         '''Instance is True if all its data structures have been filled out'''
         for var in vars(self).keys():
-            if not var:
+            print(var)
+            # If the var is not literally False, but empty
+            if getattr(self, var) is not False and not getattr(self, var):
                 return False
         return True
 
@@ -106,10 +108,7 @@ class Settings(dict):
         if not isinstance(other, Settings):
             return NotImplemented
         for attr in ['config_file', 'lattice', 'states', 'excitations', 'decay']:
-            try:
-                if self[attr] != other[attr]:
-                    return False
-            except:
+            if self[attr] != other[attr]:
                 return False
         return True
 
@@ -237,7 +236,7 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         return parsed_dict
 
     @staticmethod
-    def _parse_excitations(dict_excitations: Dict) -> Dict:
+    def _parse_excitations(dict_states: Dict, dict_excitations: Dict) -> Dict:
         '''Parses the excitation section
             Returns the parsed excitations dict'''
         logger = logging.getLogger(__name__)
@@ -246,6 +245,9 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         needed_keys = ['active', 'power_dens', 'process',
                        'degeneracy', 'pump_rate']
         optional_keys = ['t_pulse']
+
+        sensitizer_labels = dict_states['sensitizer_states_labels']
+        activator_labels = dict_states['activator_states_labels']
 
         # at least one excitation must exist
         if dict_excitations is None:
@@ -297,33 +299,12 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
             parsed_dict[excitation]['process'] = list_proc  # processed in _parse_absorptions
             parsed_dict[excitation]['active'] = exc_dict['active']
 
-        # at least one excitation must be active
-        if not any(dict_excitations[label]['active'] for label in dict_excitations.keys()):
-            msg = 'At least one excitation must be active'
-            logger.error(msg)
-            raise ConfigError(msg)
-
-        return parsed_dict
-
-    @staticmethod
-    def _parse_absorptions(dict_states: Dict, dict_excitations: Dict) -> None:
-        '''Parse the absorption and add to the excitation label the ion that is excited and
-            the inital and final states. It makes changes to the argument dictionaries
-        '''
-        logger = logging.getLogger(__name__)
-
-        sensitizer_labels = dict_states['sensitizer_states_labels']
-        activator_labels = dict_states['activator_states_labels']
-
-        # absorption
-        # for each excitation
-        for excitation in dict_excitations:
-            dict_excitations[excitation]['init_state'] = []
-            dict_excitations[excitation]['final_state'] = []
-            dict_excitations[excitation]['ion_exc'] = []
+            parsed_dict[excitation]['init_state'] = []
+            parsed_dict[excitation]['final_state'] = []
+            parsed_dict[excitation]['ion_exc'] = []
 
             # for each process in the excitation
-            for process in dict_excitations[excitation]['process']:
+            for process in list_proc:
                 # get the ion and state labels of the process
                 ion_state_list = _get_ion_and_state_labels(process)
 
@@ -343,28 +324,36 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
                     final_ion_num = _get_state_index(sensitizer_labels, final_state,
                                                      section='excitation process')
 
-                    dict_excitations[excitation]['ion_exc'].append('S')
+                    parsed_dict[excitation]['ion_exc'].append('S')
                 elif init_ion == dict_states['activator_ion_label']:  # ACTIVATOR
                     init_ion_num = _get_state_index(activator_labels, init_state,
                                                     section='excitation process')
                     final_ion_num = _get_state_index(activator_labels, final_state,
                                                      section='excitation process')
 
-                    dict_excitations[excitation]['ion_exc'].append('A')
+                    parsed_dict[excitation]['ion_exc'].append('A')
                 else:
                     msg = 'Incorrect ion label in excitation: {}'.format(process)
                     logger.error(msg)
                     raise ValueError(msg)
                 # add to list
-                dict_excitations[excitation]['init_state'].append(init_ion_num)
-                dict_excitations[excitation]['final_state'].append(final_ion_num)
+                parsed_dict[excitation]['init_state'].append(init_ion_num)
+                parsed_dict[excitation]['final_state'].append(final_ion_num)
 
             # all ions must be the same in the list!
-            ion_list = dict_excitations[excitation]['ion_exc']
+            ion_list = parsed_dict[excitation]['ion_exc']
             if not all(ion == ion_list[0] for ion in ion_list):
                 msg = 'All processes must involve the same ion in {}.'.format(excitation)
                 logger.error(msg)
                 raise ValueError(msg)
+
+        # at least one excitation must be active
+        if not any(dict_excitations[label]['active'] for label in dict_excitations.keys()):
+            msg = 'At least one excitation must be active'
+            logger.error(msg)
+            raise ConfigError(msg)
+
+        return parsed_dict
 
     @staticmethod
     def _parse_decay_rates(config_cte: Dict) -> Tuple[List[Tuple[int, float]],
@@ -728,16 +717,14 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         # LATTICE
         # parse lattice params
-        self.lattice =self._parse_lattice(config_cte['lattice'])
+        self.lattice = self._parse_lattice(config_cte['lattice'])
 
         # NUMBER OF STATES
         self.states = self._parse_states(config_cte['states'])
 
         # EXCITATIONS
-        self.excitations = self._parse_excitations(config_cte['excitations'])
-
-        # ABSORPTIONS
-        self._parse_absorptions(self.states, self.excitations)
+        self.excitations = self._parse_excitations(config_cte['states'],
+                                                   config_cte['excitations'])
 
         # DECAY RATES
         pos_value_S, pos_value_A = self._parse_decay_rates(config_cte)

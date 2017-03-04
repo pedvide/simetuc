@@ -15,12 +15,8 @@ from simetuc.util import temp_config_filename
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
 
-def test_standard_config():
-    filename = os.path.join(test_folder_path, 'test_standard_config.txt')
-    cte = settings.load(filename)
-
-    with open(filename, 'rt') as file:
-        config_file = file.read()
+@pytest.fixture(scope='function')
+def setup_cte():
 
     cte_good = dict([
              ('lattice',
@@ -144,18 +140,46 @@ def test_standard_config():
                              'mult': 6,
                              'type': 'SS',
                              'value': 45022061400.0})]))])
-    cte_good['config_file'] = config_file
 
-    assert cte == settings.Settings(cte_good)
 
-def test_non_existing_config():
+    return cte_good
+
+def test_standard_config(setup_cte):
+    ''''Test that the returned Settings instance for a know config file is correct.'''
+    filename = os.path.join(test_folder_path, 'test_standard_config.txt')
+    cte = settings.load(filename)
+
+    with open(filename, 'rt') as file:
+        config_file = file.read()
+
+    setup_cte['config_file'] = config_file
+
+    assert cte == settings.Settings(setup_cte)
+
+
+def test_settings_class(setup_cte):
+    '''Test the creation, bool, and equality of Settings instances.'''
+
+    empty_settings = settings.Settings()
+    assert not empty_settings
+
+    settings1 = settings.Settings(setup_cte)
+    settings2 = settings.Settings(setup_cte)
+    assert settings1 == settings2
+
+    setup_cte['lattice']['name'] = 'new_name'
+    settings3 = settings.Settings(setup_cte)
+    assert settings3 != settings1
+
+
+def test_non_existing_file():
     with pytest.raises(settings.ConfigError) as excinfo:
         # load non existing file
         settings.load(os.path.join(test_folder_path, 'test_non_existing_config.txt'))
     assert excinfo.match(r"Error reading file")
     assert excinfo.type == settings.ConfigError
 
-def test_empty_config():
+def test_empty_file():
     with pytest.raises(settings.ConfigError) as excinfo:
         with temp_config_filename('') as filename:
             settings.load(filename)
@@ -612,7 +636,12 @@ def test_excitations_config8():
     pump_rate: 9.3e-4 # cm2/J
 '''
     exc_dict = yaml.load(data_exc)
-    settings.Settings._parse_excitations(exc_dict)
+
+    states_dict = {'activator_states_labels': ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2'],
+                   'sensitizer_states_labels': ['GS', 'ES'],
+                   'activator_ion_label': 'Tm',
+                   'sensitizer_ion_label': 'Yb'}
+    settings.Settings._parse_excitations(states_dict, exc_dict)
 
 def test_abs_config1():
     data = data_states_ok + '''excitations:

@@ -141,7 +141,6 @@ def test_sim(setup_cte):
     '''Test that the simulations work'''
     setup_cte['lattice']['S_conc'] = 0
     sim = simulations.Simulations(setup_cte)
-    print(sim.cte)
     assert sim.cte
     assert sim
 
@@ -389,10 +388,9 @@ def test_sim_power_dep4(setup_cte, mocker):
         assert mocked.call_count == len(power_dens_list)
 
     for num, pow_dens in enumerate(power_dens_list):
-        print(num, pow_dens)
         assert solution[num].power_dens == pow_dens
 
-def test_sim_conc_dep1(setup_cte, mocker):
+def test_sim_conc_dep_steady(setup_cte, mocker):
     '''Test that the concentration dependence works'''
     with temp_bin_filename() as temp_filename:
         mocked = mocker.patch('simetuc.odesolver._solve_ode')
@@ -417,7 +415,7 @@ def test_sim_conc_dep1(setup_cte, mocker):
     assert sol_hdf5 == solution
     sol_hdf5.plot()
 
-def test_sim_conc_dep2(setup_cte, mocker):
+def test_sim_conc_dep_dyn(setup_cte, mocker):
     '''Test that the concentration dependence works'''
     with temp_bin_filename() as temp_filename:
         mocked = mocker.patch('simetuc.odesolver._solve_ode')
@@ -443,7 +441,24 @@ def test_sim_conc_dep2(setup_cte, mocker):
     assert sol_hdf5 == solution
     sol_hdf5.plot()
 
-def test_sim_conc_dep3(setup_cte, mocker):
+def test_sim_conc_dep_list(setup_cte, mocker):
+    '''Test that the concentration dependence works'''
+    with temp_bin_filename() as temp_filename:
+        mocked = mocker.patch('simetuc.odesolver._solve_ode')
+        # the num_states changes when the temp lattice is created,
+        # allocate 2x so that we're safe. Also make the num_points 1000.
+        mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
+
+        conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
+        # dynamics call solve_ode twice (pulse and relaxation)
+        assert mocked.call_count == 2*len(conc_list)
+
+        for num, conc in enumerate(conc_list):
+            assert solution[num].concentration == conc
+
+def test_sim_conc_dep_only_A(setup_cte, mocker):
     '''Conc list has only A changing'''
     with temp_bin_filename() as temp_filename:
         mocked = mocker.patch('simetuc.odesolver._solve_ode')
@@ -459,7 +474,7 @@ def test_sim_conc_dep3(setup_cte, mocker):
     assert solution
     solution.plot()
 
-def test_sim_conc_dep4(setup_cte, mocker):
+def test_sim_conc_dep_only_S(setup_cte, mocker):
     '''Conc list has only S changing'''
     with temp_bin_filename() as temp_filename:
         mocked = mocker.patch('simetuc.odesolver._solve_ode')
@@ -475,7 +490,7 @@ def test_sim_conc_dep4(setup_cte, mocker):
     assert solution
     solution.plot()
 
-def test_sim_conc_dep5(setup_cte, recwarn):
+def test_sim_conc_dep_empty_conc(setup_cte, recwarn):
     '''Conc list is empty'''
     with temp_bin_filename() as temp_filename:
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
@@ -490,7 +505,7 @@ def test_sim_conc_dep5(setup_cte, recwarn):
     assert 'Nothing to plot! The concentration_dependence list is emtpy!' in str(warning.message)
 
 
-def test_sim_conc_dep6(setup_cte, recwarn, mocker):
+def test_sim_conc_dep_no_plot(setup_cte, recwarn, mocker):
     '''A plot was requested, but no_plot is set'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
