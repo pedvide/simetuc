@@ -13,7 +13,7 @@ import logging
 #import pprint
 from typing import Dict, List, Tuple
 from typing import Callable, TypeVar
-from typing import Union, Sequence, Iterable, Mapping, Collection  # type: ignore
+from typing import Union, Sequence, Iterable, Mapping, Sized
 from functools import wraps
 from enum import Enum
 import warnings
@@ -39,7 +39,7 @@ from simetuc.util import ConfigWarning
 # type of innermost type, could be int, str, etc
 T = TypeVar('T')
 # the type of the settings value can be a simple type or a collection or types
-ValType = Union[T, Collection[T]]
+ValType = Union[T, Iterable[T]]
 
 class Value():
     '''A value of a setting. The value has an specific type and optionally max and min values.
@@ -117,7 +117,7 @@ class Value():
             logger.error(msg)
             raise ValueError(msg)
 
-    def _check_seq_len(self, seq: Collection, len_max: int, len_min: int) -> None:
+    def _check_seq_len(self, seq: Sized, len_max: int, len_min: int) -> None:
         '''Checks that the sequence has the size given by self.len_max/min.'''
         logger = logging.getLogger(__name__)
 
