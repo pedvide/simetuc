@@ -8,7 +8,7 @@ Created on Tue Oct 11 15:58:58 2016
 import datetime
 import logging
 import functools
-from typing import Dict, Tuple, List, Callable
+from typing import Tuple, List, Callable
 
 import numpy as np
 # pylint: disable=E1101
@@ -18,19 +18,20 @@ import scipy.optimize as optimize
 import tqdm
 
 import simetuc.simulations as simulations
+import simetuc.settings as settings
 from simetuc.util import change_console_logger_level as change_console_logger_level
 from simetuc.util import get_console_logger_level as get_console_logger_level
 
 
 # I can't seem to find the right mypy syntax for this decorator.
-def cache(function):
+def cache(function):  # type: ignore
     '''Decorator to store a list of parameters and function values'''
     cache.params_lst = []
     cache.f_val_lst = []
 
-    @functools.wraps(function)
     # if @cache mypy syntax is fixed, add annotations here
-    def wrapper(*args):
+    @functools.wraps(function)
+    def wrapper(*args):  # type: ignore
         '''Wraps a function to add a cache'''
         f_val = function(*args)
         cache.params_lst.append(tuple(*args))
@@ -87,7 +88,7 @@ def optim_fun_factory(sim: simulations.Simulations,
         return optim_fun_all_exc
 
 
-def optimize_dynamics(cte: Dict, average: bool = False) -> Tuple[np.array, float]:
+def optimize_dynamics(cte: settings.Settings, average: bool = False) -> Tuple[np.array, float]:
     ''' Minimize the error between experimental data and simulation for the settings in cte
         average = True -> optimize average rate equations instead of microscopic ones
     '''
@@ -97,7 +98,7 @@ def optimize_dynamics(cte: Dict, average: bool = False) -> Tuple[np.array, float
     old_level = get_console_logger_level()
 
     # if @cache mypy syntax is fixed, add annotations here
-    def callback_fun(Xi, *args):
+    def callback_fun(Xi, *args):  # type: ignore
         ''' This function is called after every minimization step
             It prints the current parameters and error from the cache
         '''

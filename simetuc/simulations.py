@@ -31,13 +31,16 @@ import simetuc.plotter as plotter
 from simetuc.util import Conc
 from simetuc.settings import Settings
 
+# TODO: http://stackoverflow.com/questions/6428723/python-are-property-fields-being-cached-automatically
+
+
 
 class Solution():
     '''Base class for solutions of rate equation problems'''
 
     def __init__(self, t_sol: np.array, y_sol: np.array,
                  index_S_i: List[int], index_A_j: List[int],
-                 cte: Dict, average: bool = False) -> None:
+                 cte: Settings, average: bool = False) -> None:
         # simulation time
         self.t_sol = t_sol
         # population of each state of each ion
@@ -161,6 +164,7 @@ class Solution():
         for excitation in self.cte['excitations'].keys():  # pragma: no branch
             if self.cte['excitations'][excitation]['active']:
                 return self.cte['excitations'][excitation]['power_dens']
+        raise AttributeError('This Solution has no power_dens attribute!')
 
     @property
     def concentration(self) -> Conc:
@@ -264,7 +268,7 @@ class SteadyStateSolution(Solution):
 
     def __init__(self, t_sol: np.array, y_sol: np.array,
                  index_S_i: List[int], index_A_j: List[int],
-                 cte: Dict, average: bool = False) -> None:
+                 cte: Settings, average: bool = False) -> None:
         super(SteadyStateSolution, self).__init__(t_sol, y_sol, index_S_i, index_A_j,
                                                   cte, average=average)
         self._final_populations = np.array([])
@@ -301,7 +305,7 @@ class DynamicsSolution(Solution):
 
     def __init__(self, t_sol: np.array, y_sol: np.array,
                  index_S_i: List[int], index_A_j: List[int],
-                 cte: Dict, average: bool = False) -> None:
+                 cte: Settings, average: bool = False) -> None:
         super(DynamicsSolution, self).__init__(t_sol, y_sol, index_S_i, index_A_j,
                                                cte, average=average)
 
@@ -346,7 +350,8 @@ class DynamicsSolution(Solution):
                         data = np.array(data, dtype=np.float64)
 
                         # if data isn't right, retry with a different delimiter
-                        if not isinstance(data, np.ndarray) or len(data.shape) != 2 or data.shape[1] != 2:
+                        if (not isinstance(data, np.ndarray) or
+                                len(data.shape) != 2 or data.shape[1] != 2):
                             raise ValueError
                     except ValueError:  # pragma: no cover
                         continue
@@ -430,7 +435,7 @@ class DynamicsSolution(Solution):
         return iterp_sim_data
 
     @staticmethod
-    def _bin_sim_data(exp_data: np.array, sim_data: np.array, t_sim: np.array) -> List[np.array]:
+    def _bin_sim_data(exp_data: np.array, sim_data: np.array) -> List[np.array]:
         '''Bin simulated data to the same bin centers and width that the experimental data.
            Add all the counts in a bin.'''
 
@@ -441,10 +446,8 @@ class DynamicsSolution(Solution):
 
         exp_time = exp_data[:, 0]
         bin_time = np.linspace(exp_time[0], exp_time[-1], 10*len(exp_time))
-        bin_sums, bin_edges, binnumber = stats.binned_statistic(bin_time,
-                                                                sim_data,
-                                                                statistic='sum',
-                                                                bins=len(exp_time))
+        bin_sums, _, _ = stats.binned_statistic(bin_time, sim_data,
+                                                statistic='sum', bins=len(exp_time))
 #        print(bin_sums, bin_edges, binnumber)
 
         return bin_sums
@@ -564,16 +567,18 @@ class DynamicsSolution(Solution):
         '''
         # if empty, calculate
         if not self._list_binned_data:
-            def bin_time(expdata):
+            def bin_time(expdata: np.array) -> np.array:
+                '''Return a vector with the same expdata time but with 10x the number of points.'''
                 if expdata is not None:
                     return np.linspace(expdata[0, 0], expdata[-1, 0], 10*len(expdata[:, 0]))
 
             list_interp_data = [DynamicsSolution._interpolate_sim_data(expData, simData,
-                                                                       self.t_sol, bin_time(expData))
-                                for expData, simData in zip(self.list_exp_data, self.list_avg_data_ofs)]
+                                                                       self.t_sol,
+                                                                       bin_time(expData))
+                                for expData, simData in zip(self.list_exp_data,
+                                                            self.list_avg_data_ofs)]
 
-            self._list_binned_data = [DynamicsSolution._bin_sim_data(exp_data, sim_data,
-                                                                     self.t_sol)
+            self._list_binned_data = [DynamicsSolution._bin_sim_data(exp_data, sim_data)
                                       for exp_data, sim_data in zip(self.list_exp_data,
                                                                     list_interp_data)]
         return self._list_binned_data
@@ -811,7 +816,7 @@ class ConcentrationDependenceSolution(SolutionList):
 class Simulations():
     '''Setup and solve a dynamics or a steady state problem'''
 
-    def __init__(self, cte: Dict, full_path: str = None) -> None:
+    def __init__(self, cte: Settings, full_path: str = None) -> None:
         # settings
         self.cte = Settings(cte)
         self.full_path = full_path
@@ -835,14 +840,14 @@ class Simulations():
     def __repr__(self) -> str:
         '''Representation of a simulation.'''
         if 'energy_states' in self.cte.states:
-            return '{}(lattice={}, n_uc={}, num_states={})'.format(self.__class__.__name__,
-                                                               self.cte['lattice']['name'],
-                                                               self.cte['lattice']['N_uc'],
-                                                               self.cte['states']['energy_states'])
+            return '{}(lattice={}, '.format(self.__class__.__name__,
+                                            self.cte['lattice']['name']) +\
+                   'n_uc={}, num_states={})'.format(self.cte['lattice']['N_uc'],
+                                                    self.cte['states']['energy_states'])
         else:
             return '{}(lattice={}, n_uc={}, before precalculate)'.format(self.__class__.__name__,
-                                                               self.cte['lattice']['name'],
-                                                               self.cte['lattice']['N_uc'])
+                                                                         self.cte.lattice['name'],
+                                                                         self.cte.lattice['N_uc'])
 
     def _get_t_pulse(self) -> float:
         '''Return the pulse width of the simulation'''
@@ -964,8 +969,6 @@ class Simulations():
         '''
         logger = logging.getLogger(__name__)
 
-        cte = self.cte
-
         start_time = time.time()
         logger.info('Starting simulation...')
 
@@ -985,13 +988,13 @@ class Simulations():
 
         # initial and final times for excitation and relaxation
         t0 = 0
-        tf = (10*np.max(precalculate.get_lifetimes(cte))).round(8)  # total simulation time
+        tf = (10*np.max(precalculate.get_lifetimes(self.cte))).round(8)  # total simulation time
         t0_p = t0
         tf_p = tf
-        N_steps_pulse = cte['simulation_params']['N_steps']
+        N_steps_pulse = self.cte['simulation_params']['N_steps']
 
-        rtol = cte['simulation_params']['rtol']
-        atol = cte['simulation_params']['atol']
+        rtol = self.cte['simulation_params']['rtol']
+        atol = self.cte['simulation_params']['atol']
 
         start_time_ODE = time.time()
         logger.info('Solving equations...')
@@ -1019,7 +1022,7 @@ class Simulations():
 
         # store solution and settings
         steady_sol = SteadyStateSolution(t_pulse, y_pulse, index_S_i, index_A_j,
-                                         cte, average=average)
+                                         self.cte, average=average)
         return steady_sol
 
     def simulate_avg_steady_state(self) -> SteadyStateSolution:
@@ -1076,8 +1079,6 @@ class Simulations():
         logger = logging.getLogger(__name__)
         logger.info('Simulating power dependence curves...')
 
-        cte = self.cte
-
         start_time = time.time()
 
         # make sure it's a list of tuple of two floats
@@ -1087,11 +1088,11 @@ class Simulations():
         solutions = []  # type: List[Solution]
 
         for concs in tqdm(concentration_list, unit='points',
-                          total=num_conc_steps, disable=cte['no_console'],
+                          total=num_conc_steps, disable=self.cte['no_console'],
                           desc='Total progress'):
             # update concentrations
-            cte['lattice']['S_conc'] = concs[0]
-            cte['lattice']['A_conc'] = concs[1]
+            self.cte['lattice']['S_conc'] = concs[0]
+            self.cte['lattice']['A_conc'] = concs[1]
             # simulate
             if dynamics:
                 sol = self.simulate_dynamics(average=average)  # type: Solution
@@ -1123,7 +1124,7 @@ class Simulations():
 #    cte['no_plot'] = False
 #
 #    sim = Simulations(cte)
-#
+
 #    solution = sim.simulate_dynamics()
 #    solution.log_errors()
 #    solution.plot()
@@ -1155,6 +1156,7 @@ class Simulations():
 #
 #    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
 #    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3), (0.1, 0.1), (0.1, 0.2), (0.1, 0.3)]
+#    conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
 #    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
 #    solution.plot()
 #    solution.save()

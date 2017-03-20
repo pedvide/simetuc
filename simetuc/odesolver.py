@@ -4,6 +4,7 @@ Created on Thu Dec  1 14:44:51 2016
 
 @author: Pedro
 """
+
 # unused arguments, needed for ODE solver
 # pylint: disable=W0613
 
@@ -22,9 +23,9 @@ from scipy.integrate import ode
 # nice progress bar
 from tqdm import tqdm
 
-def _rate_eq_pulse(t, y, abs_matrix, decay_matrix,
-                   UC_matrix, N_indices,
-                   coop_ET_matrix, coop_N_indices):
+def _rate_eq_pulse(t: np.array, y: np.array, abs_matrix: np.array, decay_matrix: np.array,
+                   UC_matrix: np.array, N_indices: np.array,
+                   coop_ET_matrix: np.array, coop_N_indices: np.array) -> np.array:
     ''' Calculates the rhs of the ODE for the excitation pulse
     '''
     N_prod_sel = y[N_indices[:, 0]]*y[N_indices[:, 1]]
@@ -36,9 +37,9 @@ def _rate_eq_pulse(t, y, abs_matrix, decay_matrix,
     return abs_matrix.dot(y) + decay_matrix.dot(y) + UC_matrix + coop_ET_matrix
 
 
-def _jac_rate_eq_pulse(t, y, abs_matrix, decay_matrix,
-                       UC_matrix, jac_indices,
-                       coop_ET_matrix, coop_jac_indices):
+def _jac_rate_eq_pulse(t: np.array, y: np.array, abs_matrix: np.array, decay_matrix: np.array,
+                       UC_matrix: np.array, jac_indices: np.array,
+                       coop_ET_matrix: np.array, coop_jac_indices: np.array) -> np.array:
     ''' Calculates the jacobian of the ODE for the excitation pulse
     '''
     y_values = y[jac_indices[:, 2]]
@@ -55,7 +56,9 @@ def _jac_rate_eq_pulse(t, y, abs_matrix, decay_matrix,
     return abs_matrix.toarray() + decay_matrix.toarray() + UC_J_matrix + UC_J_coop_matrix
 
 
-def _rate_eq(t, y, decay_matrix, UC_matrix, N_indices, coop_ET_matrix, coop_N_indices):
+def _rate_eq(t: np.array, y: np.array, decay_matrix: np.array,
+             UC_matrix: np.array, N_indices: np.array,
+             coop_ET_matrix: np.array, coop_N_indices: np.array) -> np.array:
     '''Calculates the rhs of the ODE for the relaxation'''
     N_prod_sel = y[N_indices[:, 0]]*y[N_indices[:, 1]]
     UC_matrix = UC_matrix.dot(N_prod_sel)
@@ -66,7 +69,9 @@ def _rate_eq(t, y, decay_matrix, UC_matrix, N_indices, coop_ET_matrix, coop_N_in
     return decay_matrix.dot(y) + UC_matrix + coop_ET_matrix
 
 
-def _jac_rate_eq(t, y, decay_matrix, UC_matrix, jac_indices, coop_ET_matrix, coop_jac_indices):
+def _jac_rate_eq(t: np.array, y: np.array, decay_matrix: np.array,
+                 UC_matrix: np.array, jac_indices: np.array,
+                 coop_ET_matrix: np.array, coop_jac_indices: np.array) -> np.array:
     ''' Calculates the jacobian of the ODE for the relaxation
     '''
     y_values = y[jac_indices[:, 2]]
@@ -83,7 +88,8 @@ def _jac_rate_eq(t, y, decay_matrix, UC_matrix, jac_indices, coop_ET_matrix, coo
     return decay_matrix.toarray() + UC_J_matrix + UC_J_coop_matrix
 
 
-def _rate_eq_dll(decay_matrix, UC_matrix, N_indices):  # pragma: no cover
+def _rate_eq_dll(decay_matrix: np.array,
+                 UC_matrix: np.array, N_indices: np.array) -> np.array:  # pragma: no cover
     ''' Calculates the rhs of the ODE for the relaxation using odesolver.dll'''
     ext_odesolver = ctypes.windll.odesolver
 
@@ -119,7 +125,7 @@ def _rate_eq_dll(decay_matrix, UC_matrix, N_indices):  # pragma: no cover
 
     out_vector = np.asfortranarray(np.zeros((n_states,)), dtype=np.float64)
 
-    def rate_eq_fast(t, y):
+    def rate_eq_fast(t: np.array, y: np.array) -> np.array:
         '''Calculates the rhs of the ODE for the relaxation'''
         ext_odesolver.rateEq(y,
                              decay_matrix,

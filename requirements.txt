@@ -15,4 +15,4 @@ pytest-mock # mock tests
 python-coveralls # coverage
 python-xdist # xdist
 flake8
-mypy-lang
+mypy

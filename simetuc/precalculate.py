@@ -29,6 +29,7 @@ from scipy.sparse import csr_matrix
 
 import simetuc.lattice as lattice
 from simetuc.lattice import LatticeError
+import simetuc.settings as settings
 
 
 def _load_lattice(filename: str) -> Dict:
@@ -696,7 +697,7 @@ def _calculate_coop_jac_matrices(coop_N_indices: np.array) -> np.array:
     return coop_jac_indices
 
 
-def get_lifetimes(cte: Dict) -> List[float]:
+def get_lifetimes(cte: settings.Settings) -> List[float]:
     '''Returns a list of all lifetimes in seconds.
        First sensitizer and then activator
     '''
@@ -707,7 +708,7 @@ def get_lifetimes(cte: Dict) -> List[float]:
 
 
 #@profile
-def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = None
+def setup_microscopic_eqs(cte: settings.Settings, gen_lattice: bool = False, full_path: str = None
                          ) -> Tuple[Dict, np.array, List[int], List[int],
                                     scipy.sparse.csr_matrix, scipy.sparse.csr_matrix,
                                     scipy.sparse.csr_matrix, np.array, np.array,
@@ -873,7 +874,7 @@ def setup_microscopic_eqs(cte: Dict, gen_lattice: bool = False, full_path: str =
 
 # unused arguments
 # pylint: disable=W0613
-def setup_average_eqs(cte: Dict, gen_lattice: bool = False, full_path: str = None
+def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_path: str = None
                      ) -> Tuple[Dict, np.array, List[int], List[int],
                                 scipy.sparse.csr_matrix, scipy.sparse.csr_matrix,
                                 scipy.sparse.csr_matrix, np.array, np.array,

@@ -51,7 +51,8 @@ def get_console_logger_level() -> int:  # pragma: no cover
     for handler in logger.handlers:
         if isinstance(handler, logging.StreamHandler):
             if handler.stream == sys.stdout:  # type: ignore
-                return handler.level  # type: ignore
+                return handler.level
+    return None
 
 
 def change_console_logger_level(level: int) -> None:  # pragma: no cover
@@ -61,3 +62,18 @@ def change_console_logger_level(level: int) -> None:  # pragma: no cover
         if isinstance(handler, logging.StreamHandler):
             if handler.stream == sys.stdout:  # type: ignore
                 handler.setLevel(level)
+
+
+class LabelError(ValueError):
+    '''A label in the configuration file is not correct'''
+    pass
+
+
+class ConfigError(SyntaxError):
+    '''Something in the configuration file is not correct'''
+    pass
+
+
+class ConfigWarning(UserWarning):
+    '''Something in the configuration file is not correct'''
+    pass

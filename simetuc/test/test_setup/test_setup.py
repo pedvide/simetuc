@@ -24,25 +24,21 @@ test_folder_path = os.path.dirname(os.path.abspath(__file__))
 def setup_cte():
     '''Load the cte data structure'''
 
-    cte = dict([('lattice',
-              dict([('name', 'bNaYF4'),
-                           ('N_uc', 8),
-                           ('S_conc', 0.3),
-                           ('A_conc', 0.3),
-                           ('a', 5.9738),
-                           ('b', 5.9738),
-                           ('c', 3.5297),
-                           ('alpha', 90),
-                           ('beta', 90),
-                           ('gamma', 120),
-                           ('spacegroup', 'P-6'),
-                           ('sites_ions', ['Y', 'Y']),
-                           ('sites_pos',
-                            [(0.0, 0.0, 0.0),
-                             (0.6666666666666666, 0.3333333333333333, 0.5)]),
-                           ('sites_occ', [1.0, 0.5]),
-                           ('cell_par',
-                            [5.9738, 5.9738, 3.5297, 90.0, 90.0, 120.0])])),
+    cte = dict([('lattice', {'A_conc': 0.3,
+                         'N_uc': 20,
+                         'S_conc': 0.3,
+                         'a': 5.9738,
+                         'alpha': 90.0,
+                         'b': 5.9738,
+                         'beta': 90.0,
+                         'c': 3.5297,
+                         'gamma': 120.0,
+                         'd_max': 100.0,
+                         'd_max_coop': 25.0,
+                         'name': 'bNaYF4',
+                         'sites_occ': [1.0, 0.5],
+                         'sites_pos': [(0.0, 0.0, 0.0), (2/3, 1/3, 0.5)],
+                         'spacegroup': 'P-6'}),
              ('states',
               dict([('sensitizer_ion_label', 'Yb'),
                            ('sensitizer_states_labels', ['GS', 'ES']),
@@ -963,18 +959,21 @@ def test_wrong_number_states(setup_cte):
          N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
 
 
-def test_radius(setup_cte):
+def test_radius(setup_cte, mocker):
 
     cte = setup_cte
     cte['lattice']['S_conc'] = 10.5
     cte['lattice']['A_conc'] = 5.2
-    cte['lattice']['radius'] = 70
+    cte['lattice']['radius'] = 30
     cte['states']['sensitizer_states'] = 2
     cte['states']['activator_states'] = 7
+
+    # ignore error when lattice checks that the settings do not contain both N_uc and radius
+    mocked_lattice_test = mocker.patch('simetuc.value.DictValue.parse')
 
     with temp_bin_filename() as temp_filename:
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
          N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
 
-    assert cte['lattice']['radius'] == 70
+    assert cte['lattice']['radius'] == 30

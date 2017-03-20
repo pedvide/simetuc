@@ -116,7 +116,7 @@ setup(
     # $ pip install -e .[dev,test]
     extras_require={
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pytest-xdist',
-                 'python-coveralls', 'flake8', 'mypy-lang'],
+                 'python-coveralls', 'flake8', 'mypy'],
     },
 
     # If there are data files included in your packages that need to be

@@ -27,7 +27,7 @@ install:
     PyYAML h5py flake8
   - source activate test-environment
   # not in conda for py3.5 or py3.6
-  - pip install mypy-lang
+  - pip install mypy
   - python setup.py install
 
 # create graphical display so plots don't fail
@@ -39,7 +39,7 @@ before_script:
 script:
   - pytest -v
   - flake8 --tee
-  - mypy -s -p simetuc
+  - mypy -p simetuc
 
 after_success:
   - coverage report

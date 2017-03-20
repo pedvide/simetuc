@@ -15,28 +15,25 @@ from simetuc.util import temp_config_filename
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
 
-def test_standard_config():
-    filename = os.path.join(test_folder_path, 'test_standard_config.txt')
-    cte = settings.load(filename)
-
-    with open(filename, 'rt') as file:
-        config_file = file.read()
+@pytest.fixture(scope='function')
+def setup_cte():
 
     cte_good = dict([
-             ('lattice',
-              dict([('name', 'bNaYF4'),
-                   ('N_uc', 20),
-                   ('S_conc', 0.3),
-                   ('A_conc', 0.3),
-                   ('d_max', np.inf),
-                   ('d_max_coop', np.inf),
-                   ('spacegroup', 'P-6'),
-                   ('sites_pos',
-                    [(0.0, 0.0, 0.0),
-                     (0.6666666666666666, 0.3333333333333333, 0.5)]),
-                   ('sites_occ', [1.0, 0.5]),
-                   ('cell_par',
-                    [5.9738, 5.9738, 3.5297, 90.0, 90.0, 120.0])])),
+             ('lattice', {'A_conc': 0.3,
+                         'N_uc': 20,
+                         'S_conc': 0.3,
+                         'a': 5.9738,
+                         'alpha': 90.0,
+                         'b': 5.9738,
+                         'beta': 90.0,
+                         'c': 3.5297,
+                         'gamma': 120.0,
+                         'd_max': 100.0,
+                         'd_max_coop': 25.0,
+                         'name': 'bNaYF4',
+                         'sites_occ': [1.0, 0.5],
+                         'sites_pos': [(0.0, 0.0, 0.0), (2/3, 1/3, 0.5)],
+                         'spacegroup': 'P-6'}),
              ('states',
               dict([('sensitizer_ion_label', 'Yb'),
                            ('sensitizer_states_labels', ['GS', 'ES']),
@@ -144,18 +141,53 @@ def test_standard_config():
                              'mult': 6,
                              'type': 'SS',
                              'value': 45022061400.0})]))])
-    cte_good['config_file'] = config_file
 
-    assert cte == settings.Settings(cte_good)
 
-def test_non_existing_config():
+    return cte_good
+
+def test_standard_config(setup_cte):
+    ''''Test that the returned Settings instance for a know config file is correct.'''
+    filename = os.path.join(test_folder_path, 'test_standard_config.txt')
+    cte = settings.load(filename)
+
+    with open(filename, 'rt') as file:
+        config_file = file.read()
+
+    setup_cte['config_file'] = config_file
+
+    settings_cte = settings.Settings(setup_cte)
+
+    assert cte['lattice'] == settings_cte.lattice
+    assert cte['states'] == settings_cte.states
+    assert cte['excitations'] == settings_cte.excitations
+    assert cte['decay'] == settings_cte.decay
+
+    assert cte == settings_cte
+
+
+def test_settings_class(setup_cte):
+    '''Test the creation, bool, and equality of Settings instances.'''
+
+    empty_settings = settings.Settings()
+    assert not empty_settings
+
+    settings1 = settings.Settings(setup_cte)
+    settings2 = settings.Settings(setup_cte)
+    assert settings1 == settings2
+
+    setup_cte['lattice']['name'] = 'new_name'
+    settings3 = settings.Settings(setup_cte)
+    assert settings3 != settings1
+
+
+def test_non_existing_file():
     with pytest.raises(settings.ConfigError) as excinfo:
         # load non existing file
         settings.load(os.path.join(test_folder_path, 'test_non_existing_config.txt'))
     assert excinfo.match(r"Error reading file")
     assert excinfo.type == settings.ConfigError
 
-def test_empty_config():
+def test_empty_file():
     with pytest.raises(settings.ConfigError) as excinfo:
         with temp_config_filename('') as filename:
             settings.load(filename)
@@ -206,7 +238,7 @@ def test_sections_config(sections_data):
     with pytest.raises(settings.ConfigError) as excinfo:
         with temp_config_filename(sections_data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"The sections or values .* must be present")
+    assert excinfo.match(r"The sections .* must be present")
     assert excinfo.type == settings.ConfigError
 
 # should get a warning for an extra unrecognized section
@@ -285,16 +317,20 @@ sites_occ: {}
 '''
 # list of tuples of values for sites_pos and sites_occ
 lattice_values = [('[0, 0, 0]', '1'), # one pos and occ
-('[[0, 0, 0]]', '[1]')] # one pos and occ list of lists
+                  ('[[0, 0, 0]]', '[1]')] # one pos and occ list of lists
 ids=['one pos and occ', 'one pos and occ list of lists']
 @pytest.mark.parametrize('lattice_values', lattice_values, ids=ids)
 def test_lattice_config_ok_occs(lattice_values):
     data_format = data_lattice_occ_ok.format(*lattice_values)
-    lattice_dict = yaml.load(data_format)
-    parsed_lattice_dict = settings.Settings._parse_lattice(lattice_dict)
+    lattice_dict = {}
+    lattice_dict['lattice'] = yaml.load(data_format)
+
+    settings_lattice = [value for value in settings.configs.settings if value.name is 'lattice']
+    parsed_dict = settings.Settings.parse_all_values(settings_lattice, lattice_dict)
+
     for elem in ['name', 'spacegroup', 'N_uc', 'S_conc',
-                 'A_conc', 'cell_par', 'sites_pos', 'sites_occ']:
-        assert elem in parsed_lattice_dict
+                 'A_conc', 'sites_pos', 'sites_occ']:
+        assert elem in parsed_dict['lattice']
 
 data_lattice_full = '''version: 1
 lattice:
@@ -329,15 +365,11 @@ sensitizer_decay:
         asd: dsa
 activator_decay:
         asd: dsa'''
-    with pytest.raises(settings.ConfigError) as excinfo: # ok, error later
+    with pytest.raises(ValueError) as excinfo: # ok, error later
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"The sections or values")
-    assert excinfo.match(r"sensitizer_states_labels")
-    assert excinfo.match(r"activator_states_labels")
-    assert excinfo.match(r"sensitizer_ion_label")
-    assert excinfo.match(r"activator_ion_label")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.match(r'Mandatory value "sensitizer_ion_label" not found in section "states".')
+    assert excinfo.type == ValueError
 
 def test_lattice_radius():
     data = data_lattice_full + '''states:
@@ -349,34 +381,25 @@ sensitizer_decay:
 activator_decay:
         asd: dsa'''
     data = data.replace('N_uc: 8', 'radius: 100.0')
-    with pytest.raises(settings.ConfigError) as excinfo: # ok, error later
+    with pytest.raises(ValueError) as excinfo: # ok, error later
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"The sections or values")
-    assert excinfo.match(r"sensitizer_states_labels")
-    assert excinfo.match(r"activator_states_labels")
-    assert excinfo.match(r"sensitizer_ion_label")
-    assert excinfo.match(r"activator_ion_label")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.match(r'Mandatory value "sensitizer_ion_label" not found in section "states"')
+    assert excinfo.type == ValueError
 
 def test_lattice_radius_and_N_uc():
-    data = data_lattice_full + '''    radius: 10.0
-states:
-    asd: dsa
-excitations:
-        asd: dsa
-sensitizer_decay:
-        asd: dsa
-activator_decay:
-        asd: dsa'''
-    with pytest.raises(settings.ConfigError) as excinfo:
-        with temp_config_filename(data) as filename:
-            settings.load(filename)
+    with pytest.raises(ValueError) as excinfo:
+        filename = os.path.join(test_folder_path, 'test_standard_config.txt')
+        config_cte = settings.Loader().load_settings_file(filename)
+        config_cte['lattice']['radius'] = 10.0
+        settings_lattice = [value for value in settings.configs.settings if value.name is 'lattice'][0]
+        settings_lattice.parse(config_cte['lattice'])
+
     assert excinfo.match(r"Only one of the values")
     assert excinfo.match(r"radius")
     assert excinfo.match(r"N_uc")
     assert excinfo.match(r"must be present")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.type == ValueError
 
 data_lattice_ok = '''version: 1
 lattice:
@@ -431,23 +454,22 @@ excitations: asd
 sensitizer_decay: asd
 activator_decay: asd
 '''
-    with pytest.raises(settings.ConfigError) as excinfo:
+    with pytest.raises(ValueError) as excinfo:
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Section \"states\" is empty")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.match(r'Section "states" is empty or otherwise invalid!')
+    assert excinfo.type == ValueError
 
 def test_states_no_states_labels():
     data = data_lattice_ok + '''states:
     sensitizer_states_labels: [GS, ES]
     activator_ion_label: Tm
     activator_states_labels: [3H6, 3F4, 3H5, 3H4, 3F3, 1G4, 1D2]'''
-    with pytest.raises(settings.ConfigError) as excinfo: # missing key
+    with pytest.raises(ValueError) as excinfo: # missing key
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"The sections or values")
-    assert excinfo.match(r"sensitizer_ion_label")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.match(r'Mandatory value "sensitizer_ion_label" not found in section "states".')
+    assert excinfo.type == ValueError
 
 def test_states_no_list():
     data = data_lattice_ok + '''states:
@@ -458,8 +480,8 @@ def test_states_no_list():
     with pytest.raises(ValueError) as excinfo: # empty S labels
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r'Empty list')
-    assert excinfo.match(r'sensitizer_states_labels')
+    assert excinfo.match(r"sensitizer_states_labels")
+    assert excinfo.match(r"does not have the right type")
     assert excinfo.type == ValueError
 
 def test_states_empty_list():  # empty list for S states
@@ -471,8 +493,7 @@ def test_states_empty_list():  # empty list for S states
     with pytest.raises(ValueError) as excinfo: # empty S labels list
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r'Empty list')
-    assert excinfo.match(r'activator_states_labels')
+    assert excinfo.match(r'Length of activator_states_labels \(0\) cannot be smaller than 1.')
     assert excinfo.type == ValueError
 
 def test_states_fractions():  # fractions in the state labels
@@ -481,11 +502,12 @@ def test_states_fractions():  # fractions in the state labels
     sensitizer_states_labels: [2F7/2, 2F5/2]
     activator_ion_label: Tm
     activator_states_labels: [3H6, 3F4, 3H5, 3H4, 3F3, 1G4, 1D2]'''
-    with pytest.raises(TypeError) as excinfo: # it should fail in the excitations section
+    with pytest.raises(ValueError) as excinfo: # it should fail in the excitations section
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"string indices must be integers")
-    assert excinfo.type == TypeError
+    assert excinfo.match(r"Setting 'excitations'")
+    assert excinfo.match(r'does not have the right type')
+    assert excinfo.type == ValueError
 
 data_states_ok = '''version: 1
 lattice:
@@ -525,20 +547,21 @@ activator_decay:
 '''
 def test_excitations_config1():
     data = data_states_ok + '''excitations:'''
-    with pytest.raises(settings.ConfigError) as excinfo: # no excitations
+    with pytest.raises(ValueError) as excinfo: # no excitations
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"At least one excitation is mandatory")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.match(r"Setting 'excitations'")
+    assert excinfo.match(r"does not have the right type")
+    assert excinfo.type == ValueError
 
 def test_excitations_config2():
     data = data_states_ok + '''excitations:
     Vis_473:'''
-    with pytest.raises(settings.ConfigError) as excinfo: # emtpy excitation
+    with pytest.raises(ValueError) as excinfo: # emtpy excitation
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Section .* is empty!")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.match(r"does not have the right type")
+    assert excinfo.type == ValueError
 
 def test_excitations_config3():
     data = data_states_ok + '''excitations:
@@ -553,7 +576,7 @@ def test_excitations_config3():
     with pytest.raises(settings.ConfigError) as excinfo: # no active excitation
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"At least one excitation must be active")
+    assert excinfo.match(r"At least one excitation must be present and active")
     assert excinfo.type == settings.ConfigError
 
 def test_excitations_config4():
@@ -569,7 +592,7 @@ def test_excitations_config4():
     with pytest.raises(ValueError) as excinfo: # power_dens is a string
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Invalid value for parameter \"power_dens\"")
+    assert excinfo.match(r"does not have the right type")
     assert excinfo.type == ValueError
 
 def test_excitations_config5():
@@ -581,11 +604,11 @@ def test_excitations_config5():
         degeneracy: 13/9
         pump_rate: 9.3e-4 # cm2/J
 '''
-    with pytest.raises(settings.ConfigError) as excinfo: # label missing
+    with pytest.raises(ValueError) as excinfo: # label missing
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Section .* is empty!")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.match(r"does not have the right type")
+    assert excinfo.type == ValueError
 
 def test_excitations_config7():
     data = data_states_ok + '''excitations:
@@ -596,12 +619,11 @@ def test_excitations_config7():
         degeneracy: 13/9
         pump_rate: 9.3e-4 # cm2/J
 '''
-    with pytest.raises(settings.ConfigError) as excinfo: # missing power_dens
+    with pytest.raises(ValueError) as excinfo: # missing power_dens
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"The sections or values")
     assert excinfo.match('power_dens')
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.type == ValueError
 
 def test_excitations_config8():
     data_exc = '''Vis_473:
@@ -612,7 +634,12 @@ def test_excitations_config8():
     pump_rate: 9.3e-4 # cm2/J
 '''
     exc_dict = yaml.load(data_exc)
-    settings.Settings._parse_excitations(exc_dict)
+
+    states_dict = {'activator_states_labels': ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2'],
+                   'sensitizer_states_labels': ['GS', 'ES'],
+                   'activator_ion_label': 'Tm',
+                   'sensitizer_ion_label': 'Yb'}
+    settings.Settings._parse_excitations(states_dict, exc_dict)
 
 def test_abs_config1():
     data = data_states_ok + '''excitations:
@@ -717,7 +744,7 @@ def test_abs_config7():
     with pytest.raises(ValueError) as excinfo:  # pump rate must be positive
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match("Negative value in list")
+    assert excinfo.match("cannot be smaller than 0.")
     assert excinfo.type == ValueError
 
 def test_abs_config8():
@@ -789,21 +816,38 @@ activator_decay:
     with pytest.raises(ValueError) as excinfo: # decay rate is string
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Invalid value for parameter")
+    assert excinfo.match(r"does not have the right type")
     assert excinfo.type == ValueError
 
-def test_decay_config2():
+def test_no_all_states_decay():
     data = data_abs_ok + '''sensitizer_decay:
 # lifetimes in s
     ES: 1e-3
 
 activator_decay:
 '''
-    with pytest.raises(settings.ConfigError) as excinfo: # all states must have a decay rate
+    with pytest.raises(ValueError) as excinfo: # all states must have a decay rate
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"All activator states must have a decay rate")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.match(r"Setting 'activator_decay'")
+    assert excinfo.match(r"does not have the right type")
+    assert excinfo.type == ValueError
+
+    data = data_abs_ok + '''sensitizer_decay:
+activator_decay:
+    3F4: 12e-3
+    3H5: 25e-6
+    3H4: 2e-3
+    3F3: 2e-6
+    1G4: 760e-6
+    1D2: 67.5e-6
+'''
+    with pytest.raises(ValueError) as excinfo: # all states must have a decay rate
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"Setting 'sensitizer_decay'")
+    assert excinfo.match(r"does not have the right type")
+    assert excinfo.type == ValueError
 
 def test_decay_config3():
     data = data_abs_ok + '''sensitizer_decay:
@@ -835,11 +879,12 @@ activator_decay:
     1G4: 760e-6
     1D2: 67.5e-6
 '''
-    with pytest.raises(settings.ConfigError) as excinfo: # ES state missing
+    with pytest.raises(ValueError) as excinfo: # ES state missing
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"All sensitizer states must have a decay rate")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.match(r"Setting 'sensitizer_decay'")
+    assert excinfo.match(r"does not have the right type")
+    assert excinfo.type == ValueError
 
 def test_decay_config5():
     data = data_abs_ok + '''sensitizer_decay:
@@ -974,7 +1019,7 @@ activator_branching_ratios:
     with pytest.raises(ValueError) as excinfo: # value above 1.0
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r'"3H5->3F4" is not between 0 and 1.')
+    assert excinfo.match(r'cannot be larger than 1')
     assert excinfo.type == ValueError
 
 
@@ -1056,7 +1101,7 @@ activator_branching_ratios:
     1D2->3F4: 0.43
 '''
 def test_ET_config1():
-    data = data_branch_ok + '''enery_transfer:
+    data = data_branch_ok + '''energy_transfer:
     CR50:
         process: T(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
         multipolarity: 6
@@ -1069,7 +1114,7 @@ def test_ET_config1():
     assert excinfo.type == settings.LabelError
 
 def test_ET_config2():
-    data = data_branch_ok + '''enery_transfer:
+    data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Tm(34) + Tm(3H5)
         multipolarity: 6
@@ -1082,7 +1127,7 @@ def test_ET_config2():
     assert excinfo.type == settings.LabelError
 
 def test_ET_config3():
-    data = data_branch_ok + '''enery_transfer:
+    data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
         multipolarity: fds
@@ -1091,11 +1136,11 @@ def test_ET_config3():
     with pytest.raises(ValueError) as excinfo: # wrong multipolarity
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Invalid value for parameter \"multipolarity\"")
+    assert excinfo.match(r"does not have the right type")
     assert excinfo.type == ValueError
 
 def test_ET_config4():
-    data = data_branch_ok + '''enery_transfer:
+    data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Yb(3H4) + Tm(3H5)
         multipolarity: 6
@@ -1108,7 +1153,7 @@ def test_ET_config4():
     assert excinfo.type == settings.LabelError
 
 def test_ET_config5():
-    data = data_branch_ok + '''enery_transfer:
+    data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Yb(3H4) + Tm(3H5)
         multipolarity: 6
@@ -1125,30 +1170,30 @@ def test_ET_config5():
     assert excinfo.type == settings.LabelError
 
 def test_ET_config6():
-    data = data_branch_ok + '''enery_transfer:
+    data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
         multipolarity: 6
 '''
-    with pytest.raises(settings.ConfigError) as excinfo: # strength missing
+    with pytest.raises(ValueError) as excinfo: # strength missing
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match("Missing parameter \"strength\"")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.match('Mandatory value "strength" not found in section')
+    assert excinfo.type == ValueError
 
 def test_ET_config7():
-    data = data_branch_ok + '''enery_transfer:
+    data = data_branch_ok + '''energy_transfer:
         process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
         multipolarity: 6
 '''
-    with pytest.raises(settings.ConfigError) as excinfo: # label missing
+    with pytest.raises(ValueError) as excinfo: # label missing
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Label missing in")
-    assert excinfo.type == settings.ConfigError
+    assert excinfo.match(r"does not have the right type")
+    assert excinfo.type == ValueError
 
 def test_ET_ok(): # ok
-    data = data_branch_ok + '''enery_transfer:
+    data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
         multipolarity: 6
@@ -1159,7 +1204,7 @@ def test_ET_ok(): # ok
             settings.load(filename)
 
 def test_ET_coop_ok(): # ok
-    data = data_branch_ok + '''enery_transfer:
+    data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Yb(ES) + Yb(ES) + Tm(3H6) -> Yb(GS) + Yb(GS) + Tm(1G4)
         multipolarity: 6
@@ -1248,7 +1293,7 @@ activator_branching_ratios:
     # 1D2 to 3F4
     1D2->3F4: 0.43
 
-enery_transfer:
+energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
         multipolarity: 6
@@ -1361,7 +1406,7 @@ def test_sim_params_config2(recwarn): # ok
     assert len(recwarn) == 1 # one warning
     warning = recwarn.pop(settings.ConfigWarning)
     assert issubclass(warning.category, settings.ConfigWarning)
-    assert 'Some values or sections should not be present in the file.' in str(warning.message)
+    assert 'Some values or sections should not be present in the file' in str(warning.message)
 
 
 def test_pow_dep_config1(): # ok
@@ -1383,10 +1428,12 @@ def test_pow_dep_config2(): # not present
 def test_pow_dep_config3(): # empty
     data = data_ET_ok + '''power_dependence: []'''
 
-    with temp_config_filename(data) as filename:
-        cte = settings.load(filename)
-        assert 'power_dependence' in cte
-        assert cte['power_dependence'] == []
+    with pytest.raises(ValueError) as excinfo:
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"Length of power_dependence")
+    assert excinfo.match(r"cannot be smaller than 3")
+    assert excinfo.type == ValueError
 
 def test_pow_dep_config4(): # text instead numbers
     data = data_ET_ok + '''power_dependence: [asd, 1e7, 8]'''
@@ -1394,7 +1441,7 @@ def test_pow_dep_config4(): # text instead numbers
     with pytest.raises(ValueError) as excinfo:
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Invalid value in list")
+    assert excinfo.match(r"does not have the right type")
     assert excinfo.type == ValueError
 
 
@@ -1419,10 +1466,12 @@ def test_conc_dep_config2(): # not present
 def test_conc_dep_config3(): # ok, but empty
     data = data_ET_ok + '''concentration_dependence: []'''
 
-    with temp_config_filename(data) as filename:
-        cte = settings.load(filename)
-        assert 'conc_dependence' in cte
-        assert cte['conc_dependence'] == []
+    with pytest.raises(ValueError) as excinfo:
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"Length of concentration_dependence")
+    assert excinfo.match(r"cannot be smaller than 2")
+    assert excinfo.type == ValueError
 
 def test_conc_dep_config4(): # negative number
     data = data_ET_ok + '''concentration_dependence: [[0, 1, 2], [-0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]'''
@@ -1430,7 +1479,7 @@ def test_conc_dep_config4(): # negative number
     with pytest.raises(ValueError) as excinfo:
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Negative value in list")
+    assert excinfo.match(r"cannot be smaller than 0")
     assert excinfo.type == ValueError
 
 

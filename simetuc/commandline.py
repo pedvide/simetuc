@@ -101,7 +101,7 @@ def _setup_logging(console_level: int) -> None:
         print('ERROR! Logging settings file ({}) not found!'.format(_log_config_file))
         print('Logging won\'t be available!!')
         # minimum settings without errors
-        log_settings = {'version': 1}  # type: Dict
+        log_settings = {'version': 1}  # type: dict
     else:
         try:
             log_settings = yaml.safe_load(_log_config_location)
@@ -219,7 +219,7 @@ def main(ext_args: List[str] = None) -> None:
     elif args.optimize:  # optimize
         logger.info('Optimizing ET parameters...')
 
-        best_x, min_f = optimize.optimize_dynamics(cte, average=args.average)
+        optimize.optimize_dynamics(cte, average=args.average)
 
     # save results to disk
     if solution is not None:

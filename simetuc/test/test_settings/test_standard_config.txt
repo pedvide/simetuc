@@ -21,6 +21,14 @@ lattice:
     sites_pos: [[0, 0, 0], [2/3, 1/3, 1/2]]
     sites_occ: [1, 1/2]
 
+    # optional
+    # maximum distance of interaction for normal ET and for cooperative
+    # if not present, both default to infinite
+    d_max: 100.0
+    # it's strongly advised to keep this number low,
+    # the number of coop interactions is very large (~num_atoms^3)
+    d_max_coop: 25.0
+
 states:
 # all fields here are mandatory,
 # leave empty if necessary (i.e.: just "sensitizer_ion_label" on a line), but don't delete them
@@ -95,7 +103,7 @@ activator_branching_ratios:
     # 1D2 to 3F4
     1D2->3F4: 0.43
 
-enery_transfer:
+energy_transfer:
 # name:
 #   process: ion_label(state_label) + ion_label(state_label) -> ion_label(state_label) + ion_label(state_label)
 #   multipolarity, and strength (in s^(-1)*Angstrom^(multipolarity))
