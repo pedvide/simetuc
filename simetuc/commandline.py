@@ -7,7 +7,7 @@ Created on Sun Oct 16 11:53:51 2016
 
 # TODO: INCLUDE PULSE FREQUENCY IN STEADY STATE FOR NON CW-LASER EXCITATION
 # notTODO: INCLUDE .CIF FILE GENERATION OF LATTICE -> doesn't work with multiple sites...
-# TODO: cooperative sensitization: in progress
+# TODO: cooperative sensitization: in progress: SSA works for up and downconversion
 
 import sys
 import logging

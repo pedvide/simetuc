@@ -30,6 +30,7 @@ from scipy.sparse import csr_matrix
 import simetuc.lattice as lattice
 from simetuc.lattice import LatticeError
 import simetuc.settings as settings
+from simetuc.util import IonType
 
 
 def _load_lattice(filename: str) -> Dict:
@@ -84,24 +85,22 @@ def _create_total_absorption_matrix(sensitizer_states: int, activator_states: in
                                                 num_energy_states), dtype=np.float64)
 
     # for each excitation
-    for current_exc_dict in excitations_dict.values():
-
-        # if the current excitation is not active jump to the next one
-        if current_exc_dict['active'] is False:
-            continue
-
-        power_dens = current_exc_dict['power_dens']
-        for num in range(len(current_exc_dict['process'])):
+    for exc_lst in excitations_dict.values():
+        for current_exc in exc_lst:
+            # if the current excitation is not active jump to the next one
+            if current_exc.active is False:
+                continue
             abs_sensitizer = np.zeros((sensitizer_states, sensitizer_states), dtype=np.float64)
             abs_activator = np.zeros((activator_states, activator_states), dtype=np.float64)
 
-            pump_rate = current_exc_dict['pump_rate'][num]
-            degeneracy = current_exc_dict['degeneracy'][num]
-            init_state = current_exc_dict['init_state'][num]
-            final_state = current_exc_dict['final_state'][num]
-            ion_exc = current_exc_dict['ion_exc'][num]
+            power_dens = current_exc.power_dens
+            pump_rate = current_exc.pump_rate
+            degeneracy = current_exc.degeneracy
+            init_state = current_exc.state_i
+            final_state = current_exc.state_f
+            ion_exc =  current_exc.ion
 
-            if ion_exc == 'S' and sensitizer_states:
+            if ion_exc == settings.IonType.S and sensitizer_states:
                 if init_state < sensitizer_states and final_state < sensitizer_states:
                     abs_sensitizer[init_state, init_state] = -pump_rate
                     abs_sensitizer[init_state, final_state] = +degeneracy*pump_rate
@@ -109,7 +108,7 @@ def _create_total_absorption_matrix(sensitizer_states: int, activator_states: in
                     abs_sensitizer[final_state, final_state] = -degeneracy*pump_rate
                     abs_sensitizer *= power_dens  # multiply by the power density
 
-            elif ion_exc == 'A' and activator_states:
+            elif ion_exc == settings.IonType.A and activator_states:
                 if init_state < activator_states and final_state < activator_states:
                     abs_activator[init_state, init_state] = -pump_rate
                     abs_activator[init_state, final_state] = +degeneracy*pump_rate
@@ -131,18 +130,18 @@ def _create_branching_ratios(sensitizer_states: int, activator_states: int,
     # branching ratios given directly by the user
     B_sensitizer = np.zeros((sensitizer_states, sensitizer_states), dtype=np.float64)
     B_activator = np.zeros((activator_states, activator_states), dtype=np.float64)
-    B_pos_value_S = decay_dict['B_pos_value_S']
-    B_pos_value_A = decay_dict['B_pos_value_A']
+    branching_S = decay_dict['branching_S']
+    branching_A = decay_dict['branching_A']
 
     try:
-        for pos_i, pos_f, value in B_pos_value_S:
+        for branch_proc in branching_S:
             # discard processes with indices higher than sensitizer_states
-            if pos_i < sensitizer_states and pos_f < sensitizer_states:
-                B_sensitizer[pos_i, pos_f] = value
-        for pos_i, pos_f, value in B_pos_value_A:
+            if branch_proc.state_i < sensitizer_states and branch_proc.state_f < sensitizer_states:
+                B_sensitizer[branch_proc.state_i, branch_proc.state_f] = branch_proc.branching_ratio
+        for branch_proc in branching_A:
             # discard processes with indices higher than activator_states
-            if pos_i < activator_states and pos_f < activator_states:
-                B_activator[pos_i, pos_f] = value
+            if branch_proc.state_i < activator_states and branch_proc.state_i < activator_states:
+                B_activator[branch_proc.state_i, branch_proc.state_f] = branch_proc.branching_ratio
     # this shouldn't happen
     except IndexError as err:  # pragma: no cover
         logging.getLogger(__name__).error('Wrong number of states!')
@@ -164,15 +163,15 @@ def _create_decay_vectors(sensitizer_states: int, activator_states: int,
     k_sensitizer = np.zeros((sensitizer_states, ), dtype=np.float64)
     k_activator = np.zeros((activator_states, ), dtype=np.float64)
     # list of tuples of state and decay rate
-    pos_value_S = decay_dict['pos_value_S']
-    pos_value_A = decay_dict['pos_value_A']
+    decay_S = decay_dict['decay_S']
+    decay_A = decay_dict['decay_A']
     try:
-        for pos, value in pos_value_S:
-            if pos < sensitizer_states:
-                k_sensitizer[pos] = value
-        for pos, value in pos_value_A:
-            if pos < activator_states:
-                k_activator[pos] = value
+        for decay_proc in decay_S:
+            if decay_proc.state_i < sensitizer_states:
+                k_sensitizer[decay_proc.state_i] = decay_proc.decay_rate
+        for decay_proc in decay_A:
+            if decay_proc.state_i < activator_states:
+                k_activator[decay_proc.state_i] = decay_proc.decay_rate
     # this shouldn't happen
     except IndexError:  # pragma: no cover
         logging.getLogger(__name__).debug('Wrong number of states!')
@@ -322,21 +321,21 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
 
     # make sure the number of states for A and S are greater or equal than the processes require
     try:
-        for proc_name, dict_process in dict_ET.items():
+        for proc_name, process in dict_ET.items():
              # discard processes whose states are larger than activator states
-            if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'AA':
-                if np.any(np.array(dict_process['indices']) >= activator_states):
+            if not np.isclose(process.strength, 0.0) and process.type == (IonType.A, IonType.A):
+                if np.any(np.array(process.indices) >= activator_states):
                     raise lattice.LatticeError
-            elif not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'AS':
-                if np.any(np.array(dict_process['indices'][::2]) >= activator_states) or\
-                    np.any(np.array(dict_process['indices'][1::2]) >= sensitizer_states):
+            elif not np.isclose(process.strength, 0.0) and process.type == (IonType.A, IonType.S):
+                if np.any(np.array(process.indices[::2]) >= activator_states) or\
+                    np.any(np.array(process.indices[1::2]) >= sensitizer_states):
                     raise lattice.LatticeError
-            elif not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'SS':
-                if np.any(np.array(dict_process['indices']) >= sensitizer_states):
+            elif not np.isclose(process.strength, 0.0) and process.type == (IonType.S, IonType.S):
+                if np.any(np.array(process.indices) >= sensitizer_states):
                     raise lattice.LatticeError
-            elif not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'SA':
-                if np.any(np.array(dict_process['indices'][::2]) >= activator_states) or\
-                    np.any(np.array(dict_process['indices'][0::2]) >= sensitizer_states):
+            elif not np.isclose(process.strength, 0.0) and process.type == (IonType.S, IonType.A):
+                if np.any(np.array(process.indices[::2]) >= activator_states) or\
+                    np.any(np.array(process.indices[0::2]) >= sensitizer_states):
                     raise lattice.LatticeError
     except lattice.LatticeError:
         msg = ('The number of A or S states is lower ' +
@@ -350,45 +349,45 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
         if index_A_j[num] != -1 and activator_states != 0:  # Tm ions
             index_j = index_A_j[num]  # position of ion num on the solution vector
             # add all A-A ET processes
-            for proc_name, dict_process in dict_ET.items():
-                if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'AA':
+            for proc_name, process in dict_ET.items():
+                if not np.isclose(process.strength, 0.0) and process.type == (IonType.A, IonType.A):
                     # reshape to (n,) from (n,1)
                     indices_l = indices_A_l[num_A].reshape((len(indices_A_l[num_A]),))
                     dists_l = dists_A_l[num_A]
                     add_ET_process(index_j, indices_l, dists_l,
-                                   dict_process['value'],
-                                   dict_process['mult'],
-                                   *dict_process['indices'])
+                                   process.strength,
+                                   process.mult,
+                                   *process.indices)
             # add all A-S ET processes
-            for proc_name, dict_process in dict_ET.items():
-                if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'AS':
+            for proc_name, process in dict_ET.items():
+                if not np.isclose(process.strength, 0.0) and process.type == (IonType.A, IonType.S):
                     indices_k = indices_A_k[num_A].reshape((len(indices_A_k[num_A]),))
                     dists_k = dists_A_k[num_A]
                     add_ET_process(index_j, indices_k, dists_k,
-                                   dict_process['value'],
-                                   dict_process['mult'],
-                                   *dict_process['indices'])
+                                   process.strength,
+                                   process.mult,
+                                   *process.indices)
             num_A += 1
         if index_S_i[num] != -1 and sensitizer_states != 0:  # Yb ions
             index_i = index_S_i[num]  # position of ion num on the solution vector
             # add all S-S ET processes
-            for proc_name, dict_process in dict_ET.items():
-                if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'SS':
+            for proc_name, process in dict_ET.items():
+                if not np.isclose(process.strength, 0.0) and process.type == (IonType.S, IonType.S):
                     indices_k = indices_S_k[num_S].reshape((len(indices_S_k[num_S]),))
                     dists_k = dists_S_k[num_S]
                     add_ET_process(index_i, indices_k, dists_k,
-                                   dict_process['value'],
-                                   dict_process['mult'],
-                                   *dict_process['indices'])
+                                   process.strength,
+                                   process.mult,
+                                   *process.indices)
             # add all S-A ET processes
-            for proc_name, dict_process in dict_ET.items():
-                if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'SA':
+            for proc_name, process in dict_ET.items():
+                if not np.isclose(process.strength, 0.0) and process.type == (IonType.S, IonType.A):
                     indices_l = indices_S_l[num_S].reshape((len(indices_S_l[num_S]),))
                     dists_l = dists_S_l[num_S]
                     add_ET_process(index_i, indices_l, dists_l,
-                                   dict_process['value'],
-                                   dict_process['mult'],
-                                   *dict_process['indices'])
+                                   process.strength,
+                                   process.mult,
+                                   *process.indices)
             num_S += 1
 
     # no ET processes
@@ -510,15 +509,17 @@ def _create_coop_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET
     num_A_atoms = np.count_nonzero(np.array(index_A_j) != -1)
     num_energy_states = sensitizer_states*num_S_atoms + activator_states*num_A_atoms
 
-    # get the process dict of the coop step
-    coop_dict = None  # type: Dict
-    for dict_process in dict_ET.values():
-        if not np.isclose(dict_process['value'], 0.0) and dict_process['type'] == 'SSA':
-            coop_dict = dict_process
+    # get the process of the coop step
+    coop_process = None
+    for process in dict_ET.values():
+        ### TODO: ONLY SSA COOPERATIVE PROCESSES
+        if not np.isclose(process.strength, 0.0) and process.type == (IonType.S, IonType.S,
+                                                                      IonType.A):
+            coop_process = process
             break
 
     # if there are 5 states or fewer, return empty matrices
-    if num_energy_states <= 5 or coop_dict is None or dists_S_k.size == 0 or dists_A_k.size == 0:
+    if num_energy_states <= 5 or coop_process is None or dists_S_k.size == 0 or dists_A_k.size == 0:
         coop_ET_matrix = csr_matrix(np.zeros((num_energy_states, 0), dtype=np.float64))
         coop_N_indices = np.column_stack((np.array([], dtype=np.uint32),
                                           np.array([], dtype=np.uint32),
@@ -557,7 +558,7 @@ def _create_coop_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET
 
     # unpack requested process
     (i_i_state, k_i_state, l_i_state,
-     i_f_state, k_f_state, l_f_state) = coop_dict['indices']
+     i_f_state, k_f_state, l_f_state) = coop_process.indices
 
     # calculate the current ion's initial and final states
     i_i_states = np.array(processes_arr['i'], dtype=np.uint32) + i_i_state
@@ -578,8 +579,8 @@ def _create_coop_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET
                                         num_cols, num_cols,
                                         num_cols, num_cols)))
 
-    value = coop_dict['value']
-    mult = coop_dict['mult']
+    value = coop_process.strength
+    mult = coop_process.mult
     w_strengths = value*calculate_coop_strength(processes_arr, mult)
     v_index = np.ravel(np.column_stack((-w_strengths, w_strengths,
                                         -w_strengths, w_strengths,
@@ -701,15 +702,15 @@ def get_lifetimes(cte: settings.Settings) -> List[float]:
     '''Returns a list of all lifetimes in seconds.
        First sensitizer and then activator
     '''
-    pos_value_S = cte['decay']['pos_value_S']
-    pos_value_A = cte['decay']['pos_value_A']
+    decay_S = cte['decay']['decay_S']
+    decay_A = cte['decay']['decay_A']
 
-    return [1/float(k) for num, k in pos_value_S+pos_value_A]
+    return [1/float(decay_proc.decay_rate) for decay_proc in decay_S + decay_A]
 
 
 #@profile
 def setup_microscopic_eqs(cte: settings.Settings, gen_lattice: bool = False, full_path: str = None
-                         ) -> Tuple[Dict, np.array, List[int], List[int],
+                         ) -> Tuple[settings.Settings, np.array, List[int], List[int],
                                     scipy.sparse.csr_matrix, scipy.sparse.csr_matrix,
                                     scipy.sparse.csr_matrix, np.array, np.array,
                                     scipy.sparse.csr_matrix, np.array, np.array]:
@@ -875,7 +876,7 @@ def setup_microscopic_eqs(cte: settings.Settings, gen_lattice: bool = False, ful
 # unused arguments
 # pylint: disable=W0613
 def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_path: str = None
-                     ) -> Tuple[Dict, np.array, List[int], List[int],
+                     ) -> Tuple[settings.Settings, np.array, List[int], List[int],
                                 scipy.sparse.csr_matrix, scipy.sparse.csr_matrix,
                                 scipy.sparse.csr_matrix, np.array, np.array,
                                 scipy.sparse.csr_matrix, np.array, np.array]:
@@ -999,9 +1000,9 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
     logger.info('Energy transfer matrices...')
     # use the avg value if present
     ET_dict = cte['energy_transfer'].copy()
-    for dict_process in ET_dict.values():
-        if 'value_avg' in dict_process:
-            dict_process['value'] = dict_process['value_avg']
+    for process in ET_dict.values():
+        if process.strength_avg is not None:
+            process.strength = process.strength_avg
     ET_matrix, N_indices = _create_ET_matrices(indices_S_i, indices_A_j, ET_dict,
                                                indices_S_k, indices_S_l,
                                                indices_A_k, indices_A_l,
@@ -1054,11 +1055,18 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
 #    cte['no_plot'] = False
 ##    logger.setLevel(logging.DEBUG)
 #
-##    cte['lattice']['S_conc'] = 0.0
-##    cte['lattice']['A_conc'] = 0.0
+#    cte['lattice']['S_conc'] = 5
+#    cte['lattice']['A_conc'] = 2
+##    cte['lattice']['N_uc'] = 7
+##    cte['states']['sensitizer_states'] = 2
+##    cte['states']['activator_states'] = 7
+##
+##    cte['excitations']['NIR_980'][0].active = False
+##    cte['excitations']['Vis_473'][0].active = True
+##    cte['excitations']['NIR_800'][0].active = False
 #
-##    full_path='test/test_setup/data_3S_2A.hdf5'
-#    full_path = None
+#    full_path='test/test_setup/data_1S_1A.hdf5'
+##    full_path = None
 #
 #    (cte, initial_population, index_S_i, index_A_j,
 #     total_abs_matrix, decay_matrix, ET_matrix,

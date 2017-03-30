@@ -19,8 +19,8 @@ import tqdm
 
 import simetuc.simulations as simulations
 import simetuc.settings as settings
-from simetuc.util import change_console_logger_level as change_console_logger_level
-from simetuc.util import get_console_logger_level as get_console_logger_level
+from simetuc.util import change_console_logger_level
+from simetuc.util import get_console_logger_level
 
 
 # I can't seem to find the right mypy syntax for this decorator.
@@ -63,8 +63,9 @@ def optim_fun_factory(sim: simulations.Simulations,
 
     else:
         # switch off all excitations
-        for exc_label in sim.cte['excitations']:
-            sim.cte['excitations'][exc_label]['active'] = False
+        for exc_lst in sim.cte['excitations'].values():
+            for excitation in exc_lst:
+                excitation.active = False
 
         def optim_fun_all_exc(x: np.array) -> float:
             '''Update ET strengths, simulate dynamics for all excitations and return total error.'''
@@ -74,11 +75,12 @@ def optim_fun_factory(sim: simulations.Simulations,
 
             total_error = 0.0
             # go through all required excitations, calculate errors and add all of them
-            for exc_label in sim.cte['optimization']['excitations']:
+            for exc_label in sim.cte.optimization['excitations']:
+                print(excitation)
                 # switch on one excitation, solve and switch off again
-                sim.cte['excitations'][exc_label]['active'] = True
+                sim.cte.excitations[exc_label][0].active = True
                 dynamics_sol = sim.simulate_dynamics(average=average)
-                sim.cte['excitations'][exc_label]['active'] = False
+                sim.cte.excitations[exc_label][0].active = False
                 total_error += dynamics_sol.total_error**2
 
             # if a progress bar is given, advance it
@@ -117,7 +119,7 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False) -> Tuple[np
 
     # Processes to optimize. If not given, all ET parameters will be optimized
     process_list = cte.get('optimization', {}).get('processes', cte['energy_transfer'])
-    print(process_list)
+#    print(process_list)
 
     # starting point
     x0 = np.array([sim.get_ET_param_value(process, average) if isinstance(process, str)

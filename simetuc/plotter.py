@@ -53,7 +53,7 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
                                                                        state_labels)):
         if sim_data is None:
             continue
-        if (np.isnan(sim_data)).any() or not np.any(sim_data > 0):
+        if np.isnan(sim_data).any() or not np.any(sim_data > 0):
             continue
 
         plt.subplot(num_rows, num_cols, num+1)

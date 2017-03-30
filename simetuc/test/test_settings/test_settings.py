@@ -9,9 +9,10 @@ import pytest
 import os
 import numpy as np
 import yaml
+import copy
 
 import simetuc.settings as settings
-from simetuc.util import temp_config_filename
+from simetuc.util import temp_config_filename, ExcTransition, DecayTransition, IonType, EneryTransferProcess, Transition
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -42,49 +43,13 @@ def setup_cte():
                             ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2']),
                            ('sensitizer_states', 2),
                            ('activator_states', 7)])),
-             ('excitations',
-                  dict([('Vis_473',
-                      dict([('active', True),
-                                   ('power_dens', 1000000.0),
-                                   ('t_pulse', 1e-08),
-                                   ('process', ['Tm(3H6) -> Tm(1G4)']),
-                                   ('degeneracy', [1.4444444444444444]),
-                                   ('pump_rate', [0.00093]),
-                                   ('init_state', [0]),
-                                   ('final_state', [5]),
-                                   ('ion_exc', ['A'])])),
-                 ('NIR_1470',
-                      dict([('active', False),
-                                   ('power_dens', 10000000.0),
-                                   ('t_pulse', 1e-08),
-                                   ('process', ['Tm(1G4) -> Tm(1D2)']),
-                                   ('degeneracy', [1.8]),
-                                   ('pump_rate', [0.0002]),
-                                   ('init_state', [5]),
-                                   ('final_state', [6]),
-                                   ('ion_exc', ['A'])])),
-                 ('NIR_980',
-                      dict([('active', False),
-                                   ('power_dens', 10000000.0),
-                                   ('t_pulse', 1e-08),
-                                   ('process', ['Yb(GS)->Yb(ES)']),
-                                   ('degeneracy', [1.3333333333333333]),
-                                   ('pump_rate', [0.0044]),
-                                   ('init_state', [0]),
-                                   ('final_state', [1]),
-                                   ('ion_exc', ['S'])])),
-                 ('NIR_800',
-                      dict([('active', False),
-                                   ('power_dens', 10000000.0),
-                                   ('t_pulse', 1e-08),
-                                   ('process',
-                                    ['Tm(3H6)->Tm(3H4)', 'Tm(3H5)->Tm(1G4)']),
-                                   ('degeneracy',
-                                    [1.4444444444444444, 1.2222222222222223]),
-                                   ('pump_rate', [0.0044, 0.004]),
-                                   ('init_state', [0, 2]),
-                                   ('final_state', [3, 5]),
-                                   ('ion_exc', ['A', 'A'])]))])),
+             ('excitations', {
+                  'NIR_1470': [ExcTransition(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
+                 'NIR_800': [ExcTransition(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
+                             ExcTransition(IonType.A, 2, 5, False, 11/9, 0.004, 1e7, 1e-8)],
+                 'NIR_980': [ExcTransition(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
+                 'Vis_473': [ExcTransition(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]}
+             ),
              ('optimization', {'method': 'SLSQP', 'processes': ['CR50'], 'excitations': []}),
              ('power_dependence', [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0]),
              ('conc_dependence', [(0.0, 0.01), (0.0, 0.1), (0.0, 0.2), (0.0, 0.3), (0.0, 0.4), (0.0, 0.5)]),
@@ -93,57 +58,58 @@ def setup_cte():
                                     'atol': 1e-15,
                                     'rtol': 0.001}),
              ('decay',
-              {'B_pos_value_A': [(1, 0, 1.0),
-                (2, 1, 0.4),
-                (3, 1, 0.3),
-                (4, 3, 0.999),
-                (5, 1, 0.15),
-                (5, 2, 0.16),
-                (5, 3, 0.04),
-                (5, 4, 0.0),
-                (6, 1, 0.43)],
-               'B_pos_value_S': [(1, 0, 1.0)],
-               'pos_value_A': [(1, 83.33333333333333),
-                (2, 40000.0),
-                (3, 500.0),
-                (4, 500000.0),
-                (5, 1315.7894736842104),
-                (6, 14814.814814814814)],
-               'pos_value_S': [(1, 400.0)]}),
-             ('ET',
-              dict([('CR50',
-                            {'indices': [5, 0, 3, 2],
-                             'mult': 6,
-                             'type': 'AA',
-                             'value': 887920884.0}),
-                           ('ETU53',
-                            {'indices': [5, 3, 6, 1],
-                             'mult': 6,
-                             'type': 'AA',
-                             'value': 450220614.0}),
-                           ('ETU55',
-                            {'indices': [5, 5, 6, 4],
-                             'mult': 6,
-                             'type': 'AA',
-                             'value': 0.0}),
-                           ('ETU1',
-                            {'indices': [1, 0, 0, 2],
-                             'mult': 6,
-                             'type': 'SA',
-                             'value': 1e4}),
-                           ('BackET',
-                            {'indices': [3, 0, 0, 1],
-                             'mult': 6,
-                             'type': 'AS',
-                             'value': 4502.20614}),
-                           ('EM',
-                            {'indices': [1, 0, 0, 1],
-                             'mult': 6,
-                             'type': 'SS',
-                             'value': 45022061400.0})]))])
+              {'branching_A': [DecayTransition(IonType.A, 1, 0, branching_ratio=1.0),
+                DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
+                DecayTransition(IonType.A, 3, 1, branching_ratio=0.3),
+                DecayTransition(IonType.A, 4, 3, branching_ratio=0.999),
+                DecayTransition(IonType.A, 5, 1, branching_ratio=0.15),
+                DecayTransition(IonType.A, 5, 2, branching_ratio=0.16),
+                DecayTransition(IonType.A, 5, 3, branching_ratio=0.04),
+                DecayTransition(IonType.A, 5, 4, branching_ratio=0.0),
+                DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)],
+               'branching_S': [DecayTransition(IonType.S, 1, 0, branching_ratio=1.0)],
+               'decay_A': [DecayTransition(IonType.A, 1, 0, decay_rate=83.33333333333333),
+                DecayTransition(IonType.A, 2, 0, decay_rate=40000.0),
+                DecayTransition(IonType.A, 3, 0, decay_rate=500.0),
+                DecayTransition(IonType.A, 4, 0, decay_rate=500000.0),
+                DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
+                DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)],
+               'decay_S': [DecayTransition(IonType.S, 1, 0, decay_rate=400.0)]}),
+             ('ET', {
+              'CR50': EneryTransferProcess([Transition(IonType.A, 5, 3),
+                                            Transition(IonType.A, 0, 2)],
+                                           mult=6, strength=2893199540.0),
+              'ETU53': EneryTransferProcess([Transition(IonType.A, 5, 6),
+                                             Transition(IonType.A, 3, 1)],
+                                            mult=6, strength=254295690.0),
+              'ETU55': EneryTransferProcess([Transition(IonType.A, 5, 6),
+                                             Transition(IonType.A, 5, 4)],
+                                            mult=6, strength=0.0),
+              'BackET': EneryTransferProcess([Transition(IonType.A, 3, 0),
+                                              Transition(IonType.S, 0, 1)],
+                                             mult=6, strength=4502.0),
+              'EM': EneryTransferProcess([Transition(IonType.S, 1, 0),
+                                          Transition(IonType.S, 0, 1)],
+                                         mult=6, strength=45022061400.0),
+              'ETU1': EneryTransferProcess([Transition(IonType.S, 1, 0),
+                                            Transition(IonType.A, 0, 2)],
+                                           mult=6, strength=10000.0)}
+             )])
 
 
     return cte_good
+
+@pytest.fixture(scope='function')
+def setup_cte_full_S(setup_cte):
+    copy_cte = copy.deepcopy(setup_cte)
+    copy_cte['states']['sensitizer_states_labels'] = ['GS', '1ES', '2ES', '3ES']
+    copy_cte['states']['sensitizer_states'] = 4
+    copy_cte['decay']['branching_S'] = [DecayTransition(IonType.S, 1, 0, 1.0),
+                                        DecayTransition(IonType.S, 2, 1, 0.5),
+                                        DecayTransition(IonType.S, 3, 1, 0.01)]
+    copy_cte['optimization']['processes'] = ['CR50', DecayTransition(IonType.S, 2, 1, 0.5)]
+
+    return copy_cte
 
 def test_standard_config(setup_cte):
     ''''Test that the returned Settings instance for a know config file is correct.'''
@@ -639,7 +605,8 @@ def test_excitations_config8():
                    'sensitizer_states_labels': ['GS', 'ES'],
                    'activator_ion_label': 'Tm',
                    'sensitizer_ion_label': 'Yb'}
-    settings.Settings._parse_excitations(states_dict, exc_dict)
+    class cte: states = states_dict
+    settings.Settings._parse_excitations(cte, exc_dict)
 
 def test_abs_config1():
     data = data_states_ok + '''excitations:
@@ -1320,11 +1287,132 @@ energy_transfer:
         strength: 4.50220614e+10
 '''
 
+data_ET_ok_full_S = '''version: 1 # mandatory, only 1 is supported at the moment
+lattice:
+# all fields here are mandatory
+    name: bNaYF4
+    N_uc: 8
+    # concentration
+    S_conc: 0.3
+    A_conc: 0.3
+    # unit cell
+    # distances in Angstrom
+    a: 5.9738
+    b: 5.9738
+    c: 3.5297
+    # angles in degree
+    alpha: 90
+    beta: 90
+    gamma: 120
+    # the number is also ok for the spacegroup
+    spacegroup: P-6
+    # info about sites
+    sites_pos: [[0, 0, 0], [2/3, 1/3, 1/2]]
+    sites_occ: [1, 1/2]
+
+states:
+# all fields here are mandatory,
+# leave empty if necessary (i.e.: just "sensitizer_ion_label" on a line), but don't delete them
+    sensitizer_ion_label: Yb
+    sensitizer_states_labels: [GS, 1ES, 2ES, 3ES]
+    activator_ion_label: Tm
+    activator_states_labels: [3H6, 3F4, 3H5, 3H4, 3F3, 1G4, 1D2]
+
+excitations:
+# the excitation label can be any text
+# at this point, only one active excitation is suported
+# the t_pulse value is only mandatory for the dynamics, it's ignored in the steady state
+    Vis_473:
+        active: True
+        power_dens: 1e6 # power density W/cm^2
+        t_pulse: 1e-8 # pulse width, seconds
+        process: Tm(3H6) -> Tm(1G4) # both ion labels are required
+        degeneracy: 13/9
+        pump_rate: 9.3e-4 # cm2/J
+    NIR_980:
+        active: False
+        power_dens: 1e7 # power density W/cm^2
+        t_pulse: 1e-8 # pulse width, seconds
+        process: Yb(GS)->Yb(1ES)
+        degeneracy: 4/3
+        pump_rate: 4.4e-3 # cm2/J
+
+sensitizer_decay:
+# lifetimes in s
+    1ES: 2.5e-3
+    2ES: 2.5e-4
+    3ES: 2.5e-5
+
+activator_decay:
+# lifetimes in s
+    3F4: 12e-3
+    3H5: 25e-6
+    3H4: 2e-3
+    3F3: 2e-6
+    1G4: 760e-6
+    1D2: 67.5e-6
+
+sensitizer_branching_ratios:
+    2ES -> 1ES: 0.5
+    3ES -> 1ES: 0.01
+
+activator_branching_ratios:
+    # 3H5 and 3H4 to 3F4
+    3H5->3F4: 0.4
+    3H4->3F4: 0.3
+    # 3F3 to 3H4
+    3F3->3H4: 0.999
+    # 1G4 to 3F4, 3H5, 3H4 and 3F3
+    1G4->3F4: 0.15
+    1G4->3H5: 0.16
+    1G4->3H4: 0.04
+    1G4->3F3: 0.00
+    # 1D2 to 3F4
+    1D2->3F4: 0.43
+
+energy_transfer:
+    CR50:
+        process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
+        multipolarity: 6
+        strength: 8.87920884e+08
+    ETU53:
+        process:  Tm(1G4) + Tm(3H4) -> Tm(1D2) + Tm(3F4)
+        multipolarity: 6
+        strength: 4.50220614e+08
+    ETU55:
+        process:  Tm(1G4) + Tm(1G4) -> Tm(1D2) + Tm(3F3)
+        multipolarity: 6
+        strength: 0 # 4.50220614e+7
+    ETU1:
+        process:  Yb(1ES) + Tm(3H6) -> Yb(GS) + Tm(3H5)
+        multipolarity: 6
+        strength: 1e4
+    BackET:
+        process:  Tm(3H4) + Yb(GS) -> Tm(3H6) + Yb(1ES)
+        multipolarity: 6
+        strength: 4.50220614e+3
+    EM:
+        process:  Yb(1ES) + Yb(GS) -> Yb(GS) + Yb(1ES)
+        multipolarity: 6
+        strength: 4.50220614e+10
+'''
+
 # test optimization processes
 def test_optim_wrong_proc():
     '''Wrong ET optimization process'''
     data = data_ET_ok + '''optimization:
         processes: [ETU_does_no_exist]
+'''
+    with pytest.raises(settings.LabelError) as excinfo: # wrong ET process label
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"Wrong labels in optimization: processes!")
+    assert excinfo.type == settings.LabelError
+
+def test_optim_wrong_proc_2():
+    '''Wrong ET optimization process'''
+    data = data_ET_ok + '''optimization:
+        processes: [ETU53, ETU_does_no_exist]
 '''
     with pytest.raises(settings.LabelError) as excinfo: # wrong ET process label
         with temp_config_filename(data) as filename:
@@ -1344,13 +1432,27 @@ def test_optim_wrong_B_proc():
     assert excinfo.match(r"Unrecognized branching ratio process")
     assert excinfo.type == settings.LabelError
 
-def test_optim_ok_proc(): # ok
+def test_optim_wrong_B_proc_label():
+    '''Wrong branching ration optimization process'''
     data = data_ET_ok + '''optimization:
-        processes: [ETU53]
+        processes: [3H145->3F4]
 '''
+    with pytest.raises(settings.LabelError) as excinfo: # wrong ET process label
+        with temp_config_filename(data) as filename:
+            settings.load(filename)
+    assert excinfo.match(r"Wrong labels in optimization: processes!")
+    assert excinfo.match(r"Unrecognized branching ratio process")
+    assert excinfo.type == settings.LabelError
+
+@pytest.mark.parametrize('data_proc', [(data_ET_ok, '3H5->3F4',  DecayTransition(IonType.A, 2, 1)),
+                                       (data_ET_ok_full_S, '3ES->1ES',  DecayTransition(IonType.S, 3, 1))])
+def test_optim_ok_proc(data_proc): # ok
+    data = data_proc[0] + '''optimization:
+        processes: [ETU53, {}]
+'''.format(data_proc[1])
     with temp_config_filename(data) as filename:
         cte = settings.load(filename)
-    assert cte['optimization']['processes'] == ['ETU53']
+    assert cte['optimization']['processes'] == ['ETU53', data_proc[2]]
 
 def test_optim_method(): # ok
     data = data_ET_ok + '''optimization:

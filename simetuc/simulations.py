@@ -10,7 +10,7 @@ import csv
 import logging
 import warnings
 import os
-from typing import Dict, List, Tuple, Iterator, Sequence
+from typing import List, Tuple, Iterator, Sequence, Union
 
 import h5py
 import yaml
@@ -28,11 +28,10 @@ import simetuc.precalculate as precalculate
 import simetuc.odesolver as odesolver
 #import simetuc.odesolver_assimulo as odesolver  # warning: it's slower!
 import simetuc.plotter as plotter
-from simetuc.util import Conc
+from simetuc.util import Conc, DecayTransition, cached_property
 from simetuc.settings import Settings
 
 # TODO: http://stackoverflow.com/questions/6428723/python-are-property-fields-being-cached-automatically
-
 
 
 class Solution():
@@ -142,31 +141,25 @@ class Solution():
                                                         float(self.concentration.A_conc))
         return os.path.join(path, filename)
 
-    @property
+    @cached_property
     def state_labels(self) -> List[str]:
         '''List of ion_state labels'''
-        # if empty, calculate
-        if not len(self._state_labels):
-            self._state_labels = self._get_ion_state_labels()
-        return self._state_labels
+        return self._get_ion_state_labels()
 
-    @property
+    @cached_property
     def list_avg_data(self) -> List[np.array]:
         '''List of average populations for each state in the solution'''
-        # if empty, calculate
-        if not len(self._list_avg_data):
-            self._list_avg_data = self._calculate_avg_populations()
-        return self._list_avg_data
+        return self._calculate_avg_populations()
 
-    @property
+    @cached_property
     def power_dens(self) -> float:
         '''Return the power density used to obtain this solution.'''
         for excitation in self.cte['excitations'].keys():  # pragma: no branch
-            if self.cte['excitations'][excitation]['active']:
-                return self.cte['excitations'][excitation]['power_dens']
+            if self.cte['excitations'][excitation][0].active:
+                return self.cte['excitations'][excitation][0].power_dens
         raise AttributeError('This Solution has no power_dens attribute!')
 
-    @property
+    @cached_property
     def concentration(self) -> Conc:
         '''Return the tuple (sensitizer, activator) concentration used to obtain this solution.'''
         return Conc(self.cte['lattice']['S_conc'], self.cte['lattice']['A_conc'])
@@ -280,13 +273,11 @@ class SteadyStateSolution(Solution):
         '''Calculate the final population for all states after a steady state simulation'''
         return [curve[-1] for curve in self.list_avg_data]
 
-    @property
+    @cached_property
     def steady_state_populations(self) -> List[float]:
         '''List of final steady-state populations for each state in the solution'''
         # if empty, calculate
-        if not len(self._final_populations):
-            self._final_populations = self._calculate_final_populations()
-        return self._final_populations
+        return self._calculate_final_populations()
 
     def log_populations(self) -> None:
         '''Log the steady state populations'''
@@ -474,8 +465,8 @@ class DynamicsSolution(Solution):
         '''Load and return the decay experimental data.'''
         # get filenames from the ion_state labels, excitation and concentrations
         state_labels = self.state_labels
-        active_exc_labels = [label for label, exc_dict in self.cte['excitations'].items()
-                             if exc_dict['active']]
+        active_exc_labels = [label for label, excitation in self.cte['excitations'].items()
+                             if excitation[0].active]
         exc_label = '_'.join(active_exc_labels)
         S_conc = str(float(self.cte['lattice']['S_conc']))
         S_label = self.cte['states']['sensitizer_ion_label']
@@ -512,84 +503,63 @@ class DynamicsSolution(Solution):
             logger.info('%s: %.4e', label, error)
         logger.info('Total error: %.4e', self.total_error)
 
-    @property
+    @cached_property
     def errors(self) -> np.array:
         '''List of root-square-deviation between experiment and simulation
             for each state in the solution
         '''
-        # if empty, calculate
-        if not len(self._errors):
-            self._errors = self._calc_errors()
-        return self._errors
+        return self._calc_errors()
 
-    @property
+    @cached_property
     def total_error(self) -> float:
         '''Total root-square-deviation between experiment and simulation'''
-        # if none, calculate
-        if not self._total_error:
-            if np.any(self.errors):
-                total_error = np.sqrt(np.mean(np.square(self.errors[self.errors > 0])))
-            else:
-                total_error = 0
-            self._total_error = total_error
-        return self._total_error
+        if np.any(self.errors):
+            total_error = np.sqrt(np.mean(np.square(self.errors[self.errors > 0])))
+        else:
+            total_error = 0
+        return total_error
 
-    @property
+    @cached_property
     def list_interp_data(self) -> List[np.array]:
         '''List of offset-corrected (due to experimental background) average populations
             for each state in the solution
         '''
-        # if empty, calculate
-        if not self._list_interp_data:
-            self._list_interp_data = [DynamicsSolution._interpolate_sim_data(expData,
-                                                                             simData,
-                                                                             self.t_sol)
-                                      for expData, simData in zip(self.list_exp_data,
-                                                                  self.list_avg_data_ofs)]
-        return self._list_interp_data
+        return [DynamicsSolution._interpolate_sim_data(expData, simData, self.t_sol)
+                for expData, simData in zip(self.list_exp_data, self.list_avg_data_ofs)]
 
-    @property
+    @cached_property
     def list_avg_data_ofs(self) -> List[np.array]:
         '''List of offset-corrected (due to experimental background) average populations
             for each state in the solution
         '''
-        # if empty, calculate
-        if not self._list_avg_data_ofs:
-            self._list_avg_data_ofs = [DynamicsSolution._correct_background(expData, simData)
-                                       for expData, simData
-                                       in zip(self.list_exp_data, self.list_avg_data)]
-        return self._list_avg_data_ofs
+        return [DynamicsSolution._correct_background(expData, simData)
+                for expData, simData in zip(self.list_exp_data, self.list_avg_data)]
 
-    @property
+    @cached_property
     def list_binned_data(self) -> List[np.array]:
         '''List of offset-corrected (due to experimental background) average populations
             for each state in the solution
         '''
         # if empty, calculate
-        if not self._list_binned_data:
-            def bin_time(expdata: np.array) -> np.array:
-                '''Return a vector with the same expdata time but with 10x the number of points.'''
-                if expdata is not None:
-                    return np.linspace(expdata[0, 0], expdata[-1, 0], 10*len(expdata[:, 0]))
+        def bin_time(expdata: np.array) -> np.array:
+            '''Return a vector with the same expdata time but with 10x the number of points.'''
+            if expdata is not None:
+                return np.linspace(expdata[0, 0], expdata[-1, 0], 10*len(expdata[:, 0]))
 
-            list_interp_data = [DynamicsSolution._interpolate_sim_data(expData, simData,
-                                                                       self.t_sol,
-                                                                       bin_time(expData))
-                                for expData, simData in zip(self.list_exp_data,
-                                                            self.list_avg_data_ofs)]
+        list_interp_data = [DynamicsSolution._interpolate_sim_data(expData, simData, self.t_sol,
+                                                                   bin_time(expData))
+                            for expData, simData in zip(self.list_exp_data,
+                                                        self.list_avg_data_ofs)]
 
-            self._list_binned_data = [DynamicsSolution._bin_sim_data(exp_data, sim_data)
-                                      for exp_data, sim_data in zip(self.list_exp_data,
-                                                                    list_interp_data)]
-        return self._list_binned_data
+        list_binned_data = [DynamicsSolution._bin_sim_data(exp_data, sim_data)
+                            for exp_data, sim_data in zip(self.list_exp_data, list_interp_data)]
+        return list_binned_data
 
-    @property
+    @cached_property
     def list_exp_data(self) -> List[np.array]:
         '''List of ofset-corrected average populations for each state in the solution'''
         # if empty, calculate
-        if not self._list_exp_data:
-            self._list_exp_data = self._load_decay_data()
-        return self._list_exp_data
+        return self._load_decay_data()
 
 
 class SolutionList(Sequence[Solution]):
@@ -852,19 +822,19 @@ class Simulations():
     def _get_t_pulse(self) -> float:
         '''Return the pulse width of the simulation'''
         try:
-            for exc_dict in self.cte['excitations'].values():  # pragma: no branch
-                if exc_dict['active']:
-                    tf_p = exc_dict['t_pulse']  # pulse width.
+            for excitation in self.cte['excitations'].values():  # pragma: no branch
+                if excitation[0].active:
+                    tf_p = excitation[0].t_pulse  # pulse width.
                     break
             type(tf_p)
-        except (KeyError, NameError):
+        except (KeyError, NameError):  # pragma: no cover
             logger = logging.getLogger(__name__)
             logger.error('t_pulse value not found!')
             logger.error('Please add t_pulse to your excitation settings.')
             raise
         return tf_p
 
-    def modify_param_value(self, process: str, new_value: float) -> None:
+    def modify_param_value(self, process: Union[str, DecayTransition], new_value: float) -> None:
         '''Change the value of the process.'''
         self.cte.modify_param_value(process, new_value)
 
@@ -874,7 +844,7 @@ class Simulations():
         '''
         return self.cte.get_ET_param_value(process, average)
 
-    def get_branching_ratio_value(self, process: Tuple[int, int]) -> float:
+    def get_branching_ratio_value(self, process: DecayTransition) -> float:
         '''Gets a branching ratio value.'''
         return self.cte.get_branching_ratio_value(process)
 
@@ -922,10 +892,10 @@ class Simulations():
         # excitation pulse
         logger.info('Solving excitation pulse...')
         logger.info('Active excitation(s): ')
-        for exc_val, exc_dict in self.cte['excitations'].items():
+        for exc_label, excitation in self.cte['excitations'].items():
             # if the current excitation is not active jump to the next one
-            if exc_dict['active'] is True:
-                logger.info(exc_val)
+            if excitation[0].active is True:
+                logger.info(exc_label)
         t_pulse = np.linspace(t0_p, tf_p, N_steps_pulse, dtype=np.float64)
         y_pulse = odesolver.solve_pulse(t_pulse, initial_population.transpose(),
                                         total_abs_matrix, decay_matrix,
@@ -949,7 +919,7 @@ class Simulations():
 
         # substract the pulse width from t_sol so that it starts with 0
         # like it happens in a measurement
-#        t_sol = t_sol - t_sol[0]
+        t_sol = t_sol - t_sol[0]
 
         # store solution and settings
         dynamics_sol = DynamicsSolution(t_sol, y_sol, index_S_i, index_A_j,
@@ -1002,10 +972,10 @@ class Simulations():
         # steady state
         logger.info('Solving steady state...')
         logger.info('Active excitation(s): ')
-        for exc_val, exc_dict in self.cte['excitations'].items():
+        for exc_label, excitation in self.cte['excitations'].items():
             # if the current excitation is not active jump to the next one
-            if exc_dict['active'] is True:
-                logger.info(exc_val)
+            if excitation[0].active is True:
+                logger.info(exc_label)
         t_pulse = np.linspace(t0_p, tf_p, N_steps_pulse)
         y_pulse = odesolver.solve_pulse(t_pulse, initial_population.transpose(),
                                         total_abs_matrix, decay_matrix,
@@ -1053,7 +1023,7 @@ class Simulations():
                                desc='Total progress'):
             # update power density
             for excitation in self.cte['excitations'].keys():
-                self.cte['excitations'][excitation]['power_dens'] = power_dens
+                self.cte['excitations'][excitation][0].power_dens = power_dens
             # calculate steady state populations
             steady_sol = self.simulate_steady_state(average=average)
             solutions.append(steady_sol)
@@ -1124,44 +1094,33 @@ class Simulations():
 #    cte['no_plot'] = False
 #
 #    sim = Simulations(cte)
-
-#    solution = sim.simulate_dynamics()
-#    solution.log_errors()
+#
+##    solution = sim.simulate_dynamics()
+##    solution.log_errors()
+##    solution.plot()
+##
+##    solution.plot(state=7)
+##
+##    solution_avg = sim.simulate_avg_dynamics()
+##    solution_avg.log_errors()
+##    solution_avg.plot()
+##
+##    solution = sim.simulate_steady_state()
+##    solution.log_populations()
+##    solution.plot()
+##
+##    solution_avg = sim.simulate_avg_steady_state()
+##    solution_avg.log_populations()
+##    solution_avg.plot()
+##
+##    power_dens_list = np.logspace(1, 4, 4)
+##    solution = sim.simulate_power_dependence(cte['power_dependence'])
+##    solution.plot()
+##
+##    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
+##    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3), (0.1, 0.1), (0.1, 0.2), (0.1, 0.3)]
+##    conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
+#
+#    conc_list = [(0, 0.1), (0, 0.175), (0, 0.3), (0, 0.5), (0, 1.0)]
+#    solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
 #    solution.plot()
-#
-#    solution.plot(state=7)
-#
-#    solution_avg = sim.simulate_avg_dynamics()
-#    solution_avg.log_errors()
-#    solution_avg.plot()
-#
-#    solution = sim.simulate_steady_state()
-#    solution.log_populations()
-#    solution.plot()
-#
-#    solution_avg = sim.simulate_avg_steady_state()
-#    solution_avg.log_populations()
-#    solution_avg.plot()
-#
-#    solution.save()
-#    new_sol = DynamicsSolution.load('results/bNaYF4/DynamicsSolution.hdf5')
-#
-#    power_dens_list = np.logspace(1, 4, 4)
-#    solution = sim.simulate_power_dependence(cte['power_dependence'])
-#    solution.plot()
-#    solution.save()
-#    new_sol = PowerDependenceSolution()
-#    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_pow_dep.hdf5')
-#    new_sol.plot()
-#
-#    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
-#    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3), (0.1, 0.1), (0.1, 0.2), (0.1, 0.3)]
-#    conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
-#    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
-#    solution.plot()
-#    solution.save()
-#
-#    new_sol = ConcentrationDependenceSolution()
-#    new_sol.load('results/bNaYF4/data_30uc_0.0S_0.3A_conc_dep.hdf5')
-#    new_sol.plot()
-#

@@ -23,9 +23,12 @@ import numpy as np
 import yaml
 
 from simetuc.util import LabelError, ConfigError, ConfigWarning
+from simetuc.util import Transition, ExcTransition, DecayTransition, IonType, EneryTransferProcess
 from simetuc.value import Value
 import simetuc.settings_config as configs
 
+# it's used by other modules, put this down so pylint doesn't complain
+cast  # pylint: disable=W0104
 
 class Settings(Dict):
     '''Contains all settings for the simulations,
@@ -162,7 +165,8 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         parsed_dict = {}  # type: Dict
         for value in settings_list:
             name = value.name
-            if value.kind is not Value.mandatory and (name not in config_dict or config_dict[name] is None):
+            if value.kind is not Value.mandatory and (name not in config_dict or
+                                                      config_dict[name] is None):
                 continue
             value.name = name
             parsed_dict.update({name: value.parse(config_dict[name])})
@@ -170,34 +174,29 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 #        pprint.pprint(parsed_dict)
         return parsed_dict
 
-    @staticmethod
-    def _parse_excitations(dict_states: Dict, dict_excitations: Dict) -> Dict:
+    def _parse_excitations(self, dict_excitations: Dict) -> Dict:
         '''Parses the excitation section
             Returns the parsed excitations dict'''
         logger = logging.getLogger(__name__)
 
-        sensitizer_labels = dict_states['sensitizer_states_labels']
-        activator_labels = dict_states['activator_states_labels']
+        sensitizer_labels = self.states['sensitizer_states_labels']
+        activator_labels = self.states['activator_states_labels']
+        parsed_dict = {}  # type: Dict
 
         # for each excitation
         for exc_label, exc_dict in dict_excitations.items() or dict().items():
-
 #            # make a list if they aren't already
-            list_deg = exc_dict['degeneracy']
-            list_pump = exc_dict['pump_rate']
-            list_proc = exc_dict['process']
-            if not isinstance(list_deg, (list, tuple)):
-                list_deg = [exc_dict['degeneracy']]
-            if not isinstance(list_pump, (list, tuple)):
-                list_pump = [exc_dict['pump_rate']]
-            if not isinstance(list_proc, (list, tuple)):
-                list_proc = [exc_dict['process']]
-            exc_dict['degeneracy'] = list_deg
-            exc_dict['pump_rate'] = list_pump
-            exc_dict['process'] = list_proc
+            if not isinstance(exc_dict['degeneracy'], list):
+                exc_dict['degeneracy'] = [exc_dict['degeneracy']]
+            if not isinstance(exc_dict['pump_rate'], list):
+                exc_dict['pump_rate'] = [exc_dict['pump_rate']]
+            if not isinstance(exc_dict['process'], list):
+                exc_dict['process'] = [exc_dict['process']]
 
             # all three must have the same length
-            if not len(list_pump) == len(list_deg) == len(list_proc):
+            if not (len(exc_dict['degeneracy']) ==
+                    len(exc_dict['pump_rate']) ==
+                    len(exc_dict['process'])):
                 msg = ('pump_rate, degeneracy, and process ' +
                        'must have the same number of items in {}.').format(exc_label)
                 logger.error(msg)
@@ -207,8 +206,10 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
             exc_dict['final_state'] = []
             exc_dict['ion_exc'] = []
 
+            parsed_dict[exc_label] = []
+
             # for each process in the excitation
-            for process in list_proc:
+            for num, process in enumerate(exc_dict['process']):
                 # get the ion and state labels of the process
                 ion_state_list = _get_ion_and_state_labels(process)
 
@@ -222,18 +223,18 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
                     msg = 'Incorrect ion label in excitation: {}'.format(process)
                     logger.error(msg)
                     raise ValueError(msg)
-                if init_ion == dict_states['sensitizer_ion_label']:  # SENSITIZER
-                    init_ion_num = _get_state_index(sensitizer_labels, init_state,
-                                                    section='excitation process')
-                    final_ion_num = _get_state_index(sensitizer_labels, final_state,
-                                                     section='excitation process')
+                if init_ion == self.states['sensitizer_ion_label']:  # SENSITIZER
+                    init_state_num = _get_state_index(sensitizer_labels, init_state,
+                                                      section='excitation process')
+                    final_state_num = _get_state_index(sensitizer_labels, final_state,
+                                                       section='excitation process')
 
                     exc_dict['ion_exc'].append('S')
-                elif init_ion == dict_states['activator_ion_label']:  # ACTIVATOR
-                    init_ion_num = _get_state_index(activator_labels, init_state,
-                                                    section='excitation process')
-                    final_ion_num = _get_state_index(activator_labels, final_state,
-                                                     section='excitation process')
+                elif init_ion == self.states['activator_ion_label']:  # ACTIVATOR
+                    init_state_num = _get_state_index(activator_labels, init_state,
+                                                      section='excitation process')
+                    final_state_num = _get_state_index(activator_labels, final_state,
+                                                       section='excitation process')
 
                     exc_dict['ion_exc'].append('A')
                 else:
@@ -241,8 +242,17 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
                     logger.error(msg)
                     raise ValueError(msg)
                 # add to list
-                exc_dict['init_state'].append(init_ion_num)
-                exc_dict['final_state'].append(final_ion_num)
+                exc_dict['init_state'].append(init_state_num)
+                exc_dict['final_state'].append(final_state_num)
+
+                ion = IonType.S if exc_dict['ion_exc'][-1] is 'S' else IonType.A
+                exc_trans = ExcTransition(ion, init_state_num, final_state_num,
+                                          exc_dict['active'], exc_dict['degeneracy'][num],
+                                          exc_dict['pump_rate'][num], exc_dict['power_dens'],
+                                          exc_dict.get('t_pulse', None),
+                                          label_ion=init_ion,
+                                          label_i=init_state, label_f=final_state)
+                parsed_dict[exc_label].append(exc_trans)
 
             # all ions must be the same in the list!
             ion_list = exc_dict['ion_exc']
@@ -259,18 +269,18 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
             logger.error(msg)
             raise ConfigError(msg)
 
-        return dict_excitations
+        return parsed_dict
 
-    @staticmethod
-    def _parse_decay_rates(parsed_settings: Dict) -> Tuple[List[Tuple[int, float]],
-                                                      List[Tuple[int, float]]]:
+    def _parse_decay_rates(self, parsed_settings: Dict) -> Dict[str, List[DecayTransition]]:
         '''Parse the decay rates and return two lists with the state index and decay rate'''
         logger = logging.getLogger(__name__)
 
         # DECAY RATES in inverse seconds
 
-        sensitizer_labels = parsed_settings['states']['sensitizer_states_labels']
-        activator_labels = parsed_settings['states']['activator_states_labels']
+        sensitizer_labels = self.states['sensitizer_states_labels']
+        sensitizer_ion_label = self.states['sensitizer_ion_label']
+        activator_labels = self.states['activator_states_labels']
+        activator_ion_label = self.states['activator_ion_label']
 
         # the number of user-supplied lifetimes must be the same as
         # the number of energy states (minus the GS)
@@ -287,56 +297,75 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         parsed_S_decay = parsed_settings['sensitizer_decay']
         parsed_A_decay = parsed_settings['activator_decay']
-
         try:
             # list of tuples of state and decay rate
-            pos_value_S = [(_get_state_index(sensitizer_labels, key, section='decay rate',
-                                             process=key, num=num), 1/tau)
-                           for num, (key, tau) in enumerate(parsed_S_decay.items())]
-            pos_value_A = [(_get_state_index(activator_labels, key, section='decay rate',
-                                             process=key, num=num), 1/tau)
-                           for num, (key, tau) in enumerate(parsed_A_decay.items())]
+            decay_S_state = [(_get_state_index(sensitizer_labels, key, section='decay rate',
+                                               process=key, num=num), 1/tau, key)
+                             for num, (key, tau) in enumerate(parsed_S_decay.items())]
+            decay_S = [DecayTransition(IonType.S, state_i, 0, decay_rate=val,
+                                       label_ion=sensitizer_ion_label,
+                                       label_i=label, label_f=sensitizer_labels[0])
+                       for state_i, val, label in decay_S_state]
+
+            decay_A_state = [(_get_state_index(activator_labels, key, section='decay rate',
+                                               process=key, num=num), 1/tau, key)
+                             for num, (key, tau) in enumerate(parsed_A_decay.items())]
+            decay_A = [DecayTransition(IonType.A, state_i, 0, decay_rate=val,
+                                       label_ion=activator_ion_label,
+                                       label_i=label, label_f=activator_labels[0])
+                       for state_i, val, label in decay_A_state]
         except ValueError as err:
             logger.error('Invalid value for parameter in decay rates.')
             logger.error(str(err.args))
             raise
 
-        return (pos_value_S, pos_value_A)
+        parsed_dict = {}
+        parsed_dict['decay_S'] = decay_S
+        parsed_dict['decay_A'] = decay_A
 
-    @staticmethod
-    def _parse_branching_ratios(parsed_settings: Dict) -> Tuple[List[Tuple[int, int, float]],
-                                                           List[Tuple[int, int, float]]]:
+        return parsed_dict
+
+    def _parse_branching_ratios(self, parsed_settings: Dict) -> Tuple[List[DecayTransition],
+                                                                      List[DecayTransition]]:
         '''Parse the branching ratios'''
-        sensitizer_labels = parsed_settings['states']['sensitizer_states_labels']
-        activator_labels = parsed_settings['states']['activator_states_labels']
+        sensitizer_labels = self.states['sensitizer_states_labels']
+        sensitizer_ion_label = self.states['sensitizer_ion_label']
+        activator_labels = self.states['activator_states_labels']
+        activator_ion_label = self.states['activator_ion_label']
 
         branch_ratios_S = parsed_settings.get('sensitizer_branching_ratios', None)
         branch_ratios_A = parsed_settings.get('activator_branching_ratios', None)
         if branch_ratios_S:
-            # list of tuples of states and decay rate
-            B_pos_value_S = [(*_get_branching_ratio_indices(process, sensitizer_labels), value)
-                             for process, value in branch_ratios_S.items()]
+            states_val = [(*_get_branching_ratio_indices(process, sensitizer_labels), value)
+                          for process, value in branch_ratios_S.items()]
+            branch_trans_S = [DecayTransition(IonType.S, state_i, state_f, branching_ratio=val,
+                                              label_ion=sensitizer_ion_label,
+                                              label_i=sensitizer_labels[state_i],
+                                              label_f=sensitizer_labels[state_f])
+                              for state_i, state_f, val in states_val]
         else:
-            B_pos_value_S = []
+            branch_trans_S = []
         if branch_ratios_A:
-            B_pos_value_A = [(*_get_branching_ratio_indices(process, activator_labels), value)
-                             for process, value in branch_ratios_A.items()]
+            states_val = [(*_get_branching_ratio_indices(process, activator_labels), value)
+                          for process, value in branch_ratios_A.items()]
+            branch_trans_A = [DecayTransition(IonType.A, state_i, state_f, branching_ratio=val,
+                                              label_ion=activator_ion_label,
+                                              label_i=activator_labels[state_i],
+                                              label_f=activator_labels[state_f])
+                              for state_i, state_f, val in states_val]
         else:
-            B_pos_value_A = []
+            branch_trans_A = []
 
-        return (B_pos_value_S, B_pos_value_A)
+        return (branch_trans_S, branch_trans_A)
 
-    @staticmethod
-    def _parse_ET(parsed_dict: Dict) -> Dict:
+    def _parse_ET(self, parsed_dict: Dict) -> Dict:
         '''Parse the energy transfer processes'''
-        logger = logging.getLogger(__name__)
-
-        sensitizer_ion_label = parsed_dict['states']['sensitizer_ion_label']
-        activator_ion_label = parsed_dict['states']['activator_ion_label']
+        sensitizer_ion_label = self.states['sensitizer_ion_label']
+        activator_ion_label = self.states['activator_ion_label']
         list_ion_label = [sensitizer_ion_label, activator_ion_label]
 
-        sensitizer_labels = parsed_dict['states']['sensitizer_states_labels']
-        activator_labels = parsed_dict['states']['activator_states_labels']
+        sensitizer_labels = self.states['sensitizer_states_labels']
+        activator_labels = self.states['activator_states_labels']
         tuple_state_labels = (sensitizer_labels, activator_labels)
 
         # ET PROCESSES.
@@ -352,89 +381,94 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
             # find all patterns of "spaces,letters,spaces(spaces,letters,spaces)"
             # and get the "letters", spaces may not exist
             list_init_final = _get_ion_and_state_labels(process)
-            list_ions_num = [_get_ion(list_ion_label, ion) for ion, label in list_init_final]
+            list_ions_num = [_get_ion_index(list_ion_label, ion) for ion, label in list_init_final]
             list_indices = [_get_state_index(tuple_state_labels[ion_num], label,  # type: ignore
                                              section='ET process',
                                              process=process, num=num)
                             for ion_num, (ion_label, label) in zip(list_ions_num, list_init_final)]
 
-            # get process type: S-S, A-A, S-A, A-S, S-S-A, or A-A-S
-            list_ions = [ion for ion, label in list_init_final]
-            first_ion = list_ions[0]
-            second_ion = list_ions[1]
-            if len(list_ions) == 6:
-                third_ion = list_ions[2]
-            else:
-                third_ion = None
-            ET_type = None
-            if first_ion == activator_ion_label and second_ion == activator_ion_label:
-                if third_ion == sensitizer_ion_label:
-                    ET_type = 'AAS'
-                else:
-                    ET_type = 'AA'
-
-            elif first_ion == sensitizer_ion_label and second_ion == sensitizer_ion_label:
-                if third_ion == activator_ion_label:
-                    ET_type = 'SSA'
-                else:
-                    ET_type = 'SS'
-            elif first_ion == sensitizer_ion_label and second_ion == activator_ion_label:
-                ET_type = 'SA'
-            elif first_ion == activator_ion_label and second_ion == sensitizer_ion_label:
-                ET_type = 'AS'
-            else:  # pragma: no cover
-                msg = 'Ions must be either activators or sensitizers in ET process.'
-                logger.error(msg)
-                raise ValueError(msg)
+            # list with all information about this ET process
+            # tuples with ion and states labels and numbers
+            list_ion_states = [(ion_label, state_label, ion_num, state_num)
+                               for (ion_label, state_label), ion_num, state_num
+                               in zip(list_init_final, list_ions_num, list_indices)]
+            # fold the list of ion, state labels in two
+            # so that each tuple has two tuples with the states belonging to the same transition
+            folded_lst = list(zip(list_ion_states[:len(list_ion_states)//2],
+                                  list_ion_states[len(list_ion_states)//2:]))
 
             # store the data
-            ET_dict[name] = {}
-            ET_dict[name]['indices'] = list_indices
-            ET_dict[name]['mult'] = mult
-            ET_dict[name]['value'] = strength
-            if strength_avg is not None:
-                ET_dict[name]['value_avg'] = strength_avg
-            ET_dict[name]['type'] = ET_type
+            trans_lst = [Transition(IonType(tuple_i[2]), tuple_i[3], tuple_f[3],
+                                    label_ion=tuple_i[0], label_i=tuple_i[1], label_f=tuple_f[1])
+                         for tuple_i, tuple_f in folded_lst]
+#            print(trans_lst)
+            ET_dict[name] = EneryTransferProcess(trans_lst, mult=mult, strength=strength,
+                                                 strength_avg=strength_avg)
 
         return ET_dict
 
-    @staticmethod
-    def _parse_optimization(parsed_dict: Dict, dict_ET: Dict,
-                            dict_decay: Dict, dict_states: Dict, dict_exc: Dict) -> Dict[str, Any]:
+    def _parse_optimization(self, parsed_dict: Dict) -> Dict[str, Any]:
         '''Parse the optional optimization settings.'''
         logger = logging.getLogger(__name__)
 
         if 'processes' in parsed_dict:
-            parsed_dict['processes'] = Settings._parse_optim_params(parsed_dict['processes'],
-                                                                    dict_ET, dict_decay,
-                                                                    dict_states)
+            parsed_dict['processes'] = self._parse_optim_params(parsed_dict['processes'])
 
         parsed_dict['method'] = parsed_dict.get('method', None)
 
         for label in parsed_dict.get('excitations', []):
-            if label not in dict_exc:
+            if label not in self.excitations:
                 msg = ('Label "{}" in optimization: excitations '.format(label)
                        + 'not found in excitations section above!')
                 logger.error(msg)
                 raise LabelError(msg)
 
-
         return parsed_dict
 
-    @staticmethod
-    def _parse_optim_params(dict_optim: Dict, dict_ET: Dict,
-                            dict_decay: Dict, dict_states: Dict) -> List:
+    def _match_branching_ratio(self, process: str) -> Transition:
+        '''Gets a branching ratio process and returns the Transition.
+            Raises an exception if the states do not exist.'''
+        logger = logging.getLogger(__name__)
+
+        state_re = r'[\w/]+'  # match any letter, including forward slash '/'
+        # spaces state_label -> state_label spaces
+        # return a tuple with the state labels
+        list_matches = re.findall(r'\s*(' + state_re + r')\s*->\s*(' +
+                                  state_re + r')\s*', process)
+        if not list_matches:
+            # error
+            msg = 'Unrecognized branching ratio process.'
+            logger.error(msg)
+            raise LabelError(msg)
+        state_i, state_f = list_matches[0]
+
+        sensitizer_labels = self.states['sensitizer_states_labels']
+        activator_labels = self.states['activator_states_labels']
+        if state_i in sensitizer_labels and state_f in sensitizer_labels:
+            states = tuple(_get_state_index(sensitizer_labels, label)
+                           for label in (state_i, state_f))
+            return Transition(IonType.S, states[0], states[1],
+                              label_ion=self.states['sensitizer_ion_label'],
+                              label_i=state_i, label_f=state_f)
+        elif state_i in activator_labels and state_f in activator_labels:
+            states = tuple(_get_state_index(activator_labels, label)
+                           for label in (state_i, state_f))
+            return Transition(IonType.A, states[0], states[1],
+                              label_ion=self.states['activator_ion_label'],
+                              label_i=state_i, label_f=state_f)
+        else:
+            # error
+            msg = 'Unrecognized branching ratio process.'
+            logger.error(msg)
+            raise LabelError(msg)
+
+    def _parse_optim_params(self, dict_optim: Dict) -> List:
         '''Parse the optional list of parameters to optimize.
            Some of the params are ET, other are branching ratios'''
-           # TODO: this only works for activator branching ratios
-
         logger = logging.getLogger(__name__)
 
         # ET params that the user has defined
-        set_good_ET_params = set(dict_ET.keys())
-        # branching ratio params that user has defined
-        set_good_B_params_S = set((i, f) for (i, f, v) in dict_decay['B_pos_value_S'])
-        set_good_B_params_A = set((i, f) for (i, f, v) in  dict_decay['B_pos_value_A'])
+        set_good_ET_params = set(self.energy_transfer.keys())
 
         set_params = set(dict_optim)
 
@@ -443,28 +477,23 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         # other params should be branching ratios, we need to parse them into (i, f) tuples
         set_other_params = set_params.difference(set_ET_params)
-
-    #    sensitizer_labels = dict_states['sensitizer_states_labels']
-        activator_labels = dict_states['activator_states_labels']
-
         try:
             if set_other_params:
                 # list of tuples of states and decay rate
-                B_pos_value_A = [_get_branching_ratio_indices(process, activator_labels)
-                                 for process in set_other_params]
+                branch_transitions = [self._match_branching_ratio(process)
+                                      for process in set_other_params]
                 # make sure the branching ratio was defined before
-    #            print(B_pos_value_A)
-    #            print(set_good_B_params_A | set_good_B_params_S)
-                if not set(B_pos_value_A).issubset(set_good_B_params_A | set_good_B_params_S):
-                    raise ValueError('Unrecognized branching ratio process.')
+                for ratio in branch_transitions:
+                    if ratio not in self.decay['branching_S'] + self.decay['branching_A']:
+                        raise ValueError('Unrecognized branching ratio process.')
             else:
-                B_pos_value_A = []
+                branch_transitions = []
         except ValueError as err:
             msg = 'Wrong labels in optimization: processes! ' + str(err.args[0])
             logger.error(msg)
             raise LabelError(msg) from err
 
-        return list(set_ET_params) + B_pos_value_A
+        return list(set_ET_params) + branch_transitions
 
     @staticmethod
     def _parse_simulation_params(user_settings: Dict = None) -> Dict:
@@ -517,41 +546,37 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         return conc_list
 
-    def modify_param_value(self, process: str, new_value: float) -> None:
+    def modify_param_value(self, process: Union[str, DecayTransition], new_value: float) -> None:
         '''Change the value of the process.'''
         if isinstance(process, str):
             self._modify_ET_param_value(process, new_value)
-        elif isinstance(process, tuple):
+        elif isinstance(process, DecayTransition):
             self._modify_branching_ratio_value(process, new_value)
 
     def _modify_ET_param_value(self, process: str, new_strength: float) -> None:
         '''Modify a ET parameter'''
-        self.energy_transfer[process]['value'] = new_strength
+        self.energy_transfer[process].strength = new_strength
 
-    def _modify_branching_ratio_value(self, process: Tuple[int, int], new_value: float) -> None:
+    def _modify_branching_ratio_value(self, process: DecayTransition, new_value: float) -> None:
         '''Modify a branching ratio param.'''
-        list_tups = self['decay']['B_pos_value_A']
-        for num, tup in enumerate(list_tups):
-            if tup[:2] == process:
-                old_tup = self['decay']['B_pos_value_A'][num]
-                self['decay']['B_pos_value_A'][num] = (*old_tup[:2], new_value)
+        for branch_ratio in self.decay['branching_A'] + self.decay['branching_S']:
+            if branch_ratio == process:
+                branch_ratio.branching_ratio = new_value
 
     def get_ET_param_value(self, process: str, average: bool = False) -> float:
         '''Get a ET parameter value.
             Return the average value if it exists.
         '''
         if average:
-            return self.energy_transfer[process].get('value_avg',
-                                                     self.energy_transfer[process]['value'])
+            return self.energy_transfer[process].strength_avg
         else:
-            return self.energy_transfer[process]['value']
+            return self.energy_transfer[process].strength
 
-    def get_branching_ratio_value(self, process: Tuple[int, int]) -> float:
+    def get_branching_ratio_value(self, process: DecayTransition) -> float:
         '''Gets a branching ratio value.'''
-        list_tups = self['decay']['B_pos_value_A']
-        for num, tup in enumerate(list_tups):
-            if tup[:2] == process:
-                return self['decay']['B_pos_value_A'][num][2]
+        for branch_ratio in self.decay['branching_A'] + self.decay['branching_S']:
+            if branch_ratio == process:
+                return branch_ratio.branching_ratio
         raise ValueError('Branching ratio ({}) not found'.format(process))
 
     def load(self, filename: str) -> None:
@@ -581,7 +606,6 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         parsed_settings = self.parse_all_values(configs.settings, config_cte)
 
         # LATTICE
-        # parse lattice params
         self.lattice = parsed_settings['lattice']
 
         # NUMBER OF STATES
@@ -590,18 +614,15 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         self.states['activator_states'] = len(self.states['activator_states_labels'])
 
         # EXCITATIONS
-        self.excitations = self._parse_excitations(parsed_settings['states'],
-                                                   parsed_settings['excitations'])
+        self.excitations = self._parse_excitations(parsed_settings['excitations'])
 
         # DECAY RATES
-        pos_value_S, pos_value_A = self._parse_decay_rates(parsed_settings)
-        self.decay['pos_value_S'] = pos_value_S
-        self.decay['pos_value_A'] = pos_value_A
+        self.decay = self._parse_decay_rates(parsed_settings)
 
         # BRANCHING RATIOS (from 0 to 1)
-        B_pos_value_S, B_pos_value_A = self._parse_branching_ratios(parsed_settings)
-        self.decay['B_pos_value_S'] = B_pos_value_S
-        self.decay['B_pos_value_A'] = B_pos_value_A
+        branching_S, branching_A = self._parse_branching_ratios(parsed_settings)
+        self.decay['branching_S'] = branching_S
+        self.decay['branching_A'] = branching_A
 
         # ET PROCESSES.
         # not mandatory -> check
@@ -613,20 +634,18 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         # OPTIMIZATION
         # not mandatory -> check
         if 'optimization' in parsed_settings:
-            self.optimization = self._parse_optimization(parsed_settings['optimization'],
-                                                         self.energy_transfer, self.decay,
-                                                         self.states, self.excitations)
-
+            self.optimization = self._parse_optimization(parsed_settings['optimization'])
 
         # SIMULATION PARAMETERS
         # not mandatory -> check
-        self.simulation_params = self._parse_simulation_params(parsed_settings.get('simulation_params',
-                                                                              None))
+        sim_params = parsed_settings.get('simulation_params', None)
+        self.simulation_params = self._parse_simulation_params(sim_params)
 
         # POWER DEPENDENCE LIST
         # not mandatory -> check
         if 'power_dependence' in parsed_settings:
-            self.power_dependence = self._parse_power_dependence(parsed_settings['power_dependence'])
+            self.power_dependence = \
+                self._parse_power_dependence(parsed_settings['power_dependence'])
 
         # CONCENTRATION DEPENDENCE LIST
         # not mandatory -> check
@@ -708,7 +727,8 @@ class Loader():
         return file_dict
 
     @staticmethod
-    def _ordered_load(stream, YAML_Loader=yaml.Loader, object_pairs_hook=OrderedDict):  # type: ignore
+    def _ordered_load(stream, YAML_Loader=yaml.Loader,  # type: ignore
+                      object_pairs_hook=OrderedDict):
         '''Load data as ordered dictionaries so the ET processes are in the right order
         # not necessary any more, but still used
             http://stackoverflow.com/a/21912744
@@ -766,8 +786,8 @@ def _get_state_index(list_labels: List[str], state_label: str,
     return index
 
 
-def _get_ion(list_ion_labels: List[str], ion_label: str,
-             section: str = '', process: str = None, num: int = None) -> int:
+def _get_ion_index(list_ion_labels: List[str], ion_label: str,
+                   section: str = '', process: str = None, num: int = None) -> int:
     ''' Returns the index of the ion label in the list_ion_labels
         Print error and exit if it doesn't exist
     '''
@@ -804,4 +824,5 @@ def load(filename: str) -> Settings:
 
 #if __name__ == "__main__":
 #    import simetuc.settings as settings
+##    cte = settings.load('test/test_settings/test_standard_config.txt')
 #    cte = settings.load('config_file.cfg')

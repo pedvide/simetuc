@@ -4,15 +4,14 @@ Created on Fri Mar 10 16:48:45 2017
 
 @author: villanueva
 """
-from typing import List, Tuple, Union, Dict
 from fractions import Fraction
 import sys
-
+from typing import List, Tuple, Union, Dict
 from simetuc.value import Value, DictValue
 
 class f_float(type):
     '''Type that converts numbers or str into floats through Fraction.'''
-    def __new__(cls, x: str) -> float:
+    def __new__(mcs, x: str) -> float:
         '''Return the float'''
         return float(Fraction(x))  # type: ignore
 f_float.__name__ = 'float(Fraction())'
@@ -46,15 +45,16 @@ settings = [DictValue('lattice', [Value('name', str),
                                  Value('sensitizer_states_labels', List[str], len_min=1),
                                  Value('activator_states_labels', List[str], len_min=1)]),
 
-            Value('excitations', Dict[str, DictValue('', [Value('active', bool),  # type: ignore
-                                              Value('power_dens', float, val_min=0),
-                                              Value('process', Union[List[str], str], len_min=1),
-                                              Value('degeneracy', Union[f_float, List[f_float]],
-                                                    val_min=0, len_min=1),
-                                              Value('pump_rate', Union[float, List[float]],
-                                                    val_min=0, len_min=1),
-                                              Value('t_pulse', float, kind=Value.optional)])
-                                     ]),
+            Value('excitations',
+                  Dict[str, DictValue('', [Value('active', bool),  # type: ignore
+                                           Value('power_dens', float, val_min=0),
+                                           Value('process', Union[List[str], str], len_min=1),
+                                           Value('degeneracy', Union[f_float, List[f_float]],
+                                                 val_min=0, len_min=1),
+                                           Value('pump_rate', Union[float, List[float]],
+                                                 val_min=0, len_min=1),
+                                           Value('t_pulse', float, kind=Value.optional)])
+                      ]),
 
             Value('sensitizer_decay', Dict[str, float]),
             Value('activator_decay', Dict[str, float]),
@@ -66,11 +66,11 @@ settings = [DictValue('lattice', [Value('name', str),
 
             Value('energy_transfer', Dict[str, DictValue('',  # type: ignore
                                                          [Value('process', str),
-                                          Value('multipolarity', float, val_min=0),
-                                          Value('strength', float, val_min=0),
-                                          Value('strength_avg', float, val_min=0,
-                                                kind=Value.optional)])],
-                      kind=Value.optional),
+                                                          Value('multipolarity', float, val_min=0),
+                                                          Value('strength', float, val_min=0),
+                                                          Value('strength_avg', float, val_min=0,
+                                                                kind=Value.optional)])],
+                  kind=Value.optional),
 
             DictValue('optimization', [Value('processes', List[str], kind=Value.optional),
                                        Value('method', str, kind=Value.optional),
