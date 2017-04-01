@@ -4,7 +4,7 @@ matplotlib >=1.5.1 # anaconda
 tqdm >=4.8.4 # anaconda
 colorama # so tqdm works well in windows
 ase >=3.9.1 # anaconda
-ruamel_yaml >=0.11 # anaconda
+ruamel_yaml # anaconda
 h5py >=2.6 # anaconda
 numba
 
