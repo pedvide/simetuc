@@ -705,7 +705,7 @@ def get_lifetimes(cte: settings.Settings) -> List[float]:
     decay_S = cte['decay']['decay_S']
     decay_A = cte['decay']['decay_A']
 
-    return [1/float(decay_proc.decay_rate) for decay_proc in decay_S + decay_A]
+    return [1/float(decay_proc.decay_rate) for decay_proc in decay_S | decay_A]
 
 
 #@profile

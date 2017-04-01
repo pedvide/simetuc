@@ -10,10 +10,11 @@ import tempfile
 from contextlib import contextmanager
 import os
 from collections import namedtuple
-from typing import Generator, Sequence, Callable, Any
 import logging
-from enum import Enum
 import itertools
+
+from enum import Enum
+from typing import Generator, Sequence, Callable, Any
 
 
 # http://stackoverflow.com/a/11892712
@@ -105,10 +106,16 @@ class Transition:
 
     def __eq__(self, other: object) -> bool:
         '''Two settings are equal if all their attributes are equal.'''
+        if not isinstance(other, Transition):
+            return NotImplemented
         for attr in ['ion', 'state_i', 'state_f']:
             if getattr(self, attr) != getattr(other, attr):
                 return False
         return True
+
+    def __hash__(self) -> int:
+        '''Hash only the ion, and initial and final states'''
+        return hash((self.ion, self.state_i, self.state_f))
 
 class ExcTransition(Transition):
     '''Excitation transitions, with all the parameters'''
@@ -130,6 +137,8 @@ class ExcTransition(Transition):
 
     def __eq__(self, other: object) -> bool:
         '''Two settings are equal if all their attributes are equal.'''
+        if not isinstance(other, ExcTransition):
+            return NotImplemented
         base_eq = super(ExcTransition, self).__eq__(other)
         if base_eq is False:
             return False
@@ -158,8 +167,21 @@ class DecayTransition(Transition):
             info = ''
         return base_repr.replace(')', '') + '{})'.format(info)
 
+    def __eq__(self, other: object) -> bool:
+        '''Same as Transition.'''
+        # useful to compare DecayTransitions with Transitions
+        if not isinstance(other, DecayTransition):
+            return NotImplemented
+        return super(DecayTransition, self).__eq__(other)
+
+    def __hash__(self) -> int:
+        '''Same as Transition'''
+        # useful to compare DecayTransitions with Transitions
+        return super(DecayTransition, self).__hash__()
+
 
 class EneryTransferProcess():
+    '''Information about an energy transfer process'''
     def __init__(self, transitions: Sequence[Transition],
                  mult: int, strength: float, strength_avg: float = None) -> None:
         self.transitions = transitions
@@ -175,14 +197,16 @@ class EneryTransferProcess():
 
     def __repr__(self) -> str:
         init_states = '+'.join('{}({})'.format(trans.repr_ion, trans.repr_state_i)
-                                 for trans in self.transitions)
+                               for trans in self.transitions)
         final_states = '+'.join('{}({})'.format(trans.repr_ion, trans.repr_state_f)
-                                  for trans in self.transitions)
+                                for trans in self.transitions)
         return 'ETProcess({}->{}, mult={}, strength={:.2e})'.format(init_states, final_states,
-                                                             self.mult, self.strength)
+                                                                    self.mult, self.strength)
 
     def __eq__(self, other: object) -> bool:
         '''Two ET processes are equal if all their attributes are equal.'''
+        if not isinstance(other, EneryTransferProcess):
+            return NotImplemented
         for attr in ['transitions', 'mult', 'strength']:
             if getattr(self, attr) != getattr(other, attr):
                 return False
@@ -230,4 +254,3 @@ class ConfigError(SyntaxError):
 class ConfigWarning(UserWarning):
     '''Something in the configuration file is not correct'''
     pass
-

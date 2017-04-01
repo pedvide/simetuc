@@ -13,7 +13,7 @@ import os
 from typing import List, Tuple, Iterator, Sequence, Union
 
 import h5py
-import yaml
+import ruamel_yaml as yaml
 
 import numpy as np
 

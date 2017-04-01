@@ -58,23 +58,22 @@ def setup_cte():
                                     'atol': 1e-15,
                                     'rtol': 0.001}),
              ('decay',
-              {'branching_A': [DecayTransition(IonType.A, 1, 0, branching_ratio=1.0),
-                DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
-                DecayTransition(IonType.A, 3, 1, branching_ratio=0.3),
-                DecayTransition(IonType.A, 4, 3, branching_ratio=0.999),
-                DecayTransition(IonType.A, 5, 1, branching_ratio=0.15),
-                DecayTransition(IonType.A, 5, 2, branching_ratio=0.16),
-                DecayTransition(IonType.A, 5, 3, branching_ratio=0.04),
-                DecayTransition(IonType.A, 5, 4, branching_ratio=0.0),
-                DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)],
-               'branching_S': [DecayTransition(IonType.S, 1, 0, branching_ratio=1.0)],
-               'decay_A': [DecayTransition(IonType.A, 1, 0, decay_rate=83.33333333333333),
-                DecayTransition(IonType.A, 2, 0, decay_rate=40000.0),
-                DecayTransition(IonType.A, 3, 0, decay_rate=500.0),
-                DecayTransition(IonType.A, 4, 0, decay_rate=500000.0),
-                DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
-                DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)],
-               'decay_S': [DecayTransition(IonType.S, 1, 0, decay_rate=400.0)]}),
+              {'branching_A': {DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
+                                DecayTransition(IonType.A, 3, 1, branching_ratio=0.3),
+                                DecayTransition(IonType.A, 4, 3, branching_ratio=0.999),
+                                DecayTransition(IonType.A, 5, 1, branching_ratio=0.15),
+                                DecayTransition(IonType.A, 5, 2, branching_ratio=0.16),
+                                DecayTransition(IonType.A, 5, 3, branching_ratio=0.04),
+                                DecayTransition(IonType.A, 5, 4, branching_ratio=0.0),
+                                DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)},
+               'branching_S': set(),
+               'decay_A': {DecayTransition(IonType.A, 1, 0, decay_rate=83.33333333333333),
+                            DecayTransition(IonType.A, 2, 0, decay_rate=40000.0),
+                            DecayTransition(IonType.A, 3, 0, decay_rate=500.0),
+                            DecayTransition(IonType.A, 4, 0, decay_rate=500000.0),
+                            DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
+                            DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)},
+               'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=400.0)}}),
              ('ET', {
               'CR50': EneryTransferProcess([Transition(IonType.A, 5, 3),
                                             Transition(IonType.A, 0, 2)],
@@ -118,15 +117,16 @@ def test_standard_config(setup_cte):
 
     with open(filename, 'rt') as file:
         config_file = file.read()
-
     setup_cte['config_file'] = config_file
-
     settings_cte = settings.Settings(setup_cte)
 
     assert cte['lattice'] == settings_cte.lattice
     assert cte['states'] == settings_cte.states
     assert cte['excitations'] == settings_cte.excitations
-    assert cte['decay'] == settings_cte.decay
+    assert cte.decay['branching_S'] == settings_cte.decay['branching_S']
+    assert cte.decay['decay_A'] == settings_cte.decay['decay_A']
+    assert cte.decay['decay_S'] == settings_cte.decay['decay_S']
+    assert cte.decay['branching_A'] == settings_cte.decay['branching_A']
 
     assert cte == settings_cte
 

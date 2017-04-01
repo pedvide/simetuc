@@ -16,7 +16,7 @@ import warnings
 import os
 import copy
 from pkg_resources import resource_string
-from typing import Dict, List, Tuple, Any, Union, cast
+from typing import Dict, List, Tuple, Any, Union, cast, Set
 
 import numpy as np
 
@@ -271,7 +271,7 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         return parsed_dict
 
-    def _parse_decay_rates(self, parsed_settings: Dict) -> Dict[str, List[DecayTransition]]:
+    def _parse_decay_rates(self, parsed_settings: Dict) -> Dict[str, Set[DecayTransition]]:
         '''Parse the decay rates and return two lists with the state index and decay rate'''
         logger = logging.getLogger(__name__)
 
@@ -302,18 +302,18 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
             decay_S_state = [(_get_state_index(sensitizer_labels, key, section='decay rate',
                                                process=key, num=num), 1/tau, key)
                              for num, (key, tau) in enumerate(parsed_S_decay.items())]
-            decay_S = [DecayTransition(IonType.S, state_i, 0, decay_rate=val,
+            decay_S = {DecayTransition(IonType.S, state_i, 0, decay_rate=val,
                                        label_ion=sensitizer_ion_label,
                                        label_i=label, label_f=sensitizer_labels[0])
-                       for state_i, val, label in decay_S_state]
+                       for state_i, val, label in decay_S_state}
 
             decay_A_state = [(_get_state_index(activator_labels, key, section='decay rate',
                                                process=key, num=num), 1/tau, key)
                              for num, (key, tau) in enumerate(parsed_A_decay.items())]
-            decay_A = [DecayTransition(IonType.A, state_i, 0, decay_rate=val,
+            decay_A = {DecayTransition(IonType.A, state_i, 0, decay_rate=val,
                                        label_ion=activator_ion_label,
                                        label_i=label, label_f=activator_labels[0])
-                       for state_i, val, label in decay_A_state]
+                       for state_i, val, label in decay_A_state}
         except ValueError as err:
             logger.error('Invalid value for parameter in decay rates.')
             logger.error(str(err.args))
@@ -325,8 +325,8 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         return parsed_dict
 
-    def _parse_branching_ratios(self, parsed_settings: Dict) -> Tuple[List[DecayTransition],
-                                                                      List[DecayTransition]]:
+    def _parse_branching_ratios(self, parsed_settings: Dict) -> Tuple[Set[DecayTransition],
+                                                                      Set[DecayTransition]]:
         '''Parse the branching ratios'''
         sensitizer_labels = self.states['sensitizer_states_labels']
         sensitizer_ion_label = self.states['sensitizer_ion_label']
@@ -338,23 +338,25 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         if branch_ratios_S:
             states_val = [(*_get_branching_ratio_indices(process, sensitizer_labels), value)
                           for process, value in branch_ratios_S.items()]
-            branch_trans_S = [DecayTransition(IonType.S, state_i, state_f, branching_ratio=val,
+            branch_trans_S = {DecayTransition(IonType.S, state_i, state_f, branching_ratio=val,
                                               label_ion=sensitizer_ion_label,
                                               label_i=sensitizer_labels[state_i],
                                               label_f=sensitizer_labels[state_f])
-                              for state_i, state_f, val in states_val]
+                              for state_i, state_f, val in states_val
+                              if state_f != 0}
         else:
-            branch_trans_S = []
+            branch_trans_S = set()
         if branch_ratios_A:
             states_val = [(*_get_branching_ratio_indices(process, activator_labels), value)
                           for process, value in branch_ratios_A.items()]
-            branch_trans_A = [DecayTransition(IonType.A, state_i, state_f, branching_ratio=val,
+            branch_trans_A = {DecayTransition(IonType.A, state_i, state_f, branching_ratio=val,
                                               label_ion=activator_ion_label,
                                               label_i=activator_labels[state_i],
                                               label_f=activator_labels[state_f])
-                              for state_i, state_f, val in states_val]
+                              for state_i, state_f, val in states_val
+                              if state_f != 0}
         else:
-            branch_trans_A = []
+            branch_trans_A = set()
 
         return (branch_trans_S, branch_trans_A)
 
@@ -484,8 +486,8 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
                                       for process in set_other_params]
                 # make sure the branching ratio was defined before
                 for ratio in branch_transitions:
-                    if ratio not in self.decay['branching_S'] + self.decay['branching_A']:
-                        raise ValueError('Unrecognized branching ratio process.')
+                    if ratio not in self.decay['branching_S'] | self.decay['branching_A']:
+                        raise ValueError('Unrecognized branching ratio process: {}.'.format(ratio))
             else:
                 branch_transitions = []
         except ValueError as err:
@@ -559,7 +561,7 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
     def _modify_branching_ratio_value(self, process: DecayTransition, new_value: float) -> None:
         '''Modify a branching ratio param.'''
-        for branch_ratio in self.decay['branching_A'] + self.decay['branching_S']:
+        for branch_ratio in self.decay['branching_A'] | self.decay['branching_S']:
             if branch_ratio == process:
                 branch_ratio.branching_ratio = new_value
 
@@ -574,7 +576,7 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
     def get_branching_ratio_value(self, process: DecayTransition) -> float:
         '''Gets a branching ratio value.'''
-        for branch_ratio in self.decay['branching_A'] + self.decay['branching_S']:
+        for branch_ratio in self.decay['branching_A'] | self.decay['branching_S']:
             if branch_ratio == process:
                 return branch_ratio.branching_ratio
         raise ValueError('Branching ratio ({}) not found'.format(process))
@@ -824,5 +826,5 @@ def load(filename: str) -> Settings:
 
 #if __name__ == "__main__":
 #    import simetuc.settings as settings
-##    cte = settings.load('test/test_settings/test_standard_config.txt')
+##    cte_std = settings.load('test/test_settings/test_standard_config.txt')
 #    cte = settings.load('config_file.cfg')

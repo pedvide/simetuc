@@ -83,14 +83,8 @@ activator_decay:
     1G4: 760e-6
     1D2: 67.5e-6
 
-sensitizer_branching_ratios:
-# branching ratios to the ground state are not necessary
-# they are automatically calculated from the others
-    ES->GS: 1.0 # this process will be discarded
-
 activator_branching_ratios:
     # 3H5 and 3H4 to 3F4
-    3F4->3H6: 1.0 # this process will be discarded, see above
     3H5->3F4: 0.4
     3H4->3F4: 0.3
     # 3F3 to 3H4
