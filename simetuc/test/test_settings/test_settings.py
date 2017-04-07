@@ -12,7 +12,8 @@ import yaml
 import copy
 
 import simetuc.settings as settings
-from simetuc.util import temp_config_filename, ExcTransition, DecayTransition, IonType, EneryTransferProcess, Transition
+from simetuc.util import temp_config_filename, Excitation
+from simetuc.util import DecayTransition, IonType, EneryTransferProcess, Transition
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -44,11 +45,11 @@ def setup_cte():
                            ('sensitizer_states', 2),
                            ('activator_states', 7)])),
              ('excitations', {
-                  'NIR_1470': [ExcTransition(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
-                 'NIR_800': [ExcTransition(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
-                             ExcTransition(IonType.A, 2, 5, False, 11/9, 0.004, 1e7, 1e-8)],
-                 'NIR_980': [ExcTransition(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
-                 'Vis_473': [ExcTransition(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]}
+                  'NIR_1470': [Excitation(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
+                 'NIR_800': [Excitation(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
+                             Excitation(IonType.A, 2, 5, False, 11/9, 0.004, 1e7, 1e-8)],
+                 'NIR_980': [Excitation(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
+                 'Vis_473': [Excitation(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]}
              ),
              ('optimization', {'method': 'SLSQP', 'processes': ['CR50'], 'excitations': []}),
              ('power_dependence', [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0]),
@@ -58,23 +59,22 @@ def setup_cte():
                                     'atol': 1e-15,
                                     'rtol': 0.001}),
              ('decay',
-              {'branching_A': [DecayTransition(IonType.A, 1, 0, branching_ratio=1.0),
-                DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
-                DecayTransition(IonType.A, 3, 1, branching_ratio=0.3),
-                DecayTransition(IonType.A, 4, 3, branching_ratio=0.999),
-                DecayTransition(IonType.A, 5, 1, branching_ratio=0.15),
-                DecayTransition(IonType.A, 5, 2, branching_ratio=0.16),
-                DecayTransition(IonType.A, 5, 3, branching_ratio=0.04),
-                DecayTransition(IonType.A, 5, 4, branching_ratio=0.0),
-                DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)],
-               'branching_S': [DecayTransition(IonType.S, 1, 0, branching_ratio=1.0)],
-               'decay_A': [DecayTransition(IonType.A, 1, 0, decay_rate=83.33333333333333),
-                DecayTransition(IonType.A, 2, 0, decay_rate=40000.0),
-                DecayTransition(IonType.A, 3, 0, decay_rate=500.0),
-                DecayTransition(IonType.A, 4, 0, decay_rate=500000.0),
-                DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
-                DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)],
-               'decay_S': [DecayTransition(IonType.S, 1, 0, decay_rate=400.0)]}),
+              {'branching_A': {DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
+                                DecayTransition(IonType.A, 3, 1, branching_ratio=0.3),
+                                DecayTransition(IonType.A, 4, 3, branching_ratio=0.999),
+                                DecayTransition(IonType.A, 5, 1, branching_ratio=0.15),
+                                DecayTransition(IonType.A, 5, 2, branching_ratio=0.16),
+                                DecayTransition(IonType.A, 5, 3, branching_ratio=0.04),
+                                DecayTransition(IonType.A, 5, 4, branching_ratio=0.0),
+                                DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)},
+               'branching_S': set(),
+               'decay_A': {DecayTransition(IonType.A, 1, 0, decay_rate=83.33333333333333),
+                            DecayTransition(IonType.A, 2, 0, decay_rate=40000.0),
+                            DecayTransition(IonType.A, 3, 0, decay_rate=500.0),
+                            DecayTransition(IonType.A, 4, 0, decay_rate=500000.0),
+                            DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
+                            DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)},
+               'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=400.0)}}),
              ('ET', {
               'CR50': EneryTransferProcess([Transition(IonType.A, 5, 3),
                                             Transition(IonType.A, 0, 2)],
@@ -118,15 +118,18 @@ def test_standard_config(setup_cte):
 
     with open(filename, 'rt') as file:
         config_file = file.read()
-
     setup_cte['config_file'] = config_file
-
     settings_cte = settings.Settings(setup_cte)
 
     assert cte['lattice'] == settings_cte.lattice
     assert cte['states'] == settings_cte.states
+
     assert cte['excitations'] == settings_cte.excitations
-    assert cte['decay'] == settings_cte.decay
+    assert cte.decay['branching_S'] == settings_cte.decay['branching_S']
+    assert cte.decay['decay_A'] == settings_cte.decay['decay_A']
+    assert cte.decay['decay_S'] == settings_cte.decay['decay_S']
+    assert cte.decay['branching_A'] == settings_cte.decay['branching_A']
+    assert cte.decay == settings_cte.decay
 
     assert cte == settings_cte
 
@@ -767,7 +770,7 @@ excitations:
         pump_rate: 9.3e-4 # cm2/J
 '''
 
-def test_decay_config1():
+def test_decay_ok():
     data = data_abs_ok + '''sensitizer_decay:
 # lifetimes in s
     ES: dsa
@@ -816,7 +819,7 @@ activator_decay:
     assert excinfo.match(r"does not have the right type")
     assert excinfo.type == ValueError
 
-def test_decay_config3():
+def test_decay_missing_A_state():
     data = data_abs_ok + '''sensitizer_decay:
 # lifetimes in s
     ES: 1e-3
@@ -834,9 +837,9 @@ activator_decay:
     assert excinfo.match(r"All activator states must have a decay rate")
     assert excinfo.type == settings.ConfigError
 
-def test_decay_config4():
+def test_decay_missing_S_state():
     data = data_abs_ok + '''sensitizer_decay:
-# lifetimes in s
+    1ES: 2e-3
 
 activator_decay:
     3F4: 12e-3
@@ -846,12 +849,13 @@ activator_decay:
     1G4: 760e-6
     1D2: 67.5e-6
 '''
-    with pytest.raises(ValueError) as excinfo: # ES state missing
+    data = data.replace('sensitizer_states_labels: [GS, ES]',
+                        'sensitizer_states_labels: [GS, 1ES, 2ES]')
+    with pytest.raises(settings.ConfigError) as excinfo: # 2ES state missing
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Setting 'sensitizer_decay'")
-    assert excinfo.match(r"does not have the right type")
-    assert excinfo.type == ValueError
+    assert excinfo.match(r"All sensitizer states must have a decay rate")
+    assert excinfo.type == settings.ConfigError
 
 def test_decay_config5():
     data = data_abs_ok + '''sensitizer_decay:

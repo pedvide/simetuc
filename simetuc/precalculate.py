@@ -96,9 +96,9 @@ def _create_total_absorption_matrix(sensitizer_states: int, activator_states: in
             power_dens = current_exc.power_dens
             pump_rate = current_exc.pump_rate
             degeneracy = current_exc.degeneracy
-            init_state = current_exc.state_i
-            final_state = current_exc.state_f
-            ion_exc =  current_exc.ion
+            init_state = current_exc.transition.state_i
+            final_state = current_exc.transition.state_f
+            ion_exc =  current_exc.transition.ion
 
             if ion_exc == settings.IonType.S and sensitizer_states:
                 if init_state < sensitizer_states and final_state < sensitizer_states:
@@ -705,7 +705,7 @@ def get_lifetimes(cte: settings.Settings) -> List[float]:
     decay_S = cte['decay']['decay_S']
     decay_A = cte['decay']['decay_A']
 
-    return [1/float(decay_proc.decay_rate) for decay_proc in decay_S + decay_A]
+    return [1/float(decay_proc.decay_rate) for decay_proc in decay_S | decay_A]
 
 
 #@profile

@@ -13,7 +13,7 @@ import os
 from typing import List, Tuple, Iterator, Sequence, Union
 
 import h5py
-import yaml
+import ruamel_yaml as yaml
 
 import numpy as np
 
@@ -28,10 +28,8 @@ import simetuc.precalculate as precalculate
 import simetuc.odesolver as odesolver
 #import simetuc.odesolver_assimulo as odesolver  # warning: it's slower!
 import simetuc.plotter as plotter
-from simetuc.util import Conc, DecayTransition, cached_property
+from simetuc.util import Conc, Transition, DecayTransition, cached_property
 from simetuc.settings import Settings
-
-# TODO: http://stackoverflow.com/questions/6428723/python-are-property-fields-being-cached-automatically
 
 
 class Solution():
@@ -834,6 +832,16 @@ class Simulations():
             raise
         return tf_p
 
+    def save_file_full_name(self, prefix: str = None) -> str:  # pragma: no cover
+        '''Return the full name to save a file (without extention or prefix).'''
+        lattice_name = self.cte.lattice['name']
+        path = os.path.join('results', lattice_name)
+        os.makedirs(path, exist_ok=True)
+        filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(self.cte['lattice']['N_uc']),
+                                                        float(self.cte.lattice['S_conc']),
+                                                        float(self.cte.lattice['A_conc']))
+        return os.path.join(path, filename)
+
     def modify_param_value(self, process: Union[str, DecayTransition], new_value: float) -> None:
         '''Change the value of the process.'''
         self.cte.modify_param_value(process, new_value)
@@ -844,7 +852,7 @@ class Simulations():
         '''
         return self.cte.get_ET_param_value(process, average)
 
-    def get_branching_ratio_value(self, process: DecayTransition) -> float:
+    def get_branching_ratio_value(self, process: Transition) -> float:
         '''Gets a branching ratio value.'''
         return self.cte.get_branching_ratio_value(process)
 
@@ -1080,34 +1088,34 @@ class Simulations():
         return conc_dep_solution
 
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.DEBUG,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#
-#    logger.info('Called from cmd.')
-#
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
-#
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
-#
-#    sim = Simulations(cte)
-#
-##    solution = sim.simulate_dynamics()
-##    solution.log_errors()
-##    solution.plot()
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+
+    logger.info('Called from cmd.')
+
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')
+
+    cte['no_console'] = False
+    cte['no_plot'] = False
+
+    sim = Simulations(cte)
+
+    solution = sim.simulate_dynamics()
+    solution.log_errors()
+    solution.plot()
 ##
 ##    solution.plot(state=7)
 ##
-##    solution_avg = sim.simulate_avg_dynamics()
-##    solution_avg.log_errors()
-##    solution_avg.plot()
+#    solution_avg = sim.simulate_avg_dynamics()
+#    solution_avg.log_errors()
+#    solution_avg.plot()
 ##
-##    solution = sim.simulate_steady_state()
-##    solution.log_populations()
-##    solution.plot()
+#    solution = sim.simulate_steady_state()
+#    solution.log_populations()
+#    solution.plot()
 ##
 ##    solution_avg = sim.simulate_avg_steady_state()
 ##    solution_avg.log_populations()

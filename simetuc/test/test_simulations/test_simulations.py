@@ -13,7 +13,7 @@ import numpy as np
 import simetuc.simulations as simulations
 import simetuc.plotter as plotter
 from simetuc.util import temp_config_filename, temp_bin_filename, IonType, DecayTransition
-from simetuc.util import EneryTransferProcess, Transition, ExcTransition
+from simetuc.util import EneryTransferProcess, Transition, Excitation
 from simetuc.settings import Settings
 
 ### TODO: Test loading exp data with different formats
@@ -45,7 +45,7 @@ def setup_cte():
               'ETU1': EneryTransferProcess([Transition(IonType.S, 1, 0),
                                             Transition(IonType.A, 0, 2)],
                                            mult=6, strength=10000.0),},
-         'decay': {'branching_A': [DecayTransition(IonType.A, 1, 0, branching_ratio=1.0),
+         'decay': {'branching_A': {DecayTransition(IonType.A, 1, 0, branching_ratio=1.0),
                 DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
                 DecayTransition(IonType.A, 3, 1, branching_ratio=0.3),
                 DecayTransition(IonType.A, 3, 2, branching_ratio=0.1),
@@ -54,21 +54,21 @@ def setup_cte():
                 DecayTransition(IonType.A, 5, 2, branching_ratio=0.16),
                 DecayTransition(IonType.A, 5, 3, branching_ratio=0.04),
                 DecayTransition(IonType.A, 5, 4, branching_ratio=0.0),
-                DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)],
-               'branching_S': [DecayTransition(IonType.S, 1, 0, branching_ratio=1.0)],
-               'decay_A': [DecayTransition(IonType.A, 1, 0, decay_rate=83.33333333333333),
+                DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)},
+               'branching_S': {DecayTransition(IonType.S, 1, 0, branching_ratio=1.0)},
+               'decay_A': {DecayTransition(IonType.A, 1, 0, decay_rate=83.33333333333333),
                 DecayTransition(IonType.A, 2, 0, decay_rate=40000.0),
                 DecayTransition(IonType.A, 3, 0, decay_rate=500.0),
                 DecayTransition(IonType.A, 4, 0, decay_rate=500000.0),
                 DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
-                DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)],
-               'decay_S': [DecayTransition(IonType.S, 1, 0, decay_rate=400.0)]},
+                DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)},
+               'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=400.0)}},
          'excitations': {
-                  'NIR_1470': [ExcTransition(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
-                 'NIR_800': [ExcTransition(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
-                             ExcTransition(IonType.A, 2, 5, False, 11/9, 0.002, 1e7, 1e-8)],
-                 'NIR_980': [ExcTransition(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
-                 'Vis_473': [ExcTransition(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]},
+                  'NIR_1470': [Excitation(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
+                 'NIR_800': [Excitation(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
+                             Excitation(IonType.A, 2, 5, False, 11/9, 0.002, 1e7, 1e-8)],
+                 'NIR_980': [Excitation(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
+                 'Vis_473': [Excitation(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]},
            'lattice': {'A_conc': 0.3,
                      'N_uc': 20,
                      'S_conc': 0.3,
