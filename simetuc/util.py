@@ -204,6 +204,11 @@ class Excitation():
         '''Not equal operator'''
         return not (self == other)
 
+    def __hash__(self) -> int:
+        '''Same as Transition'''
+        # useful to compare DecayTransitions with Transitions
+        return super(DecayTransition, self).__hash__()
+
 
 class EneryTransferProcess():
     '''Information about an energy transfer process'''

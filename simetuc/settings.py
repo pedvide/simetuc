@@ -577,7 +577,6 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
     def get_branching_ratio_value(self, process: Transition) -> float:
         '''Gets a branching ratio value.'''
         for branch_ratio in self.decay['branching_A'] | self.decay['branching_S']:
-            print(branch_ratio)
             if branch_ratio == process:
                 return branch_ratio.branching_ratio
         raise ValueError('Branching ratio ({}) not found'.format(process))
@@ -825,7 +824,7 @@ def load(filename: str) -> Settings:
     return settings
 
 
-if __name__ == "__main__":
-    import simetuc.settings as settings
-#    cte_std = settings.load('test/test_settings/test_standard_config.txt')
-    cte = settings.load('config_file.cfg')
+#if __name__ == "__main__":
+#    import simetuc.settings as settings
+##    cte_std = settings.load('test/test_settings/test_standard_config.txt')
+#    cte = settings.load('config_file.cfg')
