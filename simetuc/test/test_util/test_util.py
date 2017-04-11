@@ -4,11 +4,13 @@ Created on Sun Apr  2 17:03:04 2017
 
 @author: Villanueva
 """
+
 import warnings
 import pytest
 
 from simetuc.util import IonType, Transition, DecayTransition, Excitation, EneryTransferProcess
 from simetuc.util import log_exceptions_warnings
+
 
 def test_transition():
     '''Test generic transitions'''
@@ -134,4 +136,3 @@ def test_log_exceptions_warnings_exception(caplog):
     assert len(caplog.records) == 1
     assert caplog.records[0].levelname == 'ERROR'
     assert 'division by zero' in caplog.text
-
