@@ -13,7 +13,7 @@ import numpy as np
 import simetuc.simulations as simulations
 import simetuc.plotter as plotter
 from simetuc.util import temp_config_filename, temp_bin_filename, IonType, DecayTransition
-from simetuc.util import EneryTransferProcess, Transition, ExcTransition
+from simetuc.util import EneryTransferProcess, Transition, Excitation
 from simetuc.settings import Settings
 
 ### TODO: Test loading exp data with different formats
@@ -64,11 +64,11 @@ def setup_cte():
                 DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)},
                'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=400.0)}},
          'excitations': {
-                  'NIR_1470': [ExcTransition(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
-                 'NIR_800': [ExcTransition(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
-                             ExcTransition(IonType.A, 2, 5, False, 11/9, 0.002, 1e7, 1e-8)],
-                 'NIR_980': [ExcTransition(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
-                 'Vis_473': [ExcTransition(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]},
+                  'NIR_1470': [Excitation(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
+                 'NIR_800': [Excitation(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
+                             Excitation(IonType.A, 2, 5, False, 11/9, 0.002, 1e7, 1e-8)],
+                 'NIR_980': [Excitation(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
+                 'Vis_473': [Excitation(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]},
            'lattice': {'A_conc': 0.3,
                      'N_uc': 20,
                      'S_conc': 0.3,
@@ -294,9 +294,7 @@ def test_sim_power_dep1(setup_cte, mocker):
 
     with temp_config_filename('') as filename:
         solution.save(filename)
-        sol_hdf5 = simulations.PowerDependenceSolution()
-        assert not sol_hdf5
-        sol_hdf5.load(filename)
+        sol_hdf5 = simulations.PowerDependenceSolution.load(filename)
 
     with temp_config_filename('') as filename:
         solution.save_txt(filename)
@@ -374,9 +372,7 @@ def test_sim_conc_dep_steady(setup_cte, mocker):
     solution.plot()
     with temp_config_filename('') as filename:
         solution.save(filename)
-        sol_hdf5 = simulations.ConcentrationDependenceSolution()
-        assert not sol_hdf5
-        sol_hdf5.load(filename)
+        sol_hdf5 = simulations.ConcentrationDependenceSolution.load(filename)
 
     assert sol_hdf5
     assert sol_hdf5 == solution
@@ -400,9 +396,7 @@ def test_sim_conc_dep_dyn(setup_cte, mocker):
     solution.plot()
     with temp_config_filename('') as filename:
         solution.save(filename)
-        sol_hdf5 = simulations.ConcentrationDependenceSolution()
-        assert not sol_hdf5
-        sol_hdf5.load(filename)
+        sol_hdf5 = simulations.ConcentrationDependenceSolution.load(filename)
 
     assert sol_hdf5
     assert sol_hdf5 == solution
@@ -497,5 +491,5 @@ def test_sim_conc_dep_no_plot(setup_cte, recwarn, mocker):
 def test_sim_conc_dep_no_file():
     '''Wrong filename'''
     with pytest.raises(OSError):
-        simulations.PowerDependenceSolution().load(os.path.join(test_folder_path, 'wrongFile.hdf5'))
+        simulations.PowerDependenceSolution.load(os.path.join(test_folder_path, 'wrongFile.hdf5'))
 

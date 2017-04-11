@@ -19,7 +19,7 @@ from tqdm import tqdm
 import ase
 from ase.spacegroup import crystal
 
-from simetuc.util import ConfigError
+from simetuc.util import ConfigError, log_exceptions_warnings
 import simetuc.plotter as plotter
 import simetuc.settings as settings
 import simetuc.settings_config as configs
@@ -29,10 +29,9 @@ class LatticeError(Exception):
     '''The generated lattice is not valid'''
     pass
 
+@log_exceptions_warnings
 def _check_lattice_settings(cte: settings.Settings) -> None:
     '''Checks that the settings for the lattice are correct.'''
-    logger = logging.getLogger(__name__)
-
     cte_lattice = cte.lattice
 
     # parse the settings to catch any errors due to wrong magnitude of a setting
@@ -43,7 +42,7 @@ def _check_lattice_settings(cte: settings.Settings) -> None:
         settings_lattice = [value for value in lst_confs if value.name is 'lattice'][0]
         settings_lattice.parse(cte['lattice'])
     except (ValueError, ConfigError) as err:
-        raise LatticeError from err
+        raise LatticeError('Wrong lattice settings.') from err
 
     # modify some values
     # this should go to lattice.py
@@ -68,7 +67,6 @@ def _check_lattice_settings(cte: settings.Settings) -> None:
 
     if not len(cte_lattice['sites_pos']) == len(cte_lattice['sites_occ']):
         msg = 'The number of sites must be the same in sites_pos and sites_occ.'
-        logger.error(msg)
         raise LatticeError(msg)
 
     S_conc = float(cte['lattice']['S_conc'])
@@ -76,16 +74,15 @@ def _check_lattice_settings(cte: settings.Settings) -> None:
 
     # if the concentrations are not in the correct range
     if not (0 <= S_conc+A_conc <= 100.0):
-        logger.error('Wrong ion concentrations:' +
-                     '%.2f%% Sensitizer, %.2f%% Activator.', S_conc, A_conc)
-        logger.error('They must be between 0% and 100%, and their sum too.')
-        raise LatticeError('Wrong ion concentrations.')
+        msg = 'Wrong ion concentrations: {:.2f}% Sensitizer, {:.2f}% Activator.'.format(S_conc, A_conc)
+        msg += ' Their sum must be between 0% and 100%.'
+        raise LatticeError(msg)
 
+    # at least a state must exist
     num_S_states = cte['states']['sensitizer_states']
     num_A_states = cte['states']['activator_states']
     if (S_conc != 0 and num_S_states == 0) or (A_conc != 0 and num_A_states == 0):
-        logger.error('The number of states of each ion cannot be zero.')
-        raise LatticeError('Wrong number of states.')
+        raise LatticeError('The number of states of each ion cannot be zero.')
 
 
 def _create_lattice(spacegroup: Union[int, str], cell_par: List[float], num_uc: int,
@@ -319,6 +316,7 @@ def make_full_path(folder_path: str, num_uc: int,
 
 
 # @profile
+@log_exceptions_warnings
 def generate(cte: settings.Settings, min_im_conv: bool = True,
              full_path: str = None, no_save: bool = False) -> Tuple:
     '''
@@ -384,7 +382,6 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
     if num_doped_atoms == 0 or num_states == 0:
         msg = ('No doped ions generated: the lattice or' +
                ' the concentrations are too small, or the number of energy states is zero!')
-        logger.error(msg)
         raise LatticeError(msg)
 
     logger.info('Total number of S+A: %d, (%.2f%%).',
@@ -490,10 +487,14 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
 #
 ##    cte['lattice']['S_conc'] = 100
 ##    cte['lattice']['A_conc'] = 0
-##    cte['lattice']['N_uc'] = -20
+##    cte['lattice']['N_uc'] = 1
 ##    cte['lattice']['radius'] = 20
 ##    cte['states']['sensitizer_states'] = 0
-##    cte['states']['activator_states'] = 4
+##    cte['states']['activator_states'] = 0
+#
+#    cte.lattice['sites_occ'] = 1.0
+##    cte.lattice['A_conc'] = 75.0
+##    cte.lattice['S_conc'] = 75.0
 #
 #    (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
 #     index_S_i, index_A_j,

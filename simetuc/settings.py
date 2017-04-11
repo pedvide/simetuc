@@ -12,9 +12,9 @@ import re
 import logging
 # nice debug printing of settings
 import pprint
-import warnings
 import os
 import copy
+import warnings
 from pkg_resources import resource_string
 from typing import Dict, List, Tuple, Any, Union, cast, Set
 
@@ -22,8 +22,8 @@ import numpy as np
 
 import yaml
 
-from simetuc.util import LabelError, ConfigError, ConfigWarning
-from simetuc.util import Transition, ExcTransition, DecayTransition, IonType, EneryTransferProcess
+from simetuc.util import LabelError, ConfigError, ConfigWarning, log_exceptions_warnings
+from simetuc.util import Transition, Excitation, DecayTransition, IonType, EneryTransferProcess
 from simetuc.value import Value
 import simetuc.settings_config as configs
 
@@ -50,8 +50,8 @@ class Settings(Dict):
         # get either energy_transfer or ET
         self.energy_transfer = cte_dict.get('energy_transfer', cte_dict.get('ET', {}))
 
-        if 'optimization' in cte_dict:
-            self.optimization = cte_dict.get('optimization')
+        self.optimization = cte_dict.get('optimization', {})
+
         if 'simulation_params' in cte_dict:
             self.simulation_params = cte_dict.get('simulation_params')
         if 'power_dependence' in cte_dict:
@@ -75,7 +75,7 @@ class Settings(Dict):
     def get(self, key: str, default: Any = None) -> Any:
         '''Implements settings.get(key, default).'''
         if key in self:
-            return self[key]
+            return getattr(self, key)
         else:
             return default
 
@@ -131,10 +131,10 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
                               pprint.pformat(self.decay), pprint.pformat(self.energy_transfer))
 
     @staticmethod
+    @log_exceptions_warnings
     def parse_all_values(settings_list: List, config_dict: Dict) -> Dict:
         '''Parses the settings in the config_dict
             using the settings list.'''
-        logger = logging.getLogger(__name__)
 #        pprint.pprint(config_dict)
 
         present_values = set(config_dict.keys())
@@ -146,21 +146,16 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         # if present values don't include all needed values
         if not present_values.issuperset(needed_values):
-            set_needed_not_present = needed_values - present_values
-            logger.error('Sections that are needed but not present in the file:')
-            text = 'sections'
-            logger.error(str(set(set_needed_not_present)))
-            raise ConfigError('The {} '.format(text) +
-                              '{} must be present.'.format(set_needed_not_present))
+            raise ConfigError('Sections that are needed but not present in the file: ' +
+                              str(needed_values - present_values) +
+                              '. Those sections must be present!')
 
         set_extra = present_values - needed_values
         # if there are extra values and they aren't optional
         if set_extra and not set_extra.issubset(optional_values):
-            set_not_optional = set_extra - optional_values
-            logger.warning('WARNING! The following values are not recognized:')
-            logger.warning(str(set_not_optional))
-            warnings.warn('Some values or sections should not be present '
-                          'in the file: ' + str(set_not_optional), ConfigWarning)
+            warnings.warn('WARNING! The following values are not recognized:: ' +
+                          str(set_extra - optional_values) +
+                          '. Those values or sections should not be present', ConfigWarning)
 
         parsed_dict = {}  # type: Dict
         for value in settings_list:
@@ -174,11 +169,10 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 #        pprint.pprint(parsed_dict)
         return parsed_dict
 
+    @log_exceptions_warnings
     def _parse_excitations(self, dict_excitations: Dict) -> Dict:
         '''Parses the excitation section
             Returns the parsed excitations dict'''
-        logger = logging.getLogger(__name__)
-
         sensitizer_labels = self.states['sensitizer_states_labels']
         activator_labels = self.states['activator_states_labels']
         parsed_dict = {}  # type: Dict
@@ -198,8 +192,7 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
                     len(exc_dict['pump_rate']) ==
                     len(exc_dict['process'])):
                 msg = ('pump_rate, degeneracy, and process ' +
-                       'must have the same number of items in {}.').format(exc_label)
-                logger.error(msg)
+                   'must have the same number of items in {}.').format(exc_label)
                 raise ValueError(msg)
 
             exc_dict['init_state'] = []
@@ -221,8 +214,8 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
                 if init_ion != final_ion:
                     msg = 'Incorrect ion label in excitation: {}'.format(process)
-                    logger.error(msg)
                     raise ValueError(msg)
+
                 if init_ion == self.states['sensitizer_ion_label']:  # SENSITIZER
                     init_state_num = _get_state_index(sensitizer_labels, init_state,
                                                       section='excitation process')
@@ -239,26 +232,25 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
                     exc_dict['ion_exc'].append('A')
                 else:
                     msg = 'Incorrect ion label in excitation: {}'.format(process)
-                    logger.error(msg)
                     raise ValueError(msg)
+
                 # add to list
                 exc_dict['init_state'].append(init_state_num)
                 exc_dict['final_state'].append(final_state_num)
 
                 ion = IonType.S if exc_dict['ion_exc'][-1] is 'S' else IonType.A
-                exc_trans = ExcTransition(ion, init_state_num, final_state_num,
-                                          exc_dict['active'], exc_dict['degeneracy'][num],
-                                          exc_dict['pump_rate'][num], exc_dict['power_dens'],
-                                          exc_dict.get('t_pulse', None),
-                                          label_ion=init_ion,
-                                          label_i=init_state, label_f=final_state)
+                exc_trans = Excitation(ion, init_state_num, final_state_num,
+                                       exc_dict['active'], exc_dict['degeneracy'][num],
+                                       exc_dict['pump_rate'][num], exc_dict['power_dens'],
+                                       exc_dict.get('t_pulse', None),
+                                       label_ion=init_ion,
+                                       label_i=init_state, label_f=final_state)
                 parsed_dict[exc_label].append(exc_trans)
 
             # all ions must be the same in the list!
             ion_list = exc_dict['ion_exc']
             if not all(ion == ion_list[0] for ion in ion_list):
                 msg = 'All processes must involve the same ion in {}.'.format(exc_label)
-                logger.error(msg)
                 raise ValueError(msg)
 
             dict_excitations[exc_label] = exc_dict
@@ -266,17 +258,13 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         # at least one excitation must exist and be active
         if not any(dict_excitations[label]['active'] for label in dict_excitations or []):
             msg = 'At least one excitation must be present and active'
-            logger.error(msg)
             raise ConfigError(msg)
 
         return parsed_dict
 
+    @log_exceptions_warnings
     def _parse_decay_rates(self, parsed_settings: Dict) -> Dict[str, Set[DecayTransition]]:
         '''Parse the decay rates and return two lists with the state index and decay rate'''
-        logger = logging.getLogger(__name__)
-
-        # DECAY RATES in inverse seconds
-
         sensitizer_labels = self.states['sensitizer_states_labels']
         sensitizer_ion_label = self.states['sensitizer_ion_label']
         activator_labels = self.states['activator_states_labels']
@@ -287,12 +275,10 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         if parsed_settings['sensitizer_decay'] is None or\
                 len(parsed_settings['sensitizer_decay']) != len(sensitizer_labels)-1:
             msg = 'All sensitizer states must have a decay rate.'
-            logger.error(msg)
             raise ConfigError(msg)
         if parsed_settings['activator_decay'] is None or\
                 len(parsed_settings['activator_decay']) != len(activator_labels)-1:
             msg = 'All activator states must have a decay rate.'
-            logger.error(msg)
             raise ConfigError(msg)
 
         parsed_S_decay = parsed_settings['sensitizer_decay']
@@ -314,10 +300,11 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
                                        label_ion=activator_ion_label,
                                        label_i=label, label_f=activator_labels[0])
                        for state_i, val, label in decay_A_state}
-        except ValueError as err:
-            logger.error('Invalid value for parameter in decay rates.')
-            logger.error(str(err.args))
+        except LabelError:
             raise
+        except ValueError as err:
+            msg = 'Invalid value for parameter in decay rates. ' + str(err.args)
+            raise ValueError(msg)
 
         parsed_dict = {}
         parsed_dict['decay_S'] = decay_S
@@ -325,6 +312,7 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         return parsed_dict
 
+    @log_exceptions_warnings
     def _parse_branching_ratios(self, parsed_settings: Dict) -> Tuple[Set[DecayTransition],
                                                                       Set[DecayTransition]]:
         '''Parse the branching ratios'''
@@ -360,6 +348,7 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         return (branch_trans_S, branch_trans_A)
 
+    @log_exceptions_warnings
     def _parse_ET(self, parsed_dict: Dict) -> Dict:
         '''Parse the energy transfer processes'''
         sensitizer_ion_label = self.states['sensitizer_ion_label']
@@ -409,10 +398,9 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         return ET_dict
 
+    @log_exceptions_warnings
     def _parse_optimization(self, parsed_dict: Dict) -> Dict[str, Any]:
         '''Parse the optional optimization settings.'''
-        logger = logging.getLogger(__name__)
-
         if 'processes' in parsed_dict:
             parsed_dict['processes'] = self._parse_optim_params(parsed_dict['processes'])
 
@@ -422,15 +410,14 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
             if label not in self.excitations:
                 msg = ('Label "{}" in optimization: excitations '.format(label)
                        + 'not found in excitations section above!')
-                logger.error(msg)
                 raise LabelError(msg)
 
         return parsed_dict
 
+    @log_exceptions_warnings
     def _match_branching_ratio(self, process: str) -> Transition:
         '''Gets a branching ratio process and returns the Transition.
             Raises an exception if the states do not exist.'''
-        logger = logging.getLogger(__name__)
 
         state_re = r'[\w/]+'  # match any letter, including forward slash '/'
         # spaces state_label -> state_label spaces
@@ -440,7 +427,6 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         if not list_matches:
             # error
             msg = 'Unrecognized branching ratio process.'
-            logger.error(msg)
             raise LabelError(msg)
         state_i, state_f = list_matches[0]
 
@@ -461,14 +447,12 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         else:
             # error
             msg = 'Unrecognized branching ratio process.'
-            logger.error(msg)
             raise LabelError(msg)
 
+    @log_exceptions_warnings
     def _parse_optim_params(self, dict_optim: Dict) -> List:
         '''Parse the optional list of parameters to optimize.
            Some of the params are ET, other are branching ratios'''
-        logger = logging.getLogger(__name__)
-
         # ET params that the user has defined
         set_good_ET_params = set(self.energy_transfer.keys())
 
@@ -481,7 +465,7 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         set_other_params = set_params.difference(set_ET_params)
         try:
             if set_other_params:
-                # list of tuples of states and decay rate
+                # list of transitions
                 branch_transitions = [self._match_branching_ratio(process)
                                       for process in set_other_params]
                 # make sure the branching ratio was defined before
@@ -492,13 +476,12 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
                 branch_transitions = []
         except ValueError as err:
             msg = 'Wrong labels in optimization: processes! ' + str(err.args[0])
-            logger.error(msg)
             raise LabelError(msg) from err
 
         return list(set_ET_params) + branch_transitions
 
-    @staticmethod
-    def _parse_simulation_params(user_settings: Dict = None) -> Dict:
+    @log_exceptions_warnings
+    def _parse_simulation_params(self, user_settings: Dict = None) -> Dict:
         '''Parse the optional simulation parameters
             If some are not given, the default values are used
         '''
@@ -517,20 +500,18 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         return new_settings
 
-    @staticmethod
-    def _parse_power_dependence(user_list: List = None) -> List[float]:
+    @log_exceptions_warnings
+    def _parse_power_dependence(self, user_list: List = None) -> List[float]:
         '''Parses the power dependence list with the minimum, maximum and number of points.'''
-
         min_power = user_list[0]
         max_power = user_list[1]
         num_points = int(user_list[2])
 
         power_list = np.logspace(np.log10(min_power), np.log10(max_power), num_points)
-
         return list(power_list)
 
-    @staticmethod
-    def _parse_conc_dependence(user_list: Tuple[List[float], List[float]] = None
+    @log_exceptions_warnings
+    def _parse_conc_dependence(self, user_list: Tuple[List[float], List[float]] = None
                               ) -> List[Tuple[float, float]]:
         '''Parses the concentration dependence list with
             the minimum, maximum and number of points.'''
@@ -548,18 +529,18 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         return conc_list
 
-    def modify_param_value(self, process: Union[str, DecayTransition], new_value: float) -> None:
+    def modify_param_value(self, process: Union[str, Transition], new_value: float) -> None:
         '''Change the value of the process.'''
         if isinstance(process, str):
             self._modify_ET_param_value(process, new_value)
-        elif isinstance(process, DecayTransition):
+        elif isinstance(process, Transition):
             self._modify_branching_ratio_value(process, new_value)
 
     def _modify_ET_param_value(self, process: str, new_strength: float) -> None:
         '''Modify a ET parameter'''
         self.energy_transfer[process].strength = new_strength
 
-    def _modify_branching_ratio_value(self, process: DecayTransition, new_value: float) -> None:
+    def _modify_branching_ratio_value(self, process: Transition, new_value: float) -> None:
         '''Modify a branching ratio param.'''
         for branch_ratio in self.decay['branching_A'] | self.decay['branching_S']:
             if branch_ratio == process:
@@ -574,13 +555,15 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         else:
             return self.energy_transfer[process].strength
 
-    def get_branching_ratio_value(self, process: DecayTransition) -> float:
+    @log_exceptions_warnings
+    def get_branching_ratio_value(self, process: Transition) -> float:
         '''Gets a branching ratio value.'''
         for branch_ratio in self.decay['branching_A'] | self.decay['branching_S']:
             if branch_ratio == process:
                 return branch_ratio.branching_ratio
         raise ValueError('Branching ratio ({}) not found'.format(process))
 
+    @log_exceptions_warnings
     def load(self, filename: str) -> None:
         ''' Load filename and extract the settings for the simulations
             If mandatory values are missing, errors are logged
@@ -596,9 +579,8 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
 
         # check version
         if 'version' not in config_cte or config_cte['version'] != 1:
-            logger.error('Error in configuration file (%s)!', filename)
-            logger.error('Version number must be 1!')
-            raise ConfigError('Version number must be 1!')
+            raise ConfigError('Error in configuration file ({})! '.format(filename) +
+                              'Version number must be 1!')
         del config_cte['version']
 
         # store original configuration file
@@ -673,13 +655,12 @@ class Loader():
         '''Init variables'''
         self.file_dict = {}  # type: Dict
 
+    @log_exceptions_warnings
     def load_settings_file(self, filename: Union[str, bytes], file_format: str = 'yaml',
                            direct_file: bool = False) -> Dict:
         '''Loads a settings file with the given format (only YAML supported at this time).
             If direct_file=True, filename is actually a file and not a path to a file.
             If the file doesn't exist ir it's emtpy, raise ConfigError.'''
-        logger = logging.getLogger(__name__)
-
         if file_format.lower() == 'yaml':
             self.file_dict = self._load_yaml_file(filename, direct_file)
         else:
@@ -687,18 +668,16 @@ class Loader():
 
         if self.file_dict is None or not isinstance(self.file_dict, dict):
             msg = 'The settings file is empty or otherwise invalid ({})!'.format(filename)
-            logger.error(msg)
             raise ConfigError(msg)
 
         return self.file_dict
 
+    @log_exceptions_warnings
     def _load_yaml_file(self, filename: Union[str, bytes], direct_file: bool = False) -> Dict:
         '''Open a yaml filename and loads it into a dictionary
             ConfigError exceptions are raised if the file doesn't exist or is invalid.
             If direct_file=True, filename is actually a file and not a path to one
         '''
-        logger = logging.getLogger(__name__)
-
         file_dict = {}  # type: Dict
         try:
             if not direct_file:
@@ -708,23 +687,21 @@ class Loader():
             else:
                 file_dict = self._ordered_load(filename, yaml.SafeLoader)
         except OSError as err:
-            logger.error('Error reading file!')
-            logger.error(str(err.args), exc_info=True)
-            raise ConfigError('Error reading file ({})!'.format(filename)) from err
+            raise ConfigError('Error reading file ({})! '.format(filename) +
+                              str(err.args)) from err
         except yaml.YAMLError as exc:
-            logger.error('Error while parsing the config file: %s!', filename, exc_info=True)
+            msg = 'Error while parsing the config file: {}! '.format(filename)
             if hasattr(exc, 'problem_mark'):
-                logger.error(str(exc.problem_mark).strip())
+                msg += str(exc.problem_mark).strip()
                 if exc.context is not None:
-                    logger.error(str(exc.problem).strip() + ' ' + str(exc.context).strip())
+                    msg += str(exc.problem).strip() + ' ' + str(exc.context).strip()
                 else:
-                    logger.error(str(exc.problem).strip())
-                logger.error('Please correct data and retry.')
+                    msg += str(exc.problem).strip()
+                msg += 'Please correct data and retry.'
             else:  # pragma: no cover
-                logger.error('Something went wrong while parsing the config file (%s):', filename)
-                logger.error(exc)
-            raise ConfigError('Something went wrong while parsing ' +
-                              'the config file ({})!'.format(filename)) from exc
+                msg += 'Something went wrong while parsing the config file ({}):'.format(filename)
+                msg += str(exc)
+            raise ConfigError(msg) from exc
 
         return file_dict
 
@@ -769,41 +746,39 @@ def _get_ion_and_state_labels(string: str) -> List[Tuple[str, str]]:
     return re.findall(r'\s*(' + ion_re + r')\s*\(\s*(' + state_re + r')\s*\)', string)
 
 
+@log_exceptions_warnings
 def _get_state_index(list_labels: List[str], state_label: str,
                      section: str = '', process: str = None, num: int = None) -> int:
     ''' Returns the index of the state label in the list_labels
         Print error and exit if it doesn't exist
     '''
-    logger = logging.getLogger(__name__)
     if process is None:
         process = state_label
     try:
         index = list_labels.index(state_label)
     except ValueError as err:  # print an error and exit
-        msg = err.args[0].replace('in list', 'a valid state label')
         num_msg = ' (number {})'.format(num) if num else ''
-        logger.error('Incorrect %s%s: %s', section, num_msg, process, exc_info=True)
-        logger.error(msg)
-        raise LabelError(msg) from err
+        msg1 = 'Incorrect {}{}: {} .'.format(section, num_msg, process)
+        msg2 = err.args[0].replace('in list', 'a valid state label')
+        raise LabelError(msg1 + msg2) from err
     return index
 
 
+@log_exceptions_warnings
 def _get_ion_index(list_ion_labels: List[str], ion_label: str,
                    section: str = '', process: str = None, num: int = None) -> int:
     ''' Returns the index of the ion label in the list_ion_labels
         Print error and exit if it doesn't exist
     '''
-    logger = logging.getLogger(__name__)
     if process is None:
         process = ion_label
     try:
         index = list_ion_labels.index(ion_label)
     except ValueError as err:  # print an error and exit
-        msg = err.args[0].replace('in list', 'a valid ion label')
         num_msg = ' (number {})'.format(num) if num else ''
-        logger.error('Incorrect %s%s: %s', section, num_msg, process, exc_info=True)
-        logger.error(msg)
-        raise LabelError(msg) from err
+        msg1 = 'Incorrect {}{}: {} .'.format(section, num_msg, process)
+        msg2 = err.args[0].replace('in list', 'a valid ion label')
+        raise LabelError(msg1 + msg2) from err
     return index
 
 

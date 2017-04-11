@@ -29,11 +29,12 @@ var/
 data*uc*
 
 # cubby conflicts
-*(conflict at*)*
+*(conflict)*
 
 simetuc/logs/
 simetuc/flake8.txt
 simetuc/results/
+results/
 simetuc/latticeData/
 *.old
 simetuc/config_file_TiO.cfg

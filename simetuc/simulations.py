@@ -10,7 +10,7 @@ import csv
 import logging
 import warnings
 import os
-from typing import List, Tuple, Iterator, Sequence, Union
+from typing import List, Tuple, Iterator, Sequence, Union, cast
 
 import h5py
 import ruamel_yaml as yaml
@@ -28,10 +28,9 @@ import simetuc.precalculate as precalculate
 import simetuc.odesolver as odesolver
 #import simetuc.odesolver_assimulo as odesolver  # warning: it's slower!
 import simetuc.plotter as plotter
-from simetuc.util import Conc, DecayTransition, cached_property
+from simetuc.util import Conc, Transition, DecayTransition
+from simetuc.util import cached_property, log_exceptions_warnings
 from simetuc.settings import Settings
-
-# TODO: http://stackoverflow.com/questions/6428723/python-are-property-fields-being-cached-automatically
 
 
 class Solution():
@@ -152,6 +151,7 @@ class Solution():
         return self._calculate_avg_populations()
 
     @cached_property
+    @log_exceptions_warnings
     def power_dens(self) -> float:
         '''Return the power density used to obtain this solution.'''
         for excitation in self.cte['excitations'].keys():  # pragma: no branch
@@ -185,15 +185,14 @@ class Solution():
         plotter.plot_state_decay_data(self.t_sol, populations.T,
                                       state_label=label, atol=1e-18)
 
+    @log_exceptions_warnings
     def plot(self, state: int = None) -> None:
         '''Plot the soltion of a problem.
             If state is given, the population of only that state for all ions
             is shown along with the average.
         '''
         if self.cte['no_plot']:
-            logger = logging.getLogger(__name__)
             msg = 'A plot was requested, but no_plot setting is set'
-            logger.warning(msg)
             warnings.warn(msg, plotter.PlotWarning)
             return
 
@@ -203,7 +202,6 @@ class Solution():
             self._plot_state(state)
         else:
             msg = 'The selected state does not exist!'
-            logging.getLogger(__name__).error(msg)
             raise ValueError(msg)
 
     def save(self, full_path: str = None) -> None:
@@ -239,6 +237,7 @@ class Solution():
                        fmt='%1.4e', delimiter=', ', newline='\r\n', header=header)
 
     @classmethod
+    @log_exceptions_warnings
     def load(cls, full_path: str) -> 'Solution':
         '''Load data from a HDF5 file'''
         try:
@@ -250,10 +249,9 @@ class Solution():
                 # deserialze cte
                 cte = yaml.load(file.attrs['cte'])
             return cls(t_sol, y_sol, index_S_i, index_A_j, cte)
-        except OSError:
-            logger = logging.getLogger(__name__)
-            logger.error('File not found! (%s)', full_path, exc_info=True)
-            raise
+        except OSError as err:
+            msg = 'File not found! ({})'.format(full_path)
+            raise OSError(msg) from err
 
 
 class SteadyStateSolution(Solution):
@@ -313,6 +311,7 @@ class DynamicsSolution(Solution):
 
     #@profile
     @staticmethod
+    @log_exceptions_warnings
     def _load_exp_data(filename: str, lattice_name: str, filter_window: int = 35) -> np.array:
         '''Load the experimental data from the expData/lattice_name folder.
            Two columns of numbers: first is time (seconds), second intensity
@@ -570,6 +569,7 @@ class SolutionList(Sequence[Solution]):
         # the load method will create instances of this type
         self._items_class = Solution
         self._prefix = 'solutionlist'
+        self.dynamics = False
 
     def __bool__(self) -> bool:
         '''Instance is True if its list is not emtpy.'''
@@ -626,24 +626,34 @@ class SolutionList(Sequence[Solution]):
                 # serialze cte as text and store it as an attribute
                 group.attrs['cte'] = yaml.dump(sol.cte)
                 file.attrs['config_file'] = sol.cte['config_file']
+            if hasattr(self, 'dynamics'):
+                file.attrs['dynamics'] = self.dynamics
 
-    def load(self, full_path: str) -> None:
+    @classmethod
+    @log_exceptions_warnings
+    def load(cls, full_path: str) -> 'SolutionList':
         '''Load data from a HDF5 file'''
         solutions = []
         try:
             with h5py.File(full_path, 'r') as file:
+                if file.attrs.get('dynamics', None) is not None:
+                    dynamics = file.attrs['dynamics']
+                else:
+                    dynamics = False
+                sol_list = cls()
+                sol_list.dynamics = dynamics
                 for group_num in file:
                     group = file[group_num]
                     # create appropiate object
-                    sol = self._items_class(np.array(group['t_sol']), np.array(group['y_sol']),
-                                            list(group['index_S_i']), list(group['index_A_j']),
-                                            yaml.load(group.attrs['cte']))
+                    sol = sol_list._items_class(np.array(group['t_sol']), np.array(group['y_sol']),
+                                                list(group['index_S_i']), list(group['index_A_j']),
+                                                yaml.load(group.attrs['cte']))
                     solutions.append(sol)
-        except OSError:
-            logger = logging.getLogger(__name__)
-            logger.error('File not found! (%s)', full_path, exc_info=True)
-            raise
-        self.add_solutions(solutions)
+        except OSError as err:
+            msg = 'File not found! ({})'.format(full_path)
+            raise OSError(msg) from err
+        sol_list.add_solutions(solutions)
+        return sol_list
 
     def save_txt(self, full_path: str = None, mode: str = 'w') -> None:
         '''Save the settings, the time and the average populations to disk as a textfile'''
@@ -663,6 +673,7 @@ class SolutionList(Sequence[Solution]):
 class PowerDependenceSolution(SolutionList):
     '''Solution to a power dependence simulation'''
     def __init__(self) -> None:
+        '''All solutions are SteadStateSolution'''
         super(PowerDependenceSolution, self).__init__()
         # constructor of the underliying class that the list stores
         # the load method will create instances of this type
@@ -677,14 +688,13 @@ class PowerDependenceSolution(SolutionList):
                                                                      len(self),
                                                                      conc,
                                                                      powers)
-
+    @log_exceptions_warnings
     def plot(self) -> None:
         '''Plot the power dependence of the emission for all states.
         '''
         if len(self) == 0:  # nothing to plot
             logger = logging.getLogger(__name__)
             msg = 'Nothing to plot! The power_dependence list is emtpy!'
-            logger.warning(msg)
             warnings.warn(msg, plotter.PlotWarning)
             return
 
@@ -723,11 +733,11 @@ class ConcentrationDependenceSolution(SolutionList):
         '''Representation of a concentration dependence list.'''
         concs = [sol.concentration for sol in self]
         power = self[0].power_dens
-        return '{}(num_solutions={}, concs={}, power_dens={})'.format(self.__class__.__name__,
-                                                                      len(self),
-                                                                      concs,
-                                                                      power)
+        return ('{}(num_solutions={}, concs={}, '.format(self.__class__.__name__,
+                                                         len(self), concs) +
+                'power_dens={}, dynamics={})'.format(power, self.dynamics))
 
+    @log_exceptions_warnings
     def plot(self) -> None:
         '''Plot the concentration dependence of the emission for all states.
         '''
@@ -745,14 +755,21 @@ class ConcentrationDependenceSolution(SolutionList):
             warnings.warn(msg, plotter.PlotWarning)
             return
 
-        if self.dynamics:
+        if self.dynamics is True:
             # plot all decay curves together
-            color_list = [c+c for c in 'rgbmyc'*3]
+            import matplotlib.pyplot as plt
+            color_map = plt.get_cmap('Paired', 2*len(self))
+            color_list = [(color_map(num), color_map(num+1)) for num in range(0, 2*len(self), 2)]
+            # plot all concentrations in the same figure
+            single_figure = plotter.new_figure()
             for color, sol in zip(color_list, self):
-                plotter.plot_avg_decay_data(sol.t_sol, sol.list_avg_data,
+                sol = cast(DynamicsSolution, sol)  # no runtime effect, only for mypy
+                plotter.plot_avg_decay_data(sol.t_sol, sol.list_avg_data_ofs,
+                                            list_exp_data=sol.list_exp_data,
                                             state_labels=sol.state_labels,
                                             concentration=sol.concentration,
-                                            colors=color)
+                                            colors=color,
+                                            fig=single_figure)
         else:
             sim_data_arr = np.array([np.array(sol.steady_state_populations)
                                      for sol in self])
@@ -819,6 +836,7 @@ class Simulations():
                                                                          self.cte.lattice['name'],
                                                                          self.cte.lattice['N_uc'])
 
+    @log_exceptions_warnings
     def _get_t_pulse(self) -> float:
         '''Return the pulse width of the simulation'''
         try:
@@ -828,11 +846,20 @@ class Simulations():
                     break
             type(tf_p)
         except (KeyError, NameError):  # pragma: no cover
-            logger = logging.getLogger(__name__)
-            logger.error('t_pulse value not found!')
-            logger.error('Please add t_pulse to your excitation settings.')
-            raise
+            msg = ('t_pulse value not found! ' +
+                   'Please add t_pulse to your excitation settings.')
+            raise ValueError(msg)
         return tf_p
+
+    def save_file_full_name(self, prefix: str = None) -> str:  # pragma: no cover
+        '''Return the full name to save a file (without extention or prefix).'''
+        lattice_name = self.cte.lattice['name']
+        path = os.path.join('results', lattice_name)
+        os.makedirs(path, exist_ok=True)
+        filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(self.cte['lattice']['N_uc']),
+                                                        float(self.cte.lattice['S_conc']),
+                                                        float(self.cte.lattice['A_conc']))
+        return os.path.join(path, filename)
 
     def modify_param_value(self, process: Union[str, DecayTransition], new_value: float) -> None:
         '''Change the value of the process.'''
@@ -844,7 +871,7 @@ class Simulations():
         '''
         return self.cte.get_ET_param_value(process, average)
 
-    def get_branching_ratio_value(self, process: DecayTransition) -> float:
+    def get_branching_ratio_value(self, process: Transition) -> float:
         '''Gets a branching ratio value.'''
         return self.cte.get_branching_ratio_value(process)
 
@@ -1080,47 +1107,47 @@ class Simulations():
         return conc_dep_solution
 
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.DEBUG,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#
-#    logger.info('Called from cmd.')
-#
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
-#
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
-#
-#    sim = Simulations(cte)
-#
-##    solution = sim.simulate_dynamics()
-##    solution.log_errors()
-##    solution.plot()
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+
+    logger.info('Called from cmd.')
+
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')
+
+    cte['no_console'] = False
+    cte['no_plot'] = False
+
+    sim = Simulations(cte)
+
+    solution = sim.simulate_dynamics()
+    solution.log_errors()
+    solution.plot()
 ##
 ##    solution.plot(state=7)
 ##
-##    solution_avg = sim.simulate_avg_dynamics()
-##    solution_avg.log_errors()
-##    solution_avg.plot()
+#    solution_avg = sim.simulate_avg_dynamics()
+#    solution_avg.log_errors()
+#    solution_avg.plot()
 ##
-##    solution = sim.simulate_steady_state()
-##    solution.log_populations()
-##    solution.plot()
+#    solution = sim.simulate_steady_state()
+#    solution.log_populations()
+#    solution.plot()
 ##
 ##    solution_avg = sim.simulate_avg_steady_state()
 ##    solution_avg.log_populations()
 ##    solution_avg.plot()
 ##
-##    power_dens_list = np.logspace(1, 4, 4)
-##    solution = sim.simulate_power_dependence(cte['power_dependence'])
-##    solution.plot()
-##
+#    power_dens_list = np.logspace(-2, 2, 5)
+#    solution = sim.simulate_power_dependence(cte['power_dependence'])
+#    solution.plot()
+#
 ##    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
 ##    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3), (0.1, 0.1), (0.1, 0.2), (0.1, 0.3)]
 ##    conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
 #
 #    conc_list = [(0, 0.1), (0, 0.175), (0, 0.3), (0, 0.5), (0, 1.0)]
-#    solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
+#    solution = sim.simulate_concentration_dependence(cte.conc_dependence, dynamics=True)
 #    solution.plot()

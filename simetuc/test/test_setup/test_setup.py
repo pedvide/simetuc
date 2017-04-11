@@ -14,7 +14,7 @@ import scipy.sparse as sparse
 
 import simetuc.precalculate as precalculate
 import simetuc.lattice as lattice # for the LatticeError exception
-from simetuc.util import temp_bin_filename, ExcTransition, IonType, DecayTransition, Transition, EneryTransferProcess
+from simetuc.util import temp_bin_filename, Excitation, IonType, DecayTransition, Transition, EneryTransferProcess
 from simetuc.settings import Settings
 
 
@@ -48,11 +48,11 @@ def setup_cte():
                            ('sensitizer_states', 2),
                            ('activator_states', 7)])),
              ('excitations', {
-                  'NIR_1470': [ExcTransition(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
-                 'NIR_800': [ExcTransition(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
-                             ExcTransition(IonType.A, 2, 5, False, 11/9, 0.002, 1e7, 1e-8)],
-                 'NIR_980': [ExcTransition(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
-                 'Vis_473': [ExcTransition(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]}
+                  'NIR_1470': [Excitation(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
+                 'NIR_800': [Excitation(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
+                             Excitation(IonType.A, 2, 5, False, 11/9, 0.002, 1e7, 1e-8)],
+                 'NIR_980': [Excitation(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
+                 'Vis_473': [Excitation(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]}
              ),
              ('optimization_params', ['CR50']),
              ('decay',

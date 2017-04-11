@@ -14,5 +14,6 @@ pytest-cov # coverage of tests
 pytest-mock # mock tests
 python-coveralls # sends info to coveralls after travis test
 python-xdist # xdist
+pytest-catchlog # check logs
 flake8
 mypy

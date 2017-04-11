@@ -115,7 +115,7 @@ setup(
     # for example:
     # $ pip install -e .[dev,test]
     extras_require={
-        'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pytest-xdist',
+        'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pytest-xdist', 'pytest-catchlog',
                  'python-coveralls', 'flake8', 'mypy'],
     },
 

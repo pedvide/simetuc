@@ -7,13 +7,19 @@ Created on Thu Dec  1 11:46:29 2016
 @author: Pedro
 """
 
-from typing import List
+from typing import List, Union, Tuple, Type
 
 import numpy as np
 import scipy.interpolate as interpolate
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 from simetuc.util import Conc
+
+
+A_TOL = 1e-20
+
+ColorMap = Type[mpl.colors.Colormap]
 
 
 class PlotWarning(UserWarning):
@@ -21,12 +27,19 @@ class PlotWarning(UserWarning):
     pass
 
 
-def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
+def new_figure() -> mpl.figure.Figure:
+    '''Return a new figure'''
+    return plt.figure()
+
+
+def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
+                        list_sim_data: List[np.array],
                         list_exp_data: List[np.array] = None,
                         state_labels: List[str] = None,
                         concentration: Conc = None,
-                        atol: float = 1e-15,
-                        colors: str = 'rk') -> None:
+                        atol: float = A_TOL,
+                        colors: Union[str, Tuple[ColorMap, ColorMap]] = 'rk',
+                        fig: mpl.figure.Figure = None) -> None:
     ''' Plot the list of simulated and experimental data (optional) against time in t_sol.
         If concentration is given, the legend will show the concentrations
         along with the state_labels (it can get long).
@@ -41,40 +54,44 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
     list_exp_data = list_exp_data or [None]*num_plots
     state_labels = state_labels or [None]*num_plots
 
-    list_t_sim = t_sol if len(t_sol) == num_plots else [t_sol]*num_plots
+    list_t_sim = t_sol if len(t_sol) == num_plots else [t_sol]*num_plots  # type: List[np.array]
 
     if concentration is not None:
         conc_str = '_' + str(concentration.S_conc) + 'S_' + str(concentration.A_conc) + 'A'
         state_labels = [label+conc_str for label in state_labels]
 
-    for num, (sim_data, t_sim, exp_data, state_label) in enumerate(zip(list_sim_data,
-                                                                       list_t_sim,
-                                                                       list_exp_data,
-                                                                       state_labels)):
-        if sim_data is None:
+    sim_color = colors[0]
+    exp_color = colors[1]
+    if not isinstance(exp_color, str):  # dim experiental color
+        exp_color = list(exp_color)
+        exp_color[3] /= 2
+    exp_size = 2  # marker size
+    exp_marker = '.'
+
+    if fig is None:
+        fig = plt.figure()
+
+    for num, (sim_data, t_sim, exp_data, state_label)\
+        in enumerate(zip(list_sim_data, list_t_sim, list_exp_data, state_labels)):
+
+        if sim_data is None or np.isnan(sim_data).any() or not np.any(sim_data > 0):
             continue
-        if np.isnan(sim_data).any() or not np.any(sim_data > 0):
-            continue
 
-        plt.subplot(num_rows, num_cols, num+1)
-#        ax.set_title(state_label)
+        axes = fig.add_subplot(num_rows, num_cols, num+1)
 
-        sim_color = colors[0]
-        exp_color = '.'+colors[1]
-        exp_size = 2  # marker size
-
+        axes.set_title(state_label.replace('_', ' '), visible=False)
         # no exp data: either a GS or simply no exp data available
         if exp_data is 0 or exp_data is None:
             # nonposy='clip': clip non positive values to a very small positive number
-            plt.semilogy(t_sim*1000, sim_data, sim_color, label=state_label, nonposy='clip')
-            plt.yscale('log', nonposy='clip')
-            plt.axis('tight')
-            plt.xlim(xmin=t_sim[0]*1000.0)
+            axes.semilogy(t_sim*1000, sim_data, color=sim_color, label=state_label, nonposy='clip')
+            axes.set_yscale('log', nonposy='clip')
+            axes.axis('tight')
+            axes.set_xlim(left=t_sim[0]*1000.0)
             # add some white space above and below
             margin_factor = np.array([0.7, 1.3])
-            plt.ylim(*np.array(plt.ylim())*margin_factor)
-            if plt.ylim()[0] < atol:
-                plt.ylim(ymin=atol)  # don't show noise below atol
+            axes.set_ylim(*np.array(axes.get_ylim())*margin_factor)
+            if axes.set_ylim()[0] < atol:
+                axes.set_ylim(bottom=atol)  # don't show noise below atol
                 # detect when the simulation goes above and below atol
                 above = sim_data > atol
                 change_indices = np.where(np.roll(above, 1) != above)[0]
@@ -83,25 +100,26 @@ def plot_avg_decay_data(t_sol: np.ndarray, list_sim_data: List[np.array],
                     # last time it changes
                     max_index = change_indices[-1]
                     # show simData until it falls below atol
-                    plt.xlim(xmax=t_sim[max_index]*1000)
-            min_y = min(*plt.ylim())
-            max_y = max(*plt.ylim())
-            plt.ylim(ymin=min_y, ymax=max_y)
+                    axes.set_xlim(right=t_sim[max_index]*1000)
+            min_y = min(*axes.get_ylim())
+            max_y = max(*axes.get_ylim())
+            axes.set_ylim(bottom=min_y, top=max_y)
         else:  # exp data available
+            axes.semilogy(t_sim*1000, sim_data, color=sim_color, label=state_label, zorder=10)
             # convert exp_data time to ms
-            plt.semilogy(exp_data[:, 0]*1000, exp_data[:, 1]*np.max(sim_data), exp_color,
-                         t_sim*1000, sim_data, sim_color, markersize=exp_size, label=state_label)
-            plt.axis('tight')
-            plt.ylim(ymax=plt.ylim()[1]*1.2)  # add some white space on top
+            axes.semilogy(exp_data[:, 0]*1000, exp_data[:, 1]*np.max(sim_data), color=exp_color,
+                         marker=exp_marker, linewidth=0, markersize=exp_size, zorder=1)
+            axes.axis('tight')
+            axes.set_ylim(top=axes.get_ylim()[1]*1.2)  # add some white space on top
             tmin = min(exp_data[-1, 0], t_sim[0])
-            plt.xlim(xmin=tmin*1000.0, xmax=exp_data[-1, 0]*1000)  # don't show beyond expData
+            axes.set_xlim(left=tmin*1000.0, right=exp_data[-1, 0]*1000)  # don't show beyond expData
 
-        plt.legend(loc="best", fontsize='small')
-        plt.xlabel('t (ms)')
+        axes.legend(loc="best", fontsize='small')
+        axes.set_xlabel('t (ms)')
 
 
 def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
-                          state_label: str = None, atol: float = 1e-15) -> None:
+                          state_label: str = None, atol: float = A_TOL) -> None:
     ''' Plots a state's simulated data against time t_sol'''
 
     if sim_data_array is None:
@@ -267,3 +285,10 @@ def plot_lattice(doped_lattice: np.array, ion_type: np.array) -> None:
     plt.axis('square')
 
     plt.legend(loc='best', scatterpoints=1)
+
+
+def plot_optimization_brute_force(param_values: np.array, error_values: np.array) -> None:
+    '''Plot all results from the brute force optimization'''
+    plt.plot(param_values, error_values, '.b-')
+    plt.xlabel('Param value')
+    plt.ylabel('RMS error')

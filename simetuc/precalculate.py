@@ -30,7 +30,7 @@ from scipy.sparse import csr_matrix
 import simetuc.lattice as lattice
 from simetuc.lattice import LatticeError
 import simetuc.settings as settings
-from simetuc.util import IonType
+from simetuc.util import IonType, log_exceptions_warnings
 
 
 def _load_lattice(filename: str) -> Dict:
@@ -96,9 +96,9 @@ def _create_total_absorption_matrix(sensitizer_states: int, activator_states: in
             power_dens = current_exc.power_dens
             pump_rate = current_exc.pump_rate
             degeneracy = current_exc.degeneracy
-            init_state = current_exc.state_i
-            final_state = current_exc.state_f
-            ion_exc =  current_exc.ion
+            init_state = current_exc.transition.state_i
+            final_state = current_exc.transition.state_f
+            ion_exc =  current_exc.transition.ion
 
             if ion_exc == settings.IonType.S and sensitizer_states:
                 if init_state < sensitizer_states and final_state < sensitizer_states:
@@ -123,7 +123,7 @@ def _create_total_absorption_matrix(sensitizer_states: int, activator_states: in
 
     return total_abs_matrix
 
-
+@log_exceptions_warnings
 def _create_branching_ratios(sensitizer_states: int, activator_states: int,
                              decay_dict: Dict) -> Tuple[np.array, np.array]:
     '''Create the branching ratio matrices.'''
@@ -144,9 +144,7 @@ def _create_branching_ratios(sensitizer_states: int, activator_states: int,
                 B_activator[branch_proc.state_i, branch_proc.state_f] = branch_proc.branching_ratio
     # this shouldn't happen
     except IndexError as err:  # pragma: no cover
-        logging.getLogger(__name__).error('Wrong number of states!')
-        logging.getLogger(__name__).error(str(err))
-        raise
+        raise IndexError('Wrong number of states! ' + str(err)) from err
 
     # discard branching ratios to the ground state
     if sensitizer_states > 0:
@@ -156,6 +154,7 @@ def _create_branching_ratios(sensitizer_states: int, activator_states: int,
 
     return (B_sensitizer, B_activator)
 
+@log_exceptions_warnings
 def _create_decay_vectors(sensitizer_states: int, activator_states: int,
                           decay_dict: Dict) -> Tuple[np.array, np.array]:
     '''Create the decay vectors.'''
@@ -173,9 +172,8 @@ def _create_decay_vectors(sensitizer_states: int, activator_states: int,
             if decay_proc.state_i < activator_states:
                 k_activator[decay_proc.state_i] = decay_proc.decay_rate
     # this shouldn't happen
-    except IndexError:  # pragma: no cover
-        logging.getLogger(__name__).debug('Wrong number of states!')
-        raise
+    except IndexError as err:  # pragma: no cover
+        raise IndexError('Wrong number of states!') from err
 
     return (k_sensitizer, k_activator)
 
@@ -230,6 +228,7 @@ def _create_decay_matrix(sensitizer_states: int, activator_states: int, decay_di
 
 
 #@profile
+@log_exceptions_warnings
 def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dict,
                         indices_S_k: List[np.array], indices_S_l: List[np.array],
                         indices_A_k: List[np.array], indices_A_l: List[np.array],
@@ -340,7 +339,6 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
     except lattice.LatticeError:
         msg = ('The number of A or S states is lower ' +
                'than required by process {}.').format(proc_name)
-        logging.getLogger(__name__).error(msg)
         raise lattice.LatticeError(msg)
 
     # go over each ion and calculate its interactions
@@ -875,6 +873,7 @@ def setup_microscopic_eqs(cte: settings.Settings, gen_lattice: bool = False, ful
 
 # unused arguments
 # pylint: disable=W0613
+@log_exceptions_warnings
 def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_path: str = None
                      ) -> Tuple[settings.Settings, np.array, List[int], List[int],
                                 scipy.sparse.csr_matrix, scipy.sparse.csr_matrix,
@@ -924,7 +923,6 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
 
     if num_total_ions == 0:
         msg = 'No ions generated, the concentrations are too small!'
-        logger.error(msg, exc_info=True)
         raise lattice.LatticeError(msg)
 
     # error checking
@@ -934,23 +932,20 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
     lattice_name = cte['lattice']['name']
 
     if num_uc <= 0:
-        logger.error('Wrong number of unit cells: %d.', num_uc)
-        logger.error('It must be a positive integer.')
-        raise LatticeError('Wrong number of unit cells.')
+        raise LatticeError('Wrong number of unit cells: {}. '.format(num_uc) +
+                           'It must be a positive integer.')
 
     # if the concentrations are not in the correct range
     if not ((0.0 <= S_conc <= 100.0) and (0.0 <= A_conc <= 100.0) and
             (0 <= S_conc+A_conc <= 100.0)):
-        logger.error('Wrong ion concentrations:' +
-                     '%.2f%% Sensitizer, %.2f%% Activator.', S_conc, A_conc)
-        logger.error('They must be between 0% and 100%, and their sum too.')
-        raise LatticeError('Wrong ion concentrations.')
+        msg = 'Wrong ion concentrations: {:.2f}% Sensitizer, {:.2f}% Activator.'.format(S_conc, A_conc)
+        msg += ' Their sum must be between 0% and 100%.'
+        raise LatticeError(msg)
 
     num_S_states = cte['states']['sensitizer_states']
     num_A_states = cte['states']['activator_states']
     if (S_conc != 0 and num_S_states == 0) or (A_conc != 0 and num_A_states == 0):
-        logger.error('The number of states of each ion cannot be zero.')
-        raise LatticeError('Wrong number of states.')
+        raise LatticeError('The number of states of each ion cannot be zero.')
 
     logger.info('Number of ions: %d, sensitizers: %d, activators: %d.',
                 num_total_ions, num_sensitizers, num_activators)
