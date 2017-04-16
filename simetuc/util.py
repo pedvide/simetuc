@@ -103,6 +103,8 @@ class Transition():
         self.repr_state_i = self.label_i if self.label_i else self.state_i
         self.repr_state_f = self.label_f if self.label_f else self.state_f
 
+#        self.name = '{} -> {}'.format(self.repr_state_i, self.repr_state_f)
+
     def __repr__(self) -> str:
         return '{}({}: {}->{})'.format(self.__class__.__name__, self.repr_ion,
                                        self.repr_state_i, self.repr_state_f)
@@ -134,6 +136,11 @@ class DecayTransition(Transition):
         self.decay_rate = decay_rate
         self.branching_ratio = branching_ratio
 
+        if decay_rate:
+            self.name = 'k_{}{}'.format(state_i, state_f)
+        elif branching_ratio:
+            self.name = 'B_{}{}'.format(state_i, state_f)
+
     def __repr__(self) -> str:
         base_repr = super(DecayTransition, self).__repr__()
         if self.decay_rate is not None:
@@ -159,7 +166,6 @@ class DecayTransition(Transition):
         # comparing to a Transition only checks the common attributes
         elif isinstance(other, Transition):
             return super(DecayTransition, self).__eq__(other)
-
         return NotImplemented
 
     def __ne__(self, other: object) -> bool:
@@ -171,6 +177,24 @@ class DecayTransition(Transition):
             different DecayTransitions may have the same hash too
             (if they only have different decay or branching ratios)'''
         return hash((self.ion, self.state_i, self.state_f))
+
+    @property
+    def value(self) -> float:
+        '''Returns the value associated with this DecayTransition'''
+        if self.decay_rate is not None:  # pragma: no branch
+            return self.decay_rate
+        elif self.branching_ratio is not None:
+            return self.branching_ratio
+        else:
+            return None
+
+    @value.setter
+    def value(self, value: float) -> None:
+        '''Sets the value associated with this DecayTransition'''
+        if self.decay_rate is not None:  # pragma: no branch
+            self.decay_rate = value
+        elif self.branching_ratio is not None:
+            self.branching_ratio = value
 
 
 class Excitation():
@@ -197,8 +221,6 @@ class Excitation():
             return NotImplemented
         for attr in ['transition', 'active', 'degeneracy', 'pump_rate', 'power_dens', 't_pulse']:
             if getattr(self, attr) != getattr(other, attr):
-#                print('self: ', getattr(self, attr))
-#                print('other: ', getattr(other, attr))
                 return False
         return True
 
@@ -210,11 +232,13 @@ class Excitation():
 class EneryTransferProcess():
     '''Information about an energy transfer process'''
     def __init__(self, transitions: Sequence[Transition],
-                 mult: int, strength: float, strength_avg: float = None) -> None:
+                 mult: int, strength: float, strength_avg: float = None,
+                 name: str = '') -> None:
         self.transitions = tuple(transitions)
-        self.mult = mult
+        self.mult = int(mult)
         self.strength = strength
         self._strength_avg = strength_avg
+        self.name = name
 
         # first the initial indices, then the final ones
         temp = [(trans.state_i, trans.state_f) for trans in transitions]
@@ -227,14 +251,14 @@ class EneryTransferProcess():
                                for trans in self.transitions)
         final_states = '+'.join('{}({})'.format(trans.repr_ion, trans.repr_state_f)
                                 for trans in self.transitions)
-        return 'ETProcess({}->{}, n={}, C={:.2e})'.format(init_states, final_states,
+        return 'ETProcess({}->{}, n={:d}, C={:.2g})'.format(init_states, final_states,
                                                           self.mult, self.strength)
 
     def __eq__(self, other: object) -> bool:
         '''Two ET processes are equal if all their attributes are equal.'''
         if not isinstance(other, EneryTransferProcess):
             return NotImplemented
-        for attr in ['transitions', 'mult', 'strength']:
+        for attr in ['transitions', 'mult']:
             if getattr(self, attr) != getattr(other, attr):
                 return False
         return True
@@ -242,6 +266,10 @@ class EneryTransferProcess():
     def __ne__(self, other: object) -> bool:
         '''Not equal operator'''
         return not (self == other)
+
+#    def __hash__(self) -> int:
+#        '''Hash only the transitions and multipolarity b/c these don't change'''
+#        return hash((self.transitions, self.mult))
 
     @cached_property
     def strength_avg(self) -> float:
@@ -252,15 +280,13 @@ class EneryTransferProcess():
         else:
             return self.strength
 
+    @property
+    def value(self) -> float:
+        return self.strength
 
-def get_console_logger_level() -> int:  # pragma: no cover
-    '''Get the logging level of the console handler '''
-    logger = logging.getLogger()
-    for handler in logger.handlers:
-        if isinstance(handler, logging.StreamHandler):
-            if handler.stream == sys.stdout:  # type: ignore
-                return handler.level
-    return None
+    @value.setter
+    def value(self, val: float) -> None:
+        self.strength = val
 
 
 def log_exceptions_warnings(function: Callable) -> Callable:
@@ -288,13 +314,29 @@ def log_exceptions_warnings(function: Callable) -> Callable:
     return wrapper
 
 
-def change_console_logger_level(level: int) -> None:  # pragma: no cover
-    '''Change the logging level of the console handler '''
-    logger = logging.getLogger()
+@contextmanager
+def console_logger_level(level: int) -> Generator:  # pragma: no cover
+    '''Temporary change the console handler level.'''
+    logger = logging.getLogger()  # root logger
     for handler in logger.handlers:
         if isinstance(handler, logging.StreamHandler):
             if handler.stream == sys.stdout:  # type: ignore
+                old_level = handler.level
                 handler.setLevel(level)
+                yield None
+                handler.setLevel(old_level)
+                return
+    # in case no console handler exists
+    yield None
+    return
+
+
+@contextmanager
+def no_logging() -> Generator:  # pragma: no cover
+    '''Temporary disable all logging.'''
+    logging.disable(logging.CRITICAL)
+    yield None
+    logging.disable(logging.NOTSET)
 
 
 class LabelError(ValueError):

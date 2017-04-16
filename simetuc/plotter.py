@@ -287,8 +287,8 @@ def plot_lattice(doped_lattice: np.array, ion_type: np.array) -> None:
     plt.legend(loc='best', scatterpoints=1)
 
 
-def plot_optimization_brute_force(param_values: np.array, error_values: np.array) -> None:
-    '''Plot all results from the brute force optimization'''
-    plt.plot(param_values, error_values, '.b-')
-    plt.xlabel('Param value')
-    plt.ylabel('RMS error')
+#def plot_optimization_brute_force(param_values: np.array, error_values: np.array) -> None:
+#    '''Plot all results from the brute force optimization'''
+#    plt.plot(param_values, error_values, '.b-')
+#    plt.xlabel('Param value')
+#    plt.ylabel('RMS error')

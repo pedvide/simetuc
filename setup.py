@@ -108,7 +108,8 @@ setup(
                       'colorama',
                       'ruamel_yaml',
                       'h5py >=2.6',
-                      'numba'],
+                      'numba',
+                      'lmfit'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,

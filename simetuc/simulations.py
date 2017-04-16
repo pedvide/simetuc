@@ -10,7 +10,7 @@ import csv
 import logging
 import warnings
 import os
-from typing import List, Tuple, Iterator, Sequence, Union, cast
+from typing import List, Tuple, Iterator, Sequence, cast
 
 import h5py
 import ruamel_yaml as yaml
@@ -28,8 +28,8 @@ import simetuc.precalculate as precalculate
 import simetuc.odesolver as odesolver
 #import simetuc.odesolver_assimulo as odesolver  # warning: it's slower!
 import simetuc.plotter as plotter
-from simetuc.util import Conc, Transition, DecayTransition
-from simetuc.util import cached_property, log_exceptions_warnings
+from simetuc.util import Conc
+from simetuc.util import cached_property, log_exceptions_warnings, console_logger_level
 from simetuc.settings import Settings
 
 
@@ -861,20 +861,6 @@ class Simulations():
                                                         float(self.cte.lattice['A_conc']))
         return os.path.join(path, filename)
 
-    def modify_param_value(self, process: Union[str, DecayTransition], new_value: float) -> None:
-        '''Change the value of the process.'''
-        self.cte.modify_param_value(process, new_value)
-
-    def get_ET_param_value(self, process: str, average: bool = False) -> float:
-        '''Get a ET parameter value.
-            Return the average value if it exists.
-        '''
-        return self.cte.get_ET_param_value(process, average)
-
-    def get_branching_ratio_value(self, process: Transition) -> float:
-        '''Gets a branching ratio value.'''
-        return self.cte.get_branching_ratio_value(process)
-
 #    @profile
     def simulate_dynamics(self, average: bool = False) -> DynamicsSolution:
         ''' Simulates the absorption, decay and energy transfer processes contained in cte
@@ -1052,7 +1038,8 @@ class Simulations():
             for excitation in self.cte['excitations'].keys():
                 self.cte['excitations'][excitation][0].power_dens = power_dens
             # calculate steady state populations
-            steady_sol = self.simulate_steady_state(average=average)
+            with console_logger_level(logging.WARNING):
+                steady_sol = self.simulate_steady_state(average=average)
             solutions.append(steady_sol)
 
         total_time = time.time()-start_time
@@ -1074,7 +1061,8 @@ class Simulations():
             average=True solves an average rate equation problem instead of the microscopic one.
         '''
         logger = logging.getLogger(__name__)
-        logger.info('Simulating power dependence curves...')
+        logger.info('Simulating concentration dependence curves of ' +
+                    '{}.'.format('dynamics' if dynamics is True else 'steady state'))
 
         start_time = time.time()
 
@@ -1090,11 +1078,12 @@ class Simulations():
             # update concentrations
             self.cte['lattice']['S_conc'] = concs[0]
             self.cte['lattice']['A_conc'] = concs[1]
-            # simulate
-            if dynamics:
-                sol = self.simulate_dynamics(average=average)  # type: Solution
-            else:
-                sol = self.simulate_steady_state(average=average)  # pylint: disable=R0204
+            with console_logger_level(logging.WARNING):
+                # simulate
+                if dynamics:
+                    sol = self.simulate_dynamics(average=average)  # type: Solution
+                else:
+                    sol = self.simulate_steady_state(average=average)  # pylint: disable=R0204
             solutions.append(sol)
 
         total_time = time.time()-start_time
@@ -1107,24 +1096,24 @@ class Simulations():
         return conc_dep_solution
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-
-    logger.info('Called from cmd.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
-
-    cte['no_console'] = False
-    cte['no_plot'] = False
-
-    sim = Simulations(cte)
-
-    solution = sim.simulate_dynamics()
-    solution.log_errors()
-    solution.plot()
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#
+#    logger.info('Called from cmd.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+#
+#    sim = Simulations(cte)
+#
+#    solution = sim.simulate_dynamics()
+#    solution.log_errors()
+#    solution.plot()
 ##
 ##    solution.plot(state=7)
 ##

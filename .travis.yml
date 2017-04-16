@@ -23,7 +23,8 @@ install:
   # install dependencies
   - conda config --add channels conda-forge
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION scipy numpy matplotlib ase
-    tqdm numba pytest pytest-cov pytest-mock pytest-xdist python-coveralls pytest-catchlog
+    tqdm numba lmfit
+    pytest pytest-cov pytest-mock pytest-xdist python-coveralls pytest-catchlog
     ruamel_yaml h5py flake8
   - source activate test-environment
   # not in conda for py3.5 or py3.6

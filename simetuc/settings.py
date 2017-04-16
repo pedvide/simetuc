@@ -79,12 +79,12 @@ class Settings(Dict):
         else:
             return default
 
-    def __setitem__(self, key: str, value: Any) -> Any:
+    def __setitem__(self, key: str, value: Any) -> None:
         '''Implements Settings[key] = value.'''
         setattr(self, key, value)
 
-    def __delitem__(self, key: str) -> Any:
-        '''Implements Settings[key] = value.'''
+    def __delitem__(self, key: str) -> None:
+        '''Implements del Settings[key].'''
         delattr(self, key)
 
     def __contains__(self, key: Any) -> bool:
@@ -302,9 +302,6 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
                        for state_i, val, label in decay_A_state}
         except LabelError:
             raise
-        except ValueError as err:
-            msg = 'Invalid value for parameter in decay rates. ' + str(err.args)
-            raise ValueError(msg)
 
         parsed_dict = {}
         parsed_dict['decay_S'] = decay_S
@@ -360,7 +357,7 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         tuple_state_labels = (sensitizer_labels, activator_labels)
 
         # ET PROCESSES.
-        ET_dict = OrderedDict()  # type: Dict
+        ET_dict = {}  # type: Dict
         for num, (name, et_subdict) in enumerate(parsed_dict['energy_transfer'].items()):
 
             process = et_subdict['process']
@@ -394,91 +391,63 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
                          for tuple_i, tuple_f in folded_lst]
 #            print(trans_lst)
             ET_dict[name] = EneryTransferProcess(trans_lst, mult=mult, strength=strength,
-                                                 strength_avg=strength_avg)
+                                                 strength_avg=strength_avg, name=name)
 
         return ET_dict
 
     @log_exceptions_warnings
     def _parse_optimization(self, parsed_dict: Dict) -> Dict[str, Any]:
         '''Parse the optional optimization settings.'''
+        optim_dict = {}
         if 'processes' in parsed_dict:
-            parsed_dict['processes'] = self._parse_optim_params(parsed_dict['processes'])
+            optim_dict['processes'] = self._parse_optim_params(parsed_dict['processes'])
+        else:
+            optim_dict['processes'] = list(self.energy_transfer.values())
 
-        parsed_dict['method'] = parsed_dict.get('method', None)
+        if 'method' in parsed_dict:
+            optim_dict['method'] = parsed_dict['method']
 
+        if 'excitations' in parsed_dict:
+            optim_dict['excitations'] = parsed_dict['excitations']
         for label in parsed_dict.get('excitations', []):
             if label not in self.excitations:
                 msg = ('Label "{}" in optimization: excitations '.format(label)
                        + 'not found in excitations section above!')
                 raise LabelError(msg)
 
-        return parsed_dict
+        return optim_dict
 
     @log_exceptions_warnings
-    def _match_branching_ratio(self, process: str) -> Transition:
+    def _match_branching_ratio(self, process: str) -> DecayTransition:
         '''Gets a branching ratio process and returns the Transition.
-            Raises an exception if the states do not exist.'''
+            Raises an exception if it doesn't exist.'''
+        for branch_proc in self.decay['branching_A'] | self.decay['branching_S']:
+            if process in repr(branch_proc):
+                return branch_proc
 
-        state_re = r'[\w/]+'  # match any letter, including forward slash '/'
-        # spaces state_label -> state_label spaces
-        # return a tuple with the state labels
-        list_matches = re.findall(r'\s*(' + state_re + r')\s*->\s*(' +
-                                  state_re + r')\s*', process)
-        if not list_matches:
-            # error
-            msg = 'Unrecognized branching ratio process.'
-            raise LabelError(msg)
-        state_i, state_f = list_matches[0]
-
-        sensitizer_labels = self.states['sensitizer_states_labels']
-        activator_labels = self.states['activator_states_labels']
-        if state_i in sensitizer_labels and state_f in sensitizer_labels:
-            states = tuple(_get_state_index(sensitizer_labels, label)
-                           for label in (state_i, state_f))
-            return Transition(IonType.S, states[0], states[1],
-                              label_ion=self.states['sensitizer_ion_label'],
-                              label_i=state_i, label_f=state_f)
-        elif state_i in activator_labels and state_f in activator_labels:
-            states = tuple(_get_state_index(activator_labels, label)
-                           for label in (state_i, state_f))
-            return Transition(IonType.A, states[0], states[1],
-                              label_ion=self.states['activator_ion_label'],
-                              label_i=state_i, label_f=state_f)
-        else:
-            # error
-            msg = 'Unrecognized branching ratio process.'
-            raise LabelError(msg)
+        msg = 'Wrong labels in optimization: processes. ({}).'.format(process)
+        raise LabelError(msg)
 
     @log_exceptions_warnings
     def _parse_optim_params(self, dict_optim: Dict) -> List:
         '''Parse the optional list of parameters to optimize.
            Some of the params are ET, other are branching ratios'''
-        # ET params that the user has defined
-        set_good_ET_params = set(self.energy_transfer.keys())
-
+        # requested params
         set_params = set(dict_optim)
 
+        # ET params that the user has defined before
+        set_known_ET_params = set(self.energy_transfer.keys())
+
         # set of ET params to optimize
-        set_ET_params = set_params.intersection(set_good_ET_params)
+        set_ET_params = set_params.intersection(set_known_ET_params)
+        lst_ET_params = [self.energy_transfer[proc_label] for proc_label in set_ET_params]
 
-        # other params should be branching ratios, we need to parse them into (i, f) tuples
+        # other params should be branching ratios
         set_other_params = set_params.difference(set_ET_params)
-        try:
-            if set_other_params:
-                # list of transitions
-                branch_transitions = [self._match_branching_ratio(process)
-                                      for process in set_other_params]
-                # make sure the branching ratio was defined before
-                for ratio in branch_transitions:
-                    if ratio not in self.decay['branching_S'] | self.decay['branching_A']:
-                        raise ValueError('Unrecognized branching ratio process: {}.'.format(ratio))
-            else:
-                branch_transitions = []
-        except ValueError as err:
-            msg = 'Wrong labels in optimization: processes! ' + str(err.args[0])
-            raise LabelError(msg) from err
+        # list of transitions
+        branch_transitions = [self._match_branching_ratio(process) for process in set_other_params]
 
-        return list(set_ET_params) + branch_transitions
+        return lst_ET_params + branch_transitions
 
     @log_exceptions_warnings
     def _parse_simulation_params(self, user_settings: Dict = None) -> Dict:
@@ -528,40 +497,6 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
         conc_list = [((float(a), float(b))) for a, b in zip(conc_grid[0], conc_grid[1])]
 
         return conc_list
-
-    def modify_param_value(self, process: Union[str, Transition], new_value: float) -> None:
-        '''Change the value of the process.'''
-        if isinstance(process, str):
-            self._modify_ET_param_value(process, new_value)
-        elif isinstance(process, Transition):
-            self._modify_branching_ratio_value(process, new_value)
-
-    def _modify_ET_param_value(self, process: str, new_strength: float) -> None:
-        '''Modify a ET parameter'''
-        self.energy_transfer[process].strength = new_strength
-
-    def _modify_branching_ratio_value(self, process: Transition, new_value: float) -> None:
-        '''Modify a branching ratio param.'''
-        for branch_ratio in self.decay['branching_A'] | self.decay['branching_S']:
-            if branch_ratio == process:
-                branch_ratio.branching_ratio = new_value
-
-    def get_ET_param_value(self, process: str, average: bool = False) -> float:
-        '''Get a ET parameter value.
-            Return the average value if it exists.
-        '''
-        if average:
-            return self.energy_transfer[process].strength_avg
-        else:
-            return self.energy_transfer[process].strength
-
-    @log_exceptions_warnings
-    def get_branching_ratio_value(self, process: Transition) -> float:
-        '''Gets a branching ratio value.'''
-        for branch_ratio in self.decay['branching_A'] | self.decay['branching_S']:
-            if branch_ratio == process:
-                return branch_ratio.branching_ratio
-        raise ValueError('Branching ratio ({}) not found'.format(process))
 
     @log_exceptions_warnings
     def load(self, filename: str) -> None:
@@ -616,9 +551,7 @@ energy_transfer={})'''.format(self.__class__.__name__, pprint.pformat(self.latti
             self.energy_transfer = OrderedDict()
 
         # OPTIMIZATION
-        # not mandatory -> check
-        if 'optimization' in parsed_settings:
-            self.optimization = self._parse_optimization(parsed_settings['optimization'])
+        self.optimization = self._parse_optimization(parsed_settings.get('optimization', {}))
 
         # SIMULATION PARAMETERS
         # not mandatory -> check
