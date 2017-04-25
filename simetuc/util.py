@@ -184,7 +184,7 @@ class DecayTransition(Transition):
         '''Returns the value associated with this DecayTransition'''
         if self.decay_rate is not None:
             return self.decay_rate  # pragma: no cover
-        elif self.branching_ratio is not None:
+        else:
             return self.branching_ratio
 
     @value.setter
