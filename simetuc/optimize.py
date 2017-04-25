@@ -147,20 +147,20 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
     return best_x, min_f, result
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.WARNING,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-
-
-    logger.debug('Called from cmd.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
-
-#    cte['optimization']['excitations'] = []
-
-    cte['no_console'] = False
-    cte['no_plot'] = True
-
-    best_x, min_f, res = optimize_dynamics(cte, average=False)
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#
+#
+#    logger.debug('Called from cmd.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')
+#
+##    cte['optimization']['excitations'] = []
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = True
+#
+#    best_x, min_f, res = optimize_dynamics(cte, average=False)

@@ -1104,46 +1104,43 @@ class Simulations():
         return conc_dep_solution
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
-
-    cte['no_console'] = False
-    cte['no_plot'] = False
-
-    sim = Simulations(cte)
-
-
-#    solution = sim.simulate_dynamics()
-#    solution.log_errors()
-#    solution.plot()
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#
+#    logger.info('Called from cmd.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+#
+#    sim = Simulations(cte)
+#
+##    solution = sim.simulate_dynamics()
+##    solution.log_errors()
+##    solution.plot()
 ##
 ##    solution.plot(state=7)
 ##
-#    solution_avg = sim.simulate_avg_dynamics()
-#    solution_avg.log_errors()
-#    solution_avg.plot()
+##    solution_avg = sim.simulate_avg_dynamics()
+##    solution_avg.log_errors()
+##    solution_avg.plot()
 ##
-#    solution = sim.simulate_steady_state()
-#    solution.log_populations()
-#    solution.plot()
+##    solution = sim.simulate_steady_state()
+##    solution.log_populations()
+##    solution.plot()
 ##
 ##    solution_avg = sim.simulate_avg_steady_state()
 ##    solution_avg.log_populations()
 ##    solution_avg.plot()
 ##
-#    power_dens_list = np.logspace(-2, 2, 5)
-#    solution = sim.simulate_power_dependence(cte['power_dependence'])
-#    solution.plot()
-#
-##    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3)]
-##    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3), (0.1, 0.1), (0.1, 0.2), (0.1, 0.3)]
-##    conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
-#
-    conc_list = [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3)]#, (0, 0.5)]#, (0, 1.0)]
-    solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
-    solution.plot()
+##    power_dens_list = np.logspace(-2, 2, 5)
+##    solution = sim.simulate_power_dependence(cte['power_dependence'])
+##    solution.plot()
+##
+##    conc_list = [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3)]#, (0, 0.5)]#, (0, 1.0)]
+##    solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
+##    solution.plot()
