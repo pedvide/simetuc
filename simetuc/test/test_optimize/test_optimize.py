@@ -7,6 +7,8 @@ Created on Fri Nov 18 17:22:18 2016
 import pytest
 import numpy as np
 
+from lmfit import Parameters
+
 import simetuc.optimize as optimize
 import simetuc.simulations as simulations
 from simetuc.settings import Settings
@@ -20,22 +22,22 @@ def setup_cte():
     cte = {'ET': {
               'CR50': EneryTransferProcess([Transition(IonType.A, 5, 3),
                                             Transition(IonType.A, 0, 2)],
-                                           mult=6, strength=2893199540.0),
+                                           mult=6, strength=2893199540.0, name='CR50'),
               'ETU53': EneryTransferProcess([Transition(IonType.A, 5, 6),
                                              Transition(IonType.A, 3, 1)],
-                                            mult=6, strength=254295690.0),
+                                            mult=6, strength=254295690.0, name='ETU53'),
               'ETU55': EneryTransferProcess([Transition(IonType.A, 5, 6),
                                              Transition(IonType.A, 5, 4)],
-                                            mult=6, strength=0.0),
+                                            mult=6, strength=0.0, name='ETU55'),
               'BackET': EneryTransferProcess([Transition(IonType.A, 3, 0),
                                               Transition(IonType.S, 0, 1)],
-                                             mult=6, strength=4502.0),
+                                             mult=6, strength=4502.0, name='BackET'),
               'EM': EneryTransferProcess([Transition(IonType.S, 1, 0),
                                           Transition(IonType.S, 0, 1)],
-                                         mult=6, strength=45022061400.0),
+                                         mult=6, strength=45022061400.0, name='EM'),
               'ETU1': EneryTransferProcess([Transition(IonType.S, 1, 0),
                                             Transition(IonType.A, 0, 2)],
-                                           mult=6, strength=10000.0)
+                                           mult=6, strength=10000.0, name='ETU1')
               },
          'decay': {'branching_A': {DecayTransition(IonType.A, 1, 0, branching_ratio=1.0),
                 DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
@@ -79,7 +81,11 @@ def setup_cte():
           'spacegroup': 'P-6'},
          'no_console': False,
          'no_plot': False,
-         'optimization': {'method': 'SLSQP', 'processes': ['CR50', Transition(IonType.A, 3, 1)]},
+         'optimization': {'method': 'leastsq',
+                          'processes': [EneryTransferProcess([Transition(IonType.A, 5, 3), Transition(IonType.A, 0, 2)],
+                                                             mult=6, strength=2893199540.0, name='CR50'),
+                                        DecayTransition(IonType.A, 3, 1, branching_ratio=0.3)],
+                          'options': {}},
          'simulation_params': {'N_steps': 1000,
           'N_steps_pulse': 100,
           'atol': 1e-15,
@@ -96,6 +102,9 @@ def setup_cte():
     cte['no_plot'] = True
     return Settings(cte)
 
+B_43 = DecayTransition(IonType.A, 3, 1, branching_ratio=0.3)
+CR50 = EneryTransferProcess([Transition(IonType.A, 5, 3), Transition(IonType.A, 0, 2)],
+                            mult=6, strength=2893199540.0, name='CR50')
 def idfn_param(param):
     '''Returns the name of the test according to the parameters'''
     return 'method={}'.format(param)
@@ -105,110 +114,95 @@ def idfn_avg(param):
 def idfn_proc(param):
     '''Returns the name of the test according to the parameters'''
     return 'num={}'.format(len(param))
-@pytest.mark.parametrize('method', [None, 'COBYLA', 'L-BFGS-B', 'TNC',
-                                    'SLSQP', 'brute_force', 'basin_hopping'],
+@pytest.mark.parametrize('method', ['COBYLA', 'L-BFGS-B', 'TNC',
+                                    'SLSQP', 'brute_force', 'leastsq'],
                                     ids=idfn_param)
 @pytest.mark.parametrize('average', [True, False], ids=idfn_avg)
-@pytest.mark.parametrize('processes', [['CR50', Transition(IonType.A, 3, 1)],
-                                       ['CR50'],
-                                       [Transition(IonType.A, 3, 1)]], ids=idfn_proc)
-def test_optim(setup_cte, mocker, method, average, processes):
+@pytest.mark.parametrize('processes', [[CR50, B_43],
+                                       [CR50],
+                                       [B_43]], ids=idfn_proc)
+@pytest.mark.parametrize('excitations', [[], ['Vis_473'],  ['Vis_473', 'NIR_980']],
+                         ids=['default_exc', 'one_exc', 'two_exc'])
+def test_optim(setup_cte, mocker, method, average, processes, excitations):
     '''Test that the optimization works'''
     # mock the simulation by returning an error that goes to 0
-    mocked_opt_dyn = mocker.patch('simetuc.optimize.optim_fun_factory')
-    value = 20
-    def minimize(x):
-        nonlocal value
-        if value != 0:
-            value -= 1
-        return value
-    mocked_opt_dyn.return_value = minimize
+    init_param = np.array([proc.value for proc in processes])
+    def mocked_optim_fun(params, sim, average):
+        return 2 + (np.array([val for val in params.valuesdict().values()]) - 1.1*init_param)**2
+    mocker.patch('simetuc.optimize.optim_fun', new=mocked_optim_fun)
 
     setup_cte['optimization']['method'] = method
     setup_cte['optimization']['processes'] = processes
+    setup_cte['optimization']['excitations'] = excitations
     with temp_bin_filename() as temp_filename:
-        optimize.optimize_dynamics(setup_cte, average=average,
-                                   full_path=temp_filename)
+        best_x, min_f, res = optimize.optimize_dynamics(setup_cte, average=average,
+                                                        full_path=temp_filename)
 
-    assert mocked_opt_dyn.called
+    assert len(best_x) == len(processes)
+    if method in 'brute_force':
+        assert min_f == res.candidates[0].score
+    else:
+        assert min_f == (res.residual**2).sum()
 
 def test_optim_no_dict_params(setup_cte, mocker):
     '''Test that the optimization works with an empty optimization dict'''
-
     # mock the simulation by returning an error that goes to 0
-    mocked_opt_dyn = mocker.patch('simetuc.optimize.optim_fun_factory')
-    value = 20
-    def minimize(x):
-        nonlocal value
-        if value != 0:
-            value -= 1
-        return value
-    mocked_opt_dyn.return_value = minimize
+    init_param = np.array([proc.value for proc in setup_cte.energy_transfer.values() if proc.value != 0])
+    def mocked_optim_fun(params, sim, average):
+        return 2 + (np.array([val for val in params.valuesdict().values()]) - 1.1*init_param)**2
+    mocker.patch('simetuc.optimize.optim_fun', new=mocked_optim_fun)
 
     setup_cte['optimization'] = {}
+    setup_cte['optimization']['processes'] = [proc for proc in setup_cte.energy_transfer.values() if proc.value != 0]
+    setup_cte['optimization']['options'] = {}
     with temp_bin_filename() as temp_filename:
-        optimize.optimize_dynamics(setup_cte, full_path=temp_filename)
+        best_x, min_f, res = optimize.optimize_dynamics(setup_cte, full_path=temp_filename)
 
-    assert mocked_opt_dyn.called
+    assert len(best_x) == len(init_param)
+    assert min_f == (res.residual**2).sum()
 
 
 def test_optim_wrong_method(setup_cte, mocker):
     '''Test that the optimization works without the optimization params being present in cte'''
-
     # mock the simulation by returning an error that goes to 0
-    mocked_opt_dyn = mocker.patch('simetuc.optimize.optim_fun_factory')
-    value = 20
-    def minimize(x):
-        nonlocal value
-        if value != 0:
-            value -= 1
-        return value
-    mocked_opt_dyn.return_value = minimize
+    init_param = np.array([proc.value for proc in setup_cte['optimization']['processes']])
+    def mocked_optim_fun(params, sim, average):
+        return 2 + (np.array([val for val in params.valuesdict().values()]) - 1.1*init_param)**2
+    mocker.patch('simetuc.optimize.optim_fun', new=mocked_optim_fun)
 
     setup_cte['optimization']['method'] = 'wrong_method'
 
     with pytest.raises(ValueError) as excinfo:
         with temp_bin_filename() as temp_filename:
             optimize.optimize_dynamics(setup_cte, full_path=temp_filename)
-    assert excinfo.match(r"Wrong optimization method!")
+    assert excinfo.match(r"Wrong optimization method")
     assert excinfo.type == ValueError
 
 
-def test_optim_wrong_B_ratio(setup_cte, mocker):
-    '''Test exception if the user wants to optimize a wrong B ratio'''
-
-    # mock the simulation by returning an error that goes to 0
-    mocked_opt_dyn = mocker.patch('simetuc.optimize.optim_fun_factory')
-    value = 20
-    def minimize(x):
-        nonlocal value
-        if value != 0:
-            value -= 1
-        return value
-    mocked_opt_dyn.return_value = minimize
-
-    setup_cte['optimization']['processes'] = [Transition(IonType.S, 3, 0)]
-
-    with pytest.raises(ValueError) as excinfo:
-        optimize.optimize_dynamics(setup_cte)
-    assert excinfo.match(r"Branching ratio")
-    assert excinfo.match(r"not found")
-    assert excinfo.type == ValueError
-
-
-@pytest.mark.parametrize('excitations', [[], ['Vis_473', 'NIR_980']], ids=['default_exc', 'two_exc'])
-def test_optim_fun_factory(setup_cte, mocker, excitations):
+@pytest.mark.parametrize('excitations', [[], ['Vis_473'],  ['Vis_473', 'NIR_980']],
+                         ids=['default_exc', 'one_exc', 'two_exc'])
+def test_optim_fun(setup_cte, mocker, excitations):
     '''Test optim_fun_factory'''
     mocked_dyn = mocker.patch('simetuc.simulations.Simulations.simulate_dynamics')
+    class mocked_dyn_res:
+        errors = np.ones((setup_cte.states['activator_states'] +
+                          setup_cte.states['sensitizer_states'],), dtype=np.float64)
+    mocked_dyn.return_value = mocked_dyn_res
+
     sim = simulations.Simulations(setup_cte)
     sim.cte['optimization']['excitations'] = excitations
-    process_list = ['CR50', Transition(IonType.A, 3, 1)]
-    x0 = np.array([sim.get_ET_param_value(process) if isinstance(process, str)
-                      else sim.get_branching_ratio_value(process)
-                   for process in process_list])
 
-    _update_ET_and_simulate = optimize.optim_fun_factory(sim, process_list, x0)
-    _update_ET_and_simulate(x0*1.5)
+    # Processes to optimize. If not given, all ET parameters will be optimized
+    process_list = setup_cte.optimization['processes']
+    # create a set of Parameters
+    params = Parameters()
+    for process in process_list:
+        max_val = 1e15 if isinstance(process, EneryTransferProcess) else 1
+        # don't let ET processes go to zero.
+        min_val = 1 if isinstance(process, EneryTransferProcess) else 0
+        params.add(process.name, value=process.value, min=min_val, max=max_val)
+
+    optimize.optim_fun(params, sim, average=False)
 
     assert mocked_dyn.called
 

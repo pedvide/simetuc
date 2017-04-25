@@ -8,7 +8,7 @@ Created on Sat Oct 22 00:10:24 2016
 import pytest
 import os
 import numpy as np
-import yaml
+import ruamel_yaml as yaml
 import copy
 
 import simetuc.settings as settings
@@ -51,7 +51,10 @@ def setup_cte():
                  'NIR_980': [Excitation(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
                  'Vis_473': [Excitation(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]}
              ),
-             ('optimization', {'method': 'SLSQP', 'processes': ['CR50'], 'excitations': []}),
+             ('optimization', {'method': 'SLSQP', 'processes': [EneryTransferProcess([Transition(IonType.A, 5, 3),
+                                                                                      Transition(IonType.A, 0, 2)],
+                                                                                     mult=6, strength=2893199540.0, name='CR53')],
+                               'excitations': []}),
              ('power_dependence', [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0]),
              ('conc_dependence', [(0.0, 0.01), (0.0, 0.1), (0.0, 0.2), (0.0, 0.3), (0.0, 0.4), (0.0, 0.5)]),
              ('simulation_params', {'N_steps': 1000,
@@ -81,7 +84,7 @@ def setup_cte():
                                            mult=6, strength=2893199540.0),
               'ETU53': EneryTransferProcess([Transition(IonType.A, 5, 6),
                                              Transition(IonType.A, 3, 1)],
-                                            mult=6, strength=254295690.0),
+                                            mult=6, strength=2.5e8),
               'ETU55': EneryTransferProcess([Transition(IonType.A, 5, 6),
                                              Transition(IonType.A, 5, 4)],
                                             mult=6, strength=0.0),
@@ -1072,7 +1075,7 @@ activator_branching_ratios:
     # 1D2 to 3F4
     1D2->3F4: 0.43
 '''
-def test_ET_config1():
+def test_ET_config_wrong_ion_label():
     data = data_branch_ok + '''energy_transfer:
     CR50:
         process: T(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
@@ -1085,7 +1088,7 @@ def test_ET_config1():
     assert excinfo.match(r"is not a valid ion label")
     assert excinfo.type == settings.LabelError
 
-def test_ET_config2():
+def test_ET_config_wrong_state_label():
     data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Tm(34) + Tm(3H5)
@@ -1098,7 +1101,7 @@ def test_ET_config2():
     assert excinfo.match(r"is not a valid state label")
     assert excinfo.type == settings.LabelError
 
-def test_ET_config3():
+def test_ET_config_wrong_multipolarity():
     data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
@@ -1111,7 +1114,7 @@ def test_ET_config3():
     assert excinfo.match(r"does not have the right type")
     assert excinfo.type == ValueError
 
-def test_ET_config4():
+def test_ET_config_wrong_initial_final_ion_label():
     data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Yb(3H4) + Tm(3H5)
@@ -1124,7 +1127,7 @@ def test_ET_config4():
     assert excinfo.match(r"is not a valid state label")
     assert excinfo.type == settings.LabelError
 
-def test_ET_config5():
+def test_ET_config_duplicate_ET_labels():
     data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Yb(3H4) + Tm(3H5)
@@ -1141,7 +1144,7 @@ def test_ET_config5():
     assert excinfo.match(r"Duplicate label")
     assert excinfo.type == settings.LabelError
 
-def test_ET_config6():
+def test_ET_config_missing_strength():
     data = data_branch_ok + '''energy_transfer:
     CR50:
         process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
@@ -1411,7 +1414,7 @@ def test_optim_wrong_proc():
     with pytest.raises(settings.LabelError) as excinfo: # wrong ET process label
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Wrong labels in optimization: processes!")
+    assert excinfo.match(r"Wrong labels in optimization: processes")
     assert excinfo.type == settings.LabelError
 
 def test_optim_wrong_proc_2():
@@ -1422,7 +1425,7 @@ def test_optim_wrong_proc_2():
     with pytest.raises(settings.LabelError) as excinfo: # wrong ET process label
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Wrong labels in optimization: processes!")
+    assert excinfo.match(r"Wrong labels in optimization: processes")
     assert excinfo.type == settings.LabelError
 
 def test_optim_wrong_B_proc():
@@ -1433,8 +1436,7 @@ def test_optim_wrong_B_proc():
     with pytest.raises(settings.LabelError) as excinfo: # wrong ET process label
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Wrong labels in optimization: processes!")
-    assert excinfo.match(r"Unrecognized branching ratio process")
+    assert excinfo.match(r"Wrong labels in optimization: processes")
     assert excinfo.type == settings.LabelError
 
 def test_optim_wrong_B_proc_label():
@@ -1445,19 +1447,21 @@ def test_optim_wrong_B_proc_label():
     with pytest.raises(settings.LabelError) as excinfo: # wrong ET process label
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Wrong labels in optimization: processes!")
-    assert excinfo.match(r"Unrecognized branching ratio process")
+    assert excinfo.match(r"Wrong labels in optimization: processes")
     assert excinfo.type == settings.LabelError
 
-@pytest.mark.parametrize('data_proc', [(data_ET_ok, '3H5->3F4',  DecayTransition(IonType.A, 2, 1)),
-                                       (data_ET_ok_full_S, '3ES->1ES',  DecayTransition(IonType.S, 3, 1))])
+@pytest.mark.parametrize('data_proc', [(data_ET_ok, '3H5->3F4',  Transition(IonType.A, 2, 1)),
+                                       (data_ET_ok_full_S, '3ES->1ES',  Transition(IonType.S, 3, 1))])
 def test_optim_ok_proc(data_proc): # ok
     data = data_proc[0] + '''optimization:
         processes: [ETU53, {}]
 '''.format(data_proc[1])
     with temp_config_filename(data) as filename:
         cte = settings.load(filename)
-    assert cte['optimization']['processes'] == ['ETU53', data_proc[2]]
+
+    ETU53 = EneryTransferProcess([Transition(IonType.A, 5, 6), Transition(IonType.A, 3, 1)],
+                                 mult=6, strength=2.5e8, name='ETU53')
+    assert cte['optimization']['processes'] == [ETU53, data_proc[2]]
 
 def test_optim_method(): # ok
     data = data_ET_ok + '''optimization:

@@ -10,7 +10,7 @@ import csv
 import logging
 import warnings
 import os
-from typing import List, Tuple, Iterator, Sequence, Union, cast
+from typing import List, Tuple, Iterator, Sequence, cast
 
 import h5py
 import ruamel_yaml as yaml
@@ -28,8 +28,8 @@ import simetuc.precalculate as precalculate
 import simetuc.odesolver as odesolver
 #import simetuc.odesolver_assimulo as odesolver  # warning: it's slower!
 import simetuc.plotter as plotter
-from simetuc.util import Conc, Transition, DecayTransition
-from simetuc.util import cached_property, log_exceptions_warnings
+from simetuc.util import Conc
+from simetuc.util import cached_property, log_exceptions_warnings, console_logger_level
 from simetuc.settings import Settings
 
 
@@ -334,7 +334,7 @@ class DynamicsSolution(Solution):
                 with open(path, 'rt') as file:
                     try:  # TODO: get a better way to read data, PANDAS?
                         #  data = np.loadtxt(path, usecols=(0, 1)) # 10x slower
-                        data = csv.reader(file, delimiter=delim)
+                        data = csv.reader(file, delimiter=delim)  # type: ignore
                         # ignore emtpy lines and comments
                         data = [row for row in data if len(row) == 2 and not row[0].startswith('#')]
                         data = np.array(data, dtype=np.float64)
@@ -354,7 +354,8 @@ class DynamicsSolution(Solution):
 
         # make sure data is valid
         if not isinstance(data, np.ndarray) or len(data.shape) != 2 or data.shape[1] != 2:
-            logger.debug('Invalid experimental data.')
+            warnings.warn('Invalid experimental data in' +
+                          ' file "{}", it will be ignored.'.format(filename))
             return None
 
         logger.debug('Experimental data succesfully read.')
@@ -364,18 +365,18 @@ class DynamicsSolution(Solution):
         smooth_data = smooth_data.clip(min=0)
 
         # average maximum
-        max_point = np.where(smooth_data == max(smooth_data))[0][0]
+        max_point = np.where(smooth_data == np.max(smooth_data))[0][0]
         # average over 0.5% of points around max_point
         delta = int(0.005*len(smooth_data))
         delta = delta if delta > 1 else 1  # at least 1 point
         if max_point == 0:
-            avg_max = max(smooth_data)
+            avg_max = np.max(smooth_data)
         elif max_point > delta//2:
             avg_max = np.mean(smooth_data[max_point-delta//2:max_point+delta//2])
         else:
             avg_max = np.mean(smooth_data[:max_point+delta//2])
         # normalize data
-        data[:, 1] = (data[:, 1]-min(smooth_data))/(avg_max-min(smooth_data))
+        data[:, 1] = (data[:, 1]-np.min(smooth_data))/(avg_max-np.min(smooth_data))
         # set negative values to zero
         data = data.clip(min=0)
         return data
@@ -393,8 +394,14 @@ class DynamicsSolution(Solution):
         if not np.any(sim_data):  # pragma: no cover
             return None
 
-        last_points = exp_data[-offset_points:, 1]  # get last 50 points
-        offset = np.mean(last_points[last_points > 0])*max(sim_data)
+        # eliminate zeros before calculating background
+        count_data = exp_data[:,1]
+        non_zero_exp_data = count_data[count_data>0]
+        last_points = non_zero_exp_data[-offset_points:]  # get last 50 points
+        if np.any(last_points > 0):
+            offset = np.mean(last_points[last_points > 0])*np.max(sim_data)
+        else:
+            offset = 0
 
         if np.isnan(offset):  # pragma: no cover
             sim_data_ofs = sim_data
@@ -519,6 +526,7 @@ class DynamicsSolution(Solution):
         return total_error
 
     @cached_property
+    @log_exceptions_warnings
     def list_interp_data(self) -> List[np.array]:
         '''List of offset-corrected (due to experimental background) average populations
             for each state in the solution
@@ -861,20 +869,6 @@ class Simulations():
                                                         float(self.cte.lattice['A_conc']))
         return os.path.join(path, filename)
 
-    def modify_param_value(self, process: Union[str, DecayTransition], new_value: float) -> None:
-        '''Change the value of the process.'''
-        self.cte.modify_param_value(process, new_value)
-
-    def get_ET_param_value(self, process: str, average: bool = False) -> float:
-        '''Get a ET parameter value.
-            Return the average value if it exists.
-        '''
-        return self.cte.get_ET_param_value(process, average)
-
-    def get_branching_ratio_value(self, process: Transition) -> float:
-        '''Gets a branching ratio value.'''
-        return self.cte.get_branching_ratio_value(process)
-
 #    @profile
     def simulate_dynamics(self, average: bool = False) -> DynamicsSolution:
         ''' Simulates the absorption, decay and energy transfer processes contained in cte
@@ -1052,7 +1046,8 @@ class Simulations():
             for excitation in self.cte['excitations'].keys():
                 self.cte['excitations'][excitation][0].power_dens = power_dens
             # calculate steady state populations
-            steady_sol = self.simulate_steady_state(average=average)
+            with console_logger_level(logging.WARNING):
+                steady_sol = self.simulate_steady_state(average=average)
             solutions.append(steady_sol)
 
         total_time = time.time()-start_time
@@ -1074,7 +1069,8 @@ class Simulations():
             average=True solves an average rate equation problem instead of the microscopic one.
         '''
         logger = logging.getLogger(__name__)
-        logger.info('Simulating power dependence curves...')
+        logger.info('Simulating concentration dependence curves of ' +
+                    '{}.'.format('dynamics' if dynamics is True else 'steady state'))
 
         start_time = time.time()
 
@@ -1090,11 +1086,12 @@ class Simulations():
             # update concentrations
             self.cte['lattice']['S_conc'] = concs[0]
             self.cte['lattice']['A_conc'] = concs[1]
-            # simulate
-            if dynamics:
-                sol = self.simulate_dynamics(average=average)  # type: Solution
-            else:
-                sol = self.simulate_steady_state(average=average)  # pylint: disable=R0204
+            with console_logger_level(logging.WARNING):
+                # simulate
+                if dynamics:
+                    sol = self.simulate_dynamics(average=average)  # type: Solution
+                else:
+                    sol = self.simulate_steady_state(average=average)  # pylint: disable=R0204
             solutions.append(sol)
 
         total_time = time.time()-start_time
@@ -1112,8 +1109,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 
-    logger.info('Called from cmd.')
-
     import simetuc.settings as settings
     cte = settings.load('config_file.cfg')
 
@@ -1122,9 +1117,10 @@ if __name__ == "__main__":
 
     sim = Simulations(cte)
 
-    solution = sim.simulate_dynamics()
-    solution.log_errors()
-    solution.plot()
+
+#    solution = sim.simulate_dynamics()
+#    solution.log_errors()
+#    solution.plot()
 ##
 ##    solution.plot(state=7)
 ##
@@ -1148,6 +1144,6 @@ if __name__ == "__main__":
 ##    conc_list = [(0, 0.1), (0, 0.2), (0, 0.3), (0.1, 0.1), (0.1, 0.2), (0.1, 0.3)]
 ##    conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
 #
-#    conc_list = [(0, 0.1), (0, 0.175), (0, 0.3), (0, 0.5), (0, 1.0)]
-#    solution = sim.simulate_concentration_dependence(cte.conc_dependence, dynamics=True)
-#    solution.plot()
+    conc_list = [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3)]#, (0, 0.5)]#, (0, 1.0)]
+    solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
+    solution.plot()

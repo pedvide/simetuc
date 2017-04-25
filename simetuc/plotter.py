@@ -17,7 +17,7 @@ import matplotlib as mpl
 from simetuc.util import Conc
 
 
-A_TOL = 1e-20
+A_TOL = 1e-15
 
 ColorMap = Type[mpl.colors.Colormap]
 
@@ -71,13 +71,17 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
     if fig is None:
         fig = plt.figure()
 
-    for num, (sim_data, t_sim, exp_data, state_label)\
-        in enumerate(zip(list_sim_data, list_t_sim, list_exp_data, state_labels)):
+    list_axes = fig.get_axes()  # type: List
+    if not list_axes:
+        for num in range(num_plots):
+            fig.add_subplot(num_rows, num_cols, num+1)
+        list_axes = fig.get_axes()
+
+    for sim_data, t_sim, exp_data, state_label, axes\
+        in zip(list_sim_data, list_t_sim, list_exp_data, state_labels, list_axes):  # type: ignore
 
         if sim_data is None or np.isnan(sim_data).any() or not np.any(sim_data > 0):
             continue
-
-        axes = fig.add_subplot(num_rows, num_cols, num+1)
 
         axes.set_title(state_label.replace('_', ' '), visible=False)
         # no exp data: either a GS or simply no exp data available
@@ -104,18 +108,29 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
             min_y = min(*axes.get_ylim())
             max_y = max(*axes.get_ylim())
             axes.set_ylim(bottom=min_y, top=max_y)
+            axes.legend(loc="best", fontsize='small')
         else:  # exp data available
-            axes.semilogy(t_sim*1000, sim_data, color=sim_color, label=state_label, zorder=10)
+            curr_handles, curr_labels = axes.get_legend_handles_labels()
+            sim_handle, = axes.semilogy(t_sim*1000, sim_data, color=sim_color,
+                                       label=state_label, zorder=10)
             # convert exp_data time to ms
-            axes.semilogy(exp_data[:, 0]*1000, exp_data[:, 1]*np.max(sim_data), color=exp_color,
-                         marker=exp_marker, linewidth=0, markersize=exp_size, zorder=1)
+            exp_handle, = axes.semilogy(exp_data[:, 0]*1000, exp_data[:, 1]*np.max(sim_data),
+                                       color=exp_color, marker=exp_marker,
+                                       linewidth=0, markersize=exp_size, zorder=1)
             axes.axis('tight')
             axes.set_ylim(top=axes.get_ylim()[1]*1.2)  # add some white space on top
             tmin = min(exp_data[-1, 0], t_sim[0])
             axes.set_xlim(left=tmin*1000.0, right=exp_data[-1, 0]*1000)  # don't show beyond expData
 
-        axes.legend(loc="best", fontsize='small')
+            axes.legend(curr_handles+[(sim_handle, exp_handle)],
+                        curr_labels+[state_label], markerscale=5)#, loc="best", fontsize='small')
+
+            curr_handles, curr_labels = axes.get_legend_handles_labels()
+#            print(num, curr_handles)
         axes.set_xlabel('t (ms)')
+
+
+
 
 
 def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
@@ -287,8 +302,8 @@ def plot_lattice(doped_lattice: np.array, ion_type: np.array) -> None:
     plt.legend(loc='best', scatterpoints=1)
 
 
-def plot_optimization_brute_force(param_values: np.array, error_values: np.array) -> None:
-    '''Plot all results from the brute force optimization'''
-    plt.plot(param_values, error_values, '.b-')
-    plt.xlabel('Param value')
-    plt.ylabel('RMS error')
+#def plot_optimization_brute_force(param_values: np.array, error_values: np.array) -> None:
+#    '''Plot all results from the brute force optimization'''
+#    plt.plot(param_values, error_values, '.b-')
+#    plt.xlabel('Param value')
+#    plt.ylabel('RMS error')

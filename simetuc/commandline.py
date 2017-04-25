@@ -21,13 +21,13 @@ from typing import Any, Union, List
 
 #import numpy as np
 import matplotlib.pyplot as plt
-import yaml
+import ruamel_yaml as yaml
 
 import simetuc.lattice as lattice
 import simetuc.simulations as simulations
 import simetuc.settings as settings
 import simetuc.optimize as optimize
-from simetuc.util import change_console_logger_level as change_console_logger_level
+#from simetuc.util import console_logger_level
 
 from simetuc import VERSION
 from simetuc import DESCRIPTION
@@ -186,38 +186,20 @@ def main(ext_args: List[str] = None) -> None:
         logger.info('Simulating power dependence...')
         sim = simulations.Simulations(cte)
         power_dens_list = cte['power_dependence']
-
-        # change the logging level of the console handler
-        # so it only prints warnings to screen while calculating all solutions
-        change_console_logger_level(logging.WARNING)
         solution = sim.simulate_power_dependence(power_dens_list, average=args.average)
-        # restore old level value
-        change_console_logger_level(console_level)
         print('')
 
     elif args.conc_dependence:  # simulate concentration dependence
+        logger.info('Simulating concentration dependence...')
         sim = simulations.Simulations(cte)
-
         conc_list = cte['conc_dependence']
-
-        dynamics = False
-        if args.conc_dependence == 'd':
-            dynamics = True
-            logger.info('Simulating concentration dependence of dynamics...')
-        else:
-            logger.info('Simulating concentration dependence of steady state...')
-
-        # change the logging level of the console handler
-        # so it only prints warnings to screen while calculating all solutions
-        change_console_logger_level(logging.WARNING)
+        dynamics = True if args.conc_dependence == 'd' else False
         solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics,
-                                                         average=args.average)
-        # restore old level value
-        change_console_logger_level(console_level)
+                                                             average=args.average)
         print('')
 
     elif args.optimize:  # optimize
-        logger.info('Optimizing ET parameters...')
+        logger.info('Optimizing parameters...')
 
         optimize.optimize_dynamics(cte, average=args.average)
 
@@ -237,6 +219,8 @@ def main(ext_args: List[str] = None) -> None:
             solution.plot()
         logger.info('Close the plot window to exit.')
         plt.show()
+
+    logging.shutdown()
 
 
 if __name__ == "__main__":

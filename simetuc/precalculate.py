@@ -21,7 +21,7 @@ import numba
 from typing import Dict, List, Tuple
 
 import h5py
-import yaml
+import ruamel_yaml as yaml
 
 import numpy as np
 import scipy.sparse
