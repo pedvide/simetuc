@@ -323,18 +323,18 @@ def _create_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET: Dic
         for proc_name, process in dict_ET.items():
              # discard processes whose states are larger than activator states
             if not np.isclose(process.strength, 0.0) and process.type == (IonType.A, IonType.A):
-                if np.any(np.array(process.indices) >= activator_states):
+                if np.any(np.array(process.indices) > activator_states):
                     raise lattice.LatticeError
             elif not np.isclose(process.strength, 0.0) and process.type == (IonType.A, IonType.S):
-                if np.any(np.array(process.indices[::2]) >= activator_states) or\
-                    np.any(np.array(process.indices[1::2]) >= sensitizer_states):
+                if np.any(np.array(process.indices[::2]) > activator_states) or\
+                    np.any(np.array(process.indices[1::2]) > sensitizer_states):
                     raise lattice.LatticeError
             elif not np.isclose(process.strength, 0.0) and process.type == (IonType.S, IonType.S):
-                if np.any(np.array(process.indices) >= sensitizer_states):
+                if np.any(np.array(process.indices) > sensitizer_states):
                     raise lattice.LatticeError
             elif not np.isclose(process.strength, 0.0) and process.type == (IonType.S, IonType.A):
-                if np.any(np.array(process.indices[::2]) >= activator_states) or\
-                    np.any(np.array(process.indices[0::2]) >= sensitizer_states):
+                if np.any(np.array(process.indices[::2]) > activator_states) or\
+                    np.any(np.array(process.indices[0::2]) > sensitizer_states):
                     raise lattice.LatticeError
     except lattice.LatticeError:
         msg = ('The number of A or S states is lower ' +

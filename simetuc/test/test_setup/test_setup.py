@@ -841,7 +841,7 @@ def test_random_lattice(setup_cte, params, absorption, problem):
                                     (5.0, 0.0, 10, 5, 0), # no A_states, no A_conc
                                     (0.0, 1.0, 8, 0, 4), # no S_states, no S_conc
                                     (5.0, 5.0, 10, 2, 1), # low A_states
-                                    (5.0, 5.0, 8, 1, 7)], # low S_states
+                                    (5.0, 5.0, 8, 0, 7)], # low S_states
                          ids=idfn)
 def test_random_wrong_lattice(setup_cte, params, absorption, problem):
     cte = setup_cte
