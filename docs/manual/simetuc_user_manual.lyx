@@ -2163,7 +2163,7 @@ Optimization
 \begin_layout Description
 processes An optional list of energy transfer or branching ratio labels.
  If empty or not present, all ET processes will be optimized (and no branching
- ratio).
+ ratios).
  If present and not empty, this option restricts the optimization parameters
  to those in the list, for example
 \begin_inset listings
@@ -2198,6 +2198,12 @@ method This optional section defines the method used to optimize the energy
 \begin_layout Itemize
 
 \family typewriter
+leastsq
+\end_layout
+
+\begin_layout Itemize
+
+\family typewriter
 SLSQP
 \end_layout
 
@@ -2226,7 +2232,23 @@ brute_force
 \end_layout
 
 \begin_layout Standard
-See the 
+
+\emph on
+simetuc
+\emph default
+ uses the library 
+\emph on
+lmfit
+\emph default
+ for the optimization, see 
+\begin_inset CommandInset href
+LatexCommand href
+name "lmfit methods documentation"
+target "https://lmfit.github.io/lmfit-py/fitting.html#lmfit.minimizer.minimize"
+
+\end_inset
+
+; see also the 
 \emph on
 Notes
 \emph default
@@ -2238,16 +2260,37 @@ target "https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/scipy.optimi
 
 \end_inset
 
+ and 
+\begin_inset CommandInset href
+LatexCommand href
+name "scipy least_squares documentation"
+target "https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html#scipy.optimize.least_squares"
+
+\end_inset
+
 .
  
 \family typewriter
+leastsq
+\family default
+ (the default), 
+\family typewriter
 SLSQP
 \family default
- (the default) or 
+, or 
 \family typewriter
 brute_force
 \family default
  are recommended, as they seem to take the least time to arrive at the minimum.
+\begin_inset Newline newline
+\end_inset
+
+
+\family typewriter
+leastsq
+\family default
+ uses the Levenberg-Marquardt method, it is very robust and efficient with
+ a lot of smart tricks, it's the default method.
 \end_layout
 
 \begin_layout Standard
@@ -2264,15 +2307,64 @@ SLSQP
 \family typewriter
 brute_force
 \family default
- on the other hand computes the error at 10 points in a range from 0.1 to
- 10 times the parameter values given in the configuration file and selects
- the minimum; after it, it is advised to run an 
+ on the other hand computes the error at a given number of points (10 points
+ by default if not given, see 
+\emph on
+options
+\emph default
+ section below) in a given range (from 0.1 to 10 times the parameter values
+ given in the configuration file, also user-changeable) and selects the
+ minimum; after it, it is advised to run an 
+\family typewriter
+leastsq
+\family default
+ or 
 \family typewriter
 SLSQP
 \family default
  minimization to further refine the value.
- If the parameter to optimize is a branching ratio, the maximum value is
- 1.
+ If the parameter to optimize is a branching ratio, the range is restricted
+ to [0, 1].
+\end_layout
+
+\end_deeper
+\begin_layout Description
+options Non-mandatory options for the optimization:
+\end_layout
+
+\begin_deeper
+\begin_layout Itemize
+
+\family typewriter
+tol
+\family default
+: Tolerance for the optimization
+\end_layout
+
+\begin_layout Itemize
+
+\family typewriter
+N_points
+\family default
+: Number of points (per optimization parameter) for the brute_force method.
+\end_layout
+
+\begin_layout Itemize
+
+\family typewriter
+min_factor/max_factor
+\family default
+: Minimum and maximum factors that define the range of values to be simulated
+ in the brute_force method.
+ For example, if the parameter value is 500, a 
+\family typewriter
+min_factor
+\family default
+=0.1 and 
+\family typewriter
+max_factor
+\family default
+=10 will produce a range [50, 5000].
 \end_layout
 
 \end_deeper

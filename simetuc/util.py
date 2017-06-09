@@ -27,7 +27,7 @@ def temp_config_filename(data: str) -> Generator:
     '''
     # file won't be deleted after closing
     temp = tempfile.NamedTemporaryFile(mode='wt', delete=False)
-    temp.write(data)  # type: ignore
+    temp.write(data)
     temp.close()
     yield temp.name
     os.unlink(temp.name)  # delete file

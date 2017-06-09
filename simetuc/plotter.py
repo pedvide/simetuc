@@ -78,7 +78,7 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
         list_axes = fig.get_axes()
 
     for sim_data, t_sim, exp_data, state_label, axes\
-        in zip(list_sim_data, list_t_sim, list_exp_data, state_labels, list_axes):  # type: ignore
+        in zip(list_sim_data, list_t_sim, list_exp_data, state_labels, list_axes):
 
         if sim_data is None or np.isnan(sim_data).any() or not np.any(sim_data > 0):
             continue

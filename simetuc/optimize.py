@@ -75,8 +75,8 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
     sim = simulations.Simulations(cte)
 
     # multiply the values by these bounds to get the minimum and maximum allowed values
-    max_bound = cte.optimization['options'].get('max_bound', 1e5)
-    min_bound = cte.optimization['options'].get('min_bound', 1e-5)
+    max_factor = cte.optimization['options'].get('max_factor', 1e5)
+    min_factor = cte.optimization['options'].get('min_factor', 1e-5)
 
     method = cte.get('optimization', {}).get('method', 'leastsq').lower().replace('-', '')
     if method not in (list(minimizer.SCALAR_METHODS.keys()) +
@@ -91,9 +91,9 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
     params = Parameters()
     for process in process_list:
         value = process.value
-        max_val = max_bound*value if isinstance(process, EneryTransferProcess) else 1
+        max_val = max_factor*value if isinstance(process, EneryTransferProcess) else 1
         # don't let ET processes go to zero.
-        min_val = min_bound*value if isinstance(process, EneryTransferProcess) else 0
+        min_val = min_factor*value if isinstance(process, EneryTransferProcess) else 0
         params.add(process.name, value=value, min=min_val, max=max_val)
     logger.info('Optimization parameters: ' + ', '.join(proc.name for proc in process_list) + '.')
 

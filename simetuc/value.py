@@ -12,7 +12,7 @@ import logging
 # nice debug printing of settings
 #import pprint
 from typing import Dict, List, Tuple
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, Any
 from typing import Union, Sequence, Iterable, Mapping, Sized
 from functools import wraps
 from enum import Enum
@@ -39,7 +39,7 @@ from simetuc.util import ConfigWarning
 # type of innermost type, could be int, str, etc
 T = TypeVar('T')
 # the type of the settings value can be a simple type or a collection or types
-ValType = Union[T, Iterable[T]]
+ValType = Any #TypeVar('ValType')
 
 class Value():
     '''A value of a setting. The value has an specific type and optionally max and min values.
@@ -132,7 +132,7 @@ class Value():
             logger.error(msg)
             raise ValueError(msg)
 
-    def _raise_wrong_type_error(self, value: ValType, val_type: ValType, err: Exception = None) -> None:
+    def _raise_wrong_type_error(self, value: T, val_type: ValType, err: Exception = None) -> None:
         '''Raises ValueError because the type of the value is not the expected val_type.'''
         logger = logging.getLogger(__name__)
 
@@ -146,12 +146,13 @@ class Value():
             logger.error(msg1 + msg2 + err_str)
         raise ValueError(msg1 + msg2 + err_str)
 
-    def _cast_to_type(self, value: ValType, val_type: ValType) -> ValType:
+    def _cast_to_type(self, value: T, val_type: ValType) -> ValType:
         '''Cast the value to the type, which should be callable.'''
         try:
             parsed_value = val_type(value)
         except (ValueError, TypeError) as err:  # no match
             self._raise_wrong_type_error(value, val_type, err)
+            return None
         else:
             # no exception, val_type matched the value!
             return parsed_value
@@ -181,9 +182,9 @@ class Value():
         return wrapper
 
 #    @trace
-    def _parse_type_tree(self, value: ValType, val_type: ValType,
+    def _parse_type_tree(self, value: T, val_type: ValType,
                          len_max: List = None, len_min: List = None,
-                         key: bool = False) -> ValType:
+                         key: bool = False) -> Any:
         '''Makes sure that the sequence/value has recursively the given type, ie:
             a = [1, 2, 3] has val_type=List, and then val_type=int
             b = [[1, 2, 3], [4, 5, 6]] has val_type=List, then val_type=List and val_type=int
@@ -246,7 +247,6 @@ class Value():
 
             # parse all values in the dictionary
             parsed_dict = self._cast_to_type(value, val_type)
-
             return parsed_dict
 
         # generic mappings such as Dicts: parse both the keys and the values
@@ -259,7 +259,7 @@ class Value():
                                              rest_len_max, rest_len_min, key=True):
                        self._parse_type_tree(inner_val, val_type.__args__[1],
                                              rest_len_max, rest_len_min)
-                       for inner_key, inner_val in value.items()}
+                       for inner_key, inner_val in value.items()}  # type: ignore
 
             # check length
             self._check_seq_len(mapping, cur_len_max, cur_len_min)
@@ -301,7 +301,7 @@ class Value():
 
             return self._cast_to_type(sequence, val_type.__extra__)
 
-    def parse(self, value: ValType) -> ValType:
+    def parse(self, value: T) -> ValType:
         '''Parses the value from a settings file
             and tries to convert it to this Value's type.'''
         return self._parse_type_tree(value, self.val_type, self.len_max, self.len_min)
