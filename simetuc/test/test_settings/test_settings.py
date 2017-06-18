@@ -1508,14 +1508,14 @@ def test_sim_params_config1(): # ok
                                             ('N_steps_pulse', 100),
                                             ('N_steps', 1000)])
 
-def test_sim_params_config_extra_value(recwarn): # ok
+def test_sim_params_config_extra_value(): # ok
     data = data_ET_ok + data_sim_params + 'wrong: label'
 
-    with pytest.warns(settings.ConfigWarning): # 'wrong: label' in simulation_params
+    with pytest.warns(settings.ConfigWarning) as warnings: # 'wrong: label' in simulation_params
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert len(recwarn) == 1 # one warning
-    warning = recwarn.pop(settings.ConfigWarning)
+    assert len(warnings) == 1 # one warning
+    warning = warnings.pop(settings.ConfigWarning)
     assert issubclass(warning.category, settings.ConfigWarning)
     assert 'WARNING! The following values are not recognized' in str(warning.message)
     assert 'Those values or sections should not be present' in str(warning.message)
@@ -1596,7 +1596,7 @@ def test_conc_dep_config4(): # negative number
 
 
 # test extra value in section lattice
-def test_extra_value(recwarn):
+def test_extra_value():
     extra_data = '''version: 1
 lattice:
     name: bNaYF4
@@ -1646,11 +1646,11 @@ activator_decay:
 sensitizer_branching_ratios:
 activator_branching_ratios:
 '''
-    with pytest.warns(settings.ConfigWarning): # "extra_value" in lattice section
+    with pytest.warns(settings.ConfigWarning) as warnings: # "extra_value" in lattice section
         with temp_config_filename(extra_data) as filename:
             settings.load(filename)
-    assert len(recwarn) == 1 # one warning
-    warning = recwarn.pop(settings.ConfigWarning)
+    assert len(warnings) == 1 # one warning
+    warning = warnings.pop(settings.ConfigWarning)
     assert issubclass(warning.category, settings.ConfigWarning)
     assert 'Some values or sections should not be present in the file.' in str(warning.message)
 

@@ -260,17 +260,17 @@ def test_sim_steady2(setup_cte):
         solution = sim.simulate_avg_steady_state()
         assert solution
 
-def test_sim_no_plot(setup_cte, recwarn):
+def test_sim_no_plot(setup_cte):
     '''Test that no plot works'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         solution = sim.simulate_dynamics()
 
-    with pytest.warns(plotter.PlotWarning):
+    with pytest.warns(plotter.PlotWarning) as warnings:
         solution.plot()
-#    assert len(recwarn) == 1 # one warning
-    warning = recwarn.pop(plotter.PlotWarning)
+#    assert len(warnings) == 1 # one warning
+    warning = warnings.pop(plotter.PlotWarning)
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
 
@@ -303,21 +303,21 @@ def test_sim_power_dep1(setup_cte, mocker):
     assert sol_hdf5 == solution
     sol_hdf5.plot()
 
-def test_sim_power_dep2(setup_cte, recwarn):
+def test_sim_power_dep2(setup_cte):
     '''Power dep list is empty'''
     with temp_bin_filename() as temp_filename:
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         power_dens_list = []
         solution = sim.simulate_power_dependence(power_dens_list)
 
-    with pytest.warns(plotter.PlotWarning):
+    with pytest.warns(plotter.PlotWarning) as warnings:
         solution.plot()
-#    assert len(recwarn) == 1 # one warning
-    warning = recwarn.pop(plotter.PlotWarning)
+#    assert len(warnings) == 1 # one warning
+    warning = warnings.pop(plotter.PlotWarning)
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'Nothing to plot! The power_dependence list is emtpy!' in str(warning.message)
 
-def test_sim_power_dep3(setup_cte, recwarn, mocker):
+def test_sim_power_dep3(setup_cte, mocker):
     '''A plot was requested, but no_plot is set'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
@@ -331,10 +331,10 @@ def test_sim_power_dep3(setup_cte, recwarn, mocker):
         solution = sim.simulate_power_dependence(power_dens_list)
         assert mocked.call_count == len(power_dens_list)
 
-    with pytest.warns(plotter.PlotWarning):
+    with pytest.warns(plotter.PlotWarning) as warnings:
         solution.plot()
-#    assert len(recwarn) == 1 # one warning
-    warning = recwarn.pop(plotter.PlotWarning)
+#    assert len(warnings) == 1 # one warning
+    warning = warnings.pop(plotter.PlotWarning)
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
 
@@ -451,22 +451,22 @@ def test_sim_conc_dep_only_S(setup_cte, mocker):
     assert solution
     solution.plot()
 
-def test_sim_conc_dep_empty_conc(setup_cte, recwarn):
+def test_sim_conc_dep_empty_conc(setup_cte):
     '''Conc list is empty'''
     with temp_bin_filename() as temp_filename:
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         conc_list = []
         solution = sim.simulate_concentration_dependence(conc_list)
 
-    with pytest.warns(plotter.PlotWarning):
+    with pytest.warns(plotter.PlotWarning) as warnings:
         solution.plot()
-#    assert len(recwarn) == 1 # one warning
-    warning = recwarn.pop(plotter.PlotWarning)
+#    assert len(warnings) == 1 # one warning
+    warning = warnings.pop(plotter.PlotWarning)
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'Nothing to plot! The concentration_dependence list is emtpy!' in str(warning.message)
 
 
-def test_sim_conc_dep_no_plot(setup_cte, recwarn, mocker):
+def test_sim_conc_dep_no_plot(setup_cte, mocker):
     '''A plot was requested, but no_plot is set'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
@@ -480,10 +480,10 @@ def test_sim_conc_dep_no_plot(setup_cte, recwarn, mocker):
         solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
         assert mocked.call_count == len(conc_list)
 
-    with pytest.warns(plotter.PlotWarning):
+    with pytest.warns(plotter.PlotWarning) as warnings:
         solution.plot()
-#    assert len(recwarn) == 1 # one warning
-    warning = recwarn.pop(plotter.PlotWarning)
+#    assert len(warnings) == 1 # one warning
+    warning = warnings.pop(plotter.PlotWarning)
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
 
