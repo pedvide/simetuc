@@ -299,18 +299,19 @@ def log_exceptions_warnings(function: Callable) -> Callable:
                 ret = function(*args, **kwargs)
         except Exception as exc:
             logger = logging.getLogger(function.__module__)
-            logger.error(exc.args[0])
+            logger.error(str(exc))
             raise
         for warn in warn_list:
             logger = logging.getLogger(function.__module__)
-            msg = (warn.category.__name__ + ': "' + str(warn.message) +
-                   '" in ' + os.path.basename(warn.filename) +
-                   ', line: ' + str(warn.lineno) + '.')
-            logger.warning(msg)
+            log_msg = (warn.category.__name__ + ': "' + str(warn.message) +
+                       '" in ' + os.path.basename(warn.filename) +
+                       ', line: ' + str(warn.lineno) + '.')
+            logger.warning(log_msg)
+            warn_msg = str(warn.message) + '.'
             # re-raise warnings
             # stacklevel=2 makes the warning refer to log_exceptions_warnings‘s caller,
             # rather than to the source of log_exceptions_warnings() itself
-            warnings.warn(msg, warn.category, stacklevel=2)
+            warnings.warn(warn_msg, warn.category, stacklevel=2)
         return ret
     return wrapper
 

@@ -15,7 +15,6 @@ import scipy.sparse as sparse
 import simetuc.precalculate as precalculate
 import simetuc.lattice as lattice # for the LatticeError exception
 from simetuc.util import temp_bin_filename, Excitation, IonType, DecayTransition, Transition, EneryTransferProcess
-from simetuc.settings import Settings
 
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
@@ -24,7 +23,13 @@ test_folder_path = os.path.dirname(os.path.abspath(__file__))
 def setup_cte():
     '''Load the cte data structure'''
 
-    cte = dict([('lattice', {'A_conc': 0.3,
+    class Cte(dict):
+        __getattr__= dict.__getitem__
+        __setattr__= dict.__setitem__
+        __delattr__= dict.__delitem__
+
+
+    cte = Cte([('lattice', {'A_conc': 0.3,
                          'N_uc': 20,
                          'S_conc': 0.3,
                          'a': 5.9738,
@@ -73,7 +78,7 @@ def setup_cte():
                 DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
                 DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)},
                'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=400.0)}}),
-             ('ET', # OrderedDict so the explicit examples are correct
+             ('energy_transfer', # OrderedDict so the explicit examples are correct
               OrderedDict({
               'CR50': EneryTransferProcess([Transition(IonType.A, 5, 3),
                                             Transition(IonType.A, 0, 2)],
@@ -102,7 +107,7 @@ def setup_cte():
 
     cte['no_console'] = True
     cte['no_plot'] = True
-    return Settings(cte_dict=cte)
+    return cte
 
 # SIMPLE LATTICES WITH 1 OR 2 ACTIVATORS AND SENSITIZERS
 # THESE RESULTS HAVE BEEN CHECKED BY HAND
@@ -925,7 +930,7 @@ def test_radius(setup_cte, mocker):
     cte['states']['activator_states'] = 7
 
     # ignore error when lattice checks that the settings do not contain both N_uc and radius
-    mocked_lattice_test = mocker.patch('simetuc.value.DictValue.parse')
+    mocker.patch('simetuc.settings_config.DictValue.validate')
 
     with temp_bin_filename() as temp_filename:
         (cte, initial_population, index_S_i, index_A_j,

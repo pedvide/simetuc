@@ -10,7 +10,6 @@ import numpy as np
 # pylint: disable=E1101
 
 import simetuc.lattice as lattice
-from simetuc.settings import Settings
 from simetuc.util import temp_bin_filename
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
@@ -19,7 +18,10 @@ test_folder_path = os.path.dirname(os.path.abspath(__file__))
 def setup_cte():
     '''Load the cte data structure'''
 
-    cte = dict([
+    class Cte(dict):
+        pass
+
+    cte = Cte([
              ('lattice', {'A_conc': 0.3,
                          'N_uc': 20,
                          'S_conc': 0.3,
@@ -46,7 +48,9 @@ def setup_cte():
 
     cte['no_console'] = True
     cte['no_plot'] = True
-    return Settings(cte)
+    cte.lattice = cte['lattice']
+    cte.states = cte['states']
+    return cte
 
 
 def idfn(params):

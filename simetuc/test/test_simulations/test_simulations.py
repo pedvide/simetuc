@@ -15,7 +15,6 @@ import simetuc.plotter as plotter
 from simetuc.util import temp_config_filename, temp_bin_filename, IonType, DecayTransition
 from simetuc.util import EneryTransferProcess, Transition, Excitation
 from simetuc.settings import Settings
-
 ### TODO: Test loading exp data with different formats
 
 
@@ -26,83 +25,211 @@ test_folder_path = os.path.dirname(os.path.abspath(__file__))
 def setup_cte():
     '''Load the cte data structure'''
 
-    cte = {'ET': {
-              'CR50': EneryTransferProcess([Transition(IonType.A, 5, 3),
-                                            Transition(IonType.A, 0, 2)],
-                                           mult=6, strength=2893199540.0),
-              'ETU53': EneryTransferProcess([Transition(IonType.A, 5, 6),
-                                             Transition(IonType.A, 3, 1)],
-                                            mult=6, strength=254295690.0),
-              'ETU55': EneryTransferProcess([Transition(IonType.A, 5, 6),
-                                             Transition(IonType.A, 5, 4)],
-                                            mult=6, strength=0.0),
-              'BackET': EneryTransferProcess([Transition(IonType.A, 3, 0),
-                                              Transition(IonType.S, 0, 1)],
-                                             mult=6, strength=4502.20614),
-              'EM': EneryTransferProcess([Transition(IonType.S, 1, 0),
-                                          Transition(IonType.S, 0, 1)],
-                                         mult=6, strength=45022061400.0),
-              'ETU1': EneryTransferProcess([Transition(IonType.S, 1, 0),
-                                            Transition(IonType.A, 0, 2)],
-                                           mult=6, strength=10000.0),},
-         'decay': {'branching_A': {DecayTransition(IonType.A, 1, 0, branching_ratio=1.0),
-                DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
-                DecayTransition(IonType.A, 3, 1, branching_ratio=0.3),
-                DecayTransition(IonType.A, 3, 2, branching_ratio=0.1),
-                DecayTransition(IonType.A, 4, 3, branching_ratio=0.999),
-                DecayTransition(IonType.A, 5, 1, branching_ratio=0.15),
-                DecayTransition(IonType.A, 5, 2, branching_ratio=0.16),
-                DecayTransition(IonType.A, 5, 3, branching_ratio=0.04),
-                DecayTransition(IonType.A, 5, 4, branching_ratio=0.0),
-                DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)},
+    cte = {'version': 1,
+           'energy_transfer': {
+               'CR50': EneryTransferProcess([Transition(IonType.A, 5, 3),
+                                             Transition(IonType.A, 0, 2)],
+                                            mult=6, strength=2893199540.0),
+               'ETU53': EneryTransferProcess([Transition(IonType.A, 5, 6),
+                                              Transition(IonType.A, 3, 1)],
+                                             mult=6, strength=254295690.0),
+               'BackET': EneryTransferProcess([Transition(IonType.A, 3, 0),
+                                               Transition(IonType.S, 0, 1)],
+                                              mult=6, strength=4502.20614),
+               'EM': EneryTransferProcess([Transition(IonType.S, 1, 0),
+                                           Transition(IonType.S, 0, 1)],
+                                          mult=6, strength=45022061400.0),
+               'ETU1': EneryTransferProcess([Transition(IonType.S, 1, 0),
+                                             Transition(IonType.A, 0, 2)],
+                                            mult=6, strength=10000.0),},
+           'decay': {'branching_A': {DecayTransition(IonType.A, 1, 0, branching_ratio=1.0),
+                                     DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
+                                     DecayTransition(IonType.A, 3, 1, branching_ratio=0.3),
+                                     DecayTransition(IonType.A, 3, 2, branching_ratio=0.1),
+                                     DecayTransition(IonType.A, 4, 3, branching_ratio=0.999),
+                                     DecayTransition(IonType.A, 5, 1, branching_ratio=0.15),
+                                     DecayTransition(IonType.A, 5, 2, branching_ratio=0.16),
+                                     DecayTransition(IonType.A, 5, 3, branching_ratio=0.04),
+                                     DecayTransition(IonType.A, 5, 4, branching_ratio=0.0),
+                                     DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)},
                'branching_S': {DecayTransition(IonType.S, 1, 0, branching_ratio=1.0)},
                'decay_A': {DecayTransition(IonType.A, 1, 0, decay_rate=83.33333333333333),
-                DecayTransition(IonType.A, 2, 0, decay_rate=40000.0),
-                DecayTransition(IonType.A, 3, 0, decay_rate=500.0),
-                DecayTransition(IonType.A, 4, 0, decay_rate=500000.0),
-                DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
-                DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)},
+                           DecayTransition(IonType.A, 2, 0, decay_rate=40000.0),
+                           DecayTransition(IonType.A, 3, 0, decay_rate=500.0),
+                           DecayTransition(IonType.A, 4, 0, decay_rate=500000.0),
+                           DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
+                           DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)},
                'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=400.0)}},
-         'excitations': {
+           'excitations': {
                   'NIR_1470': [Excitation(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
-                 'NIR_800': [Excitation(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
+                  'NIR_800': [Excitation(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
                              Excitation(IonType.A, 2, 5, False, 11/9, 0.002, 1e7, 1e-8)],
-                 'NIR_980': [Excitation(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
-                 'Vis_473': [Excitation(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]},
+                  'NIR_980': [Excitation(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
+                  'Vis_473': [Excitation(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]},
            'lattice': {'A_conc': 0.3,
-                     'N_uc': 20,
-                     'S_conc': 0.3,
-                     'a': 5.9738,
-                     'alpha': 90.0,
-                     'b': 5.9738,
-                     'beta': 90.0,
-                     'c': 3.5297,
-                     'gamma': 120.0,
-                     'd_max': 100.0,
-                     'd_max_coop': 25.0,
-                     'name': 'bNaYF4',
-                     'sites_occ': [1.0, 0.5],
-                     'sites_pos': [(0.0, 0.0, 0.0), (2/3, 1/3, 0.5)],
-                     'spacegroup': 'P-6'},
-         'no_console': False,
-         'no_plot': False,
-         'optimization': {'method': 'SLSQP', 'processes': ['CR50', 'ETU53']},
-         'simulation_params': {'N_steps': 1000,
-          'N_steps_pulse': 100,
-          'atol': 1e-15,
-          'rtol': 0.001},
-         'states': {'activator_ion_label': 'Tm',
-          'activator_states': 7,
-          'activator_states_labels': ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2'],
-          'energy_states': 791,
-          'sensitizer_ion_label': 'Yb',
-          'sensitizer_states': 2,
-          'sensitizer_states_labels': ['GS', 'ES']}}
+                       'N_uc': 20,
+                       'S_conc': 0.3,
+                       'a': 5.9738,
+                       'alpha': 90.0,
+                       'b': 5.9738,
+                       'beta': 90.0,
+                       'c': 3.5297,
+                       'gamma': 120.0,
+                       'd_max': 100.0,
+                       'd_max_coop': 25.0,
+                       'name': 'bNaYF4',
+                       'sites_occ': [1.0, 0.5],
+                       'sites_pos': [(0.0, 0.0, 0.0), (2/3, 1/3, 0.5)],
+                       'spacegroup': 'P-6'},
+           'no_console': False,
+           'no_plot': False,
+           'optimization': {'method': 'SLSQP', 'processes': ['CR50', 'ETU53']},
+           'simulation_params': {'N_steps': 1000,
+                                 'N_steps_pulse': 100,
+                                 'atol': 1e-15,
+                                 'rtol': 0.001},
+           'states': {'activator_ion_label': 'Tm',
+                      'activator_states': 7,
+                      'activator_states_labels': ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2'],
+                      'energy_states': 791,
+                      'sensitizer_ion_label': 'Yb',
+                      'sensitizer_states': 2,
+                      'sensitizer_states_labels': ['GS', 'ES']}}
 
-    cte['config_file'] = 'config_file_text'
+    cte['config_file'] = '''
+version: 1
+lattice:
+    name: bNaYF4
+    N_uc: 20
+
+    # concentration
+    S_conc: 0.0
+    A_conc: 0.3
+
+    # unit cell
+    # distances in Angstrom
+    a: 5.9738
+    b: 5.9738
+    c: 3.5297
+    # angles in degree
+    alpha: 90
+    beta: 90
+    gamma: 120
+
+    # the number is also ok for the spacegroup
+    spacegroup: P-6
+
+    # info about sites.
+    # If there's only one site, use:
+    # sites_pos: [0, 0, 0]
+    # sites_occ: 1
+    sites_pos: [[0, 0, 0], [2/3, 1/3, 1/2]]
+    sites_occ: [1, 1/2]
+
+    # optional
+    # maximum distance of interaction for normal ET and for cooperative
+    # if not present, both default to infinite
+    d_max: 100.0
+    # it's strongly advised to keep this number low,
+    # the number of coop interactions is very large (~num_atoms^3)
+    d_max_coop: 50
+
+states:
+    sensitizer_ion_label: Yb
+    sensitizer_states_labels: [GS, ES]
+    activator_ion_label: Tm
+    activator_states_labels: [3H6, 3F4, 3H5, 3H4, 3F3, 1G4, 1D2, 1I6, 3P0]
+
+excitations:
+    Vis_473:
+        active: True
+        power_dens: 1e6
+        t_pulse: 5e-9
+        process: Tm(3H6) -> Tm(1G4)
+        degeneracy: 13/9
+        pump_rate: 9.3e-3
+    NIR_1470:
+        active: False
+        power_dens: 1e6
+        t_pulse: 1e-8
+        process: Tm(1G4) -> Tm(1D2)
+        degeneracy: 9/5
+        pump_rate: 2e-4
+    NIR_980:
+        active: False
+        power_dens: 1e7
+        t_pulse: 1e-8
+        process: Yb(GS)->Yb(ES)
+        degeneracy: 4/3
+        pump_rate: 4.4e-3
+    NIR_800:
+        active: False
+        power_dens: 1e2
+        t_pulse: 1e-8
+        process: [Tm(3H6)->Tm(3H4), Tm(3H5)->Tm(1G4)] # list
+        degeneracy: [13/9, 11/9] # list
+        pump_rate: [4.4e-3, 4e-3] # list
+
+sensitizer_decay:
+    ES: 2.5e-3
+
+activator_decay:
+    3F4: 12e-3
+    3H5: 25e-6
+    3H4: 2e-3
+    3F3: 2e-6
+    1G4: 775e-6
+    1D2: 67.5e-6
+    1I6: 101.8e-6
+    3P0: 8e-6
+
+activator_branching_ratios:
+    3H5->3F4: 0.4
+    3H4->3F4: 0.3
+    3H4->3H5: 0.1
+    3F3->3H4: 0.999
+    1G4->3F4: 0.15
+    1G4->3H5: 0.16
+    1G4->3H4: 0.04
+    1G4->3F3: 0.001
+    1D2->3F4: 0.43
+    1I6->3F4: 0.6
+    1I6->3H4: 0.16
+    1I6->1G4: 0.14
+    3P0->1I6: 0.99
+
+energy_transfer:
+    CR50:
+        process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
+        multipolarity: 6
+        strength: 9e9
+        strength_avg: 8e3
+    ETU53:
+        process:  Tm(1G4) + Tm(3H4) -> Tm(1D2) + Tm(3F4)
+        multipolarity: 6
+        strength: 5e+07
+        strength_avg: 4e2
+
+    BackET:
+        process:  Tm(3H4) + Yb(GS) -> Tm(3H6) + Yb(ES)
+        multipolarity: 6
+        strength: 0 #4.50220614e+3
+    EM:
+        process:  Yb(ES) + Yb(GS) -> Yb(GS) + Yb(ES)
+        multipolarity: 6
+        strength: 0 #4.50220614e+10
+    ETU1:
+        process:  Yb(ES) + Tm(3H6) -> Yb(GS) + Tm(3H5)
+        multipolarity: 6
+        strength: 0 #1e2
+
+optimization:
+    processes: [CR50, ETU53]
+    method: SLSQP
+'''
     cte['no_console'] = True
     cte['no_plot'] = False
-    return Settings(cte)
+    return Settings.load_from_dict(cte)
 
 def test_sim(setup_cte):
     '''Test that the simulations work'''
@@ -127,6 +254,20 @@ def test_sim_dyn1(setup_cte):
     solution.plot()
     solution.plot(state=7)
     solution.plot(state=1)
+
+def test_change_cte(setup_cte):
+    '''Test that the cte is copied into the Solution.'''
+    dynamics_sol = simulations.DynamicsSolution(np.zeros((100,)), np.zeros((100,10)),
+                                                [-1]*10, [-1]*10, setup_cte)
+
+    setup_cte.excitations['Vis_473'][0].power_dens = 500
+
+    dynamics_sol2 = simulations.DynamicsSolution(np.zeros((100,)), np.zeros((100,10)),
+                                                 [-1]*10, [-1]*10, setup_cte)
+
+    assert dynamics_sol != dynamics_sol2
+    assert dynamics_sol2.cte.excitations['Vis_473'][0].power_dens == 500
+
 
 def test_sim_dyn_2S_2A(setup_cte):
     '''Test that the dynamics have the right result for a simple system'''
@@ -192,20 +333,25 @@ def test_sim_dyn_save_hdf5(setup_cte, mocker):
         mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
         # allocate 2x so that we're safe. Also make the num_points 1000.
-        mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
+        mocked.return_value = np.random.random((1000, 2*setup_cte.states['energy_states']))
 
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         solution = sim.simulate_dynamics()
         assert mocked.call_count == 2
 
-    with temp_config_filename('') as filename:
-        solution.save(filename)
-        sol_hdf5 = simulations.DynamicsSolution.load(filename)
+        with temp_bin_filename() as filename:
+            solution.save(filename)
+            sol_hdf5 = simulations.DynamicsSolution.load(filename)
+        assert sol_hdf5
 
-    assert sol_hdf5
-    assert sol_hdf5 == solution
-    sol_hdf5.log_errors()
-    sol_hdf5.plot()
+        assert sol_hdf5.cte == solution.cte
+        assert np.allclose(sol_hdf5.y_sol, solution.y_sol)
+        assert np.allclose(sol_hdf5.t_sol, solution.t_sol)
+        assert sol_hdf5.index_S_i == solution.index_S_i
+        assert sol_hdf5.index_A_j == solution.index_A_j
+        assert sol_hdf5 == solution
+        sol_hdf5.log_errors()
+        sol_hdf5.plot()
 
 
 def test_sim_dyn_save_txt(setup_cte):
@@ -280,7 +426,7 @@ def test_sim_power_dep1(setup_cte, mocker):
         mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
         # allocate 2x so that we're safe. Also make the num_points 1000.
-        mocked.return_value = np.random.random((1000, 2*setup_cte['states']['energy_states']))
+        mocked.return_value = np.random.random((1000, 2*setup_cte.states['energy_states']))
 
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         assert sim.cte == setup_cte
