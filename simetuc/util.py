@@ -299,45 +299,48 @@ def log_exceptions_warnings(function: Callable) -> Callable:
                 ret = function(*args, **kwargs)
         except Exception as exc:
             logger = logging.getLogger(function.__module__)
-            logger.error(exc.args[0])
+            logger.error(str(exc))
             raise
         for warn in warn_list:
             logger = logging.getLogger(function.__module__)
-            msg = (warn.category.__name__ + ': "' + str(warn.message) +
-                   '" in ' + os.path.basename(warn.filename) +
-                   ', line: ' + str(warn.lineno) + '.')
-            logger.warning(msg)
+            log_msg = (warn.category.__name__ + ': "' + str(warn.message) +
+                       '" in ' + os.path.basename(warn.filename) +
+                       ', line: ' + str(warn.lineno) + '.')
+            logger.warning(log_msg)
+            warn_msg = str(warn.message) + '.'
             # re-raise warnings
             # stacklevel=2 makes the warning refer to log_exceptions_warnings‘s caller,
             # rather than to the source of log_exceptions_warnings() itself
-            warnings.warn(msg, warn.category, stacklevel=2)
+            warnings.warn(warn_msg, warn.category, stacklevel=2)
         return ret
     return wrapper
 
 
 @contextmanager
-def console_logger_level(level: int) -> Generator:  # pragma: no cover
+def disable_logger_below(level: int) -> Generator:  # pragma: no cover
     '''Temporary change the console handler level.'''
-    logger = logging.getLogger()  # root logger
-    for handler in logger.handlers:
-        if isinstance(handler, logging.StreamHandler):
-            if handler.stream == sys.stdout:  # type: ignore
-                old_level = handler.level
-                handler.setLevel(level)
-                yield None
-                handler.setLevel(old_level)
-                return
+#    logger = logging.getLogger()  # root logger
+#    for handler in logger.handlers:
+#        if isinstance(handler, logging.StreamHandler):
+#            if handler.stream == sys.stdout:  # type: ignore
+#                old_level = handler.level
+#                handler.setLevel(level)
+#                yield None
+#                handler.setLevel(old_level)
+#                return
+    logging.disable(level)
     # in case no console handler exists
     yield None
+    logging.disable(logging.NOTSET)
     return
 
 
-@contextmanager
-def no_logging() -> Generator:  # pragma: no cover
-    '''Temporary disable all logging.'''
-    logging.disable(logging.CRITICAL)
-    yield None
-    logging.disable(logging.NOTSET)
+#@contextmanager
+#def no_logging() -> Generator:  # pragma: no cover
+#    '''Temporary disable all logging.'''
+#    logging.disable(logging.CRITICAL)
+#    yield None
+#    logging.disable(logging.NOTSET)
 
 
 class LabelError(ValueError):

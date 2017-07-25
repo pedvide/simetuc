@@ -700,8 +700,8 @@ def get_lifetimes(cte: settings.Settings) -> List[float]:
     '''Returns a list of all lifetimes in seconds.
        First sensitizer and then activator
     '''
-    decay_S = cte['decay']['decay_S']
-    decay_A = cte['decay']['decay_A']
+    decay_S = cte.decay['decay_S']
+    decay_A = cte.decay['decay_A']
 
     return [1/float(decay_proc.decay_rate) for decay_proc in decay_S | decay_A]
 
@@ -727,12 +727,12 @@ def setup_microscopic_eqs(cte: settings.Settings, gen_lattice: bool = False, ful
     start_time = time.time()
 
     # convert to float
-    S_conc = float(cte['lattice']['S_conc'])
-    A_conc = float(cte['lattice']['A_conc'])
+    S_conc = float(cte.lattice['S_conc'])
+    A_conc = float(cte.lattice['A_conc'])
 
-    num_uc = cte['lattice']['N_uc']
-    radius = cte['lattice'].get('radius', None)
-    lattice_name = cte['lattice']['name']
+    num_uc = cte.lattice['N_uc']
+    radius = cte.lattice.get('radius', None)
+    lattice_name = cte.lattice['name']
 
     logger.info('Starting microscopic rate equations setup.')
     logger.info('Lattice: %s.', lattice_name)
@@ -747,6 +747,7 @@ def setup_microscopic_eqs(cte: settings.Settings, gen_lattice: bool = False, ful
 
     if full_path is not None:  # if the user requests a specific lattice
         filename = full_path
+        logger.info('Using lattice from {}.'.format(filename))
     else:  # pragma: no cover
         folder_path = os.path.join('latticeData', lattice_name)
 
@@ -762,9 +763,12 @@ def setup_microscopic_eqs(cte: settings.Settings, gen_lattice: bool = False, ful
         # try load the lattice data from disk
         lattice_info = _load_lattice(filename)
 
-        # check that the number of states is correct
-        if (lattice_info['sensitizer_states'] != cte['states']['sensitizer_states'] or
-                lattice_info['activator_states'] != cte['states']['activator_states']):
+        # check that the number of states is correct, except if the full_path has been passed
+        if full_path is not None:
+            cte.states['sensitizer_states'] = lattice_info['sensitizer_states']
+            cte.states['activator_states'] = lattice_info['activator_states']
+        elif (lattice_info['sensitizer_states'] != cte.states['sensitizer_states'] or
+                lattice_info['activator_states'] != cte.states['activator_states']):
             logger.info('Wrong number of states, recalculate lattice...')
             raise FileNotFoundError('Wrong number of states, recalculate lattice...')
 
@@ -784,18 +788,18 @@ def setup_microscopic_eqs(cte: settings.Settings, gen_lattice: bool = False, ful
     else:
         logger.info('Lattice data found.')
 
-    cte['ions'] = {}
-    cte['ions']['total'] = lattice_info['num_total']
-    cte['ions']['sensitizers'] = lattice_info['num_sensitizers']
-    cte['ions']['activators'] = lattice_info['num_activators']
+    cte.ions = {}
+    cte.ions['total'] = lattice_info['num_total']
+    cte.ions['sensitizers'] = lattice_info['num_sensitizers']
+    cte.ions['activators'] = lattice_info['num_activators']
 
-    num_energy_states = cte['states']['energy_states'] = lattice_info['energy_states']
-    sensitizer_states = cte['states']['sensitizer_states'] = lattice_info['sensitizer_states']
-    activator_states = cte['states']['activator_states'] = lattice_info['activator_states']
+    num_energy_states = cte.states['energy_states'] = lattice_info['energy_states']
+    sensitizer_states = cte.states['sensitizer_states'] = lattice_info['sensitizer_states']
+    activator_states = cte.states['activator_states'] = lattice_info['activator_states']
 
-    num_total_ions = cte['ions']['total']
-    num_sensitizers = cte['ions']['sensitizers']
-    num_activators = cte['ions']['activators']
+    num_total_ions = cte.ions['total']
+    num_sensitizers = cte.ions['sensitizers']
+    num_activators = cte.ions['activators']
 
     logger.info('Number of ions: %d, sensitizers: %d, activators: %d.',
                 num_total_ions, num_sensitizers, num_activators)
@@ -834,14 +838,14 @@ def setup_microscopic_eqs(cte: settings.Settings, gen_lattice: bool = False, ful
 
     logger.info('Absorption and decay matrices...')
     total_abs_matrix = _create_total_absorption_matrix(sensitizer_states, activator_states,
-                                                       num_energy_states, cte['excitations'],
+                                                       num_energy_states, cte.excitations,
                                                        index_S_i, index_A_j)
     decay_matrix = _create_decay_matrix(sensitizer_states, activator_states,
-                                        cte['decay'], index_S_i, index_A_j)
+                                        cte.decay, index_S_i, index_A_j)
 
     # ET matrices
     logger.info('Energy transfer matrices...')
-    ET_matrix, N_indices = _create_ET_matrices(index_S_i, index_A_j, cte['energy_transfer'],
+    ET_matrix, N_indices = _create_ET_matrices(index_S_i, index_A_j, cte.energy_transfer,
                                                indices_S_k, indices_S_l,
                                                indices_A_k, indices_A_l,
                                                dists_S_k, dists_S_l,
@@ -852,9 +856,9 @@ def setup_microscopic_eqs(cte: settings.Settings, gen_lattice: bool = False, ful
 
     # Cooperative matrices
     logger.info('Cooperative energy transfer matrices...')
-    d_max_coop = cte['lattice'].get('d_max_coop', np.inf)
+    d_max_coop = cte.lattice.get('d_max_coop', np.inf)
     (coop_ET_matrix,
-     coop_N_indices) = _create_coop_ET_matrices(index_S_i, index_A_j, cte['energy_transfer'],
+     coop_N_indices) = _create_coop_ET_matrices(index_S_i, index_A_j, cte.energy_transfer,
                                                 indices_S_k, indices_S_l,
                                                 indices_A_k, indices_A_l,
                                                 dists_S_k, dists_S_l,
@@ -894,23 +898,23 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
     start_time = time.time()
 
     # convert to float
-    S_conc = float(cte['lattice']['S_conc'])
-    A_conc = float(cte['lattice']['A_conc'])
+    S_conc = float(cte.lattice['S_conc'])
+    A_conc = float(cte.lattice['A_conc'])
 
-    lattice_name = cte['lattice']['name']
+    lattice_name = cte.lattice['name']
 
     logger.info('Starting setup.')
     logger.info('Lattice: %s.', lattice_name)
     logger.info('Concentrations: %.2f%% Sensitizer, %.2f%% Activator.', S_conc, A_conc)
 
-    cte['ions'] = {}
-    num_sensitizers = cte['ions']['sensitizers'] = 1 if S_conc != 0 else 0
-    num_activators = cte['ions']['activators'] = 1 if A_conc != 0 else 0
-    num_total_ions = cte['ions']['total'] = num_sensitizers + num_activators
+    cte.ions = {}
+    num_sensitizers = cte.ions['sensitizers'] = 1 if S_conc != 0 else 0
+    num_activators = cte.ions['activators'] = 1 if A_conc != 0 else 0
+    num_total_ions = cte.ions['total'] = num_sensitizers + num_activators
 
-    sensitizer_states = cte['states']['sensitizer_states']
-    activator_states = cte['states']['activator_states']
-    num_energy_states = cte['states']['energy_states'] = (num_sensitizers*sensitizer_states +
+    sensitizer_states = cte.states['sensitizer_states']
+    activator_states = cte.states['activator_states']
+    num_energy_states = cte.states['energy_states'] = (num_sensitizers*sensitizer_states +
                                                           num_activators*activator_states)
     lattice_info = {}
     lattice_info['num_total'] = num_total_ions
@@ -926,10 +930,10 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
         raise lattice.LatticeError(msg)
 
     # error checking
-    num_uc = cte['lattice']['N_uc']
-    S_conc = float(cte['lattice']['S_conc'])
-    A_conc = float(cte['lattice']['A_conc'])
-    lattice_name = cte['lattice']['name']
+    num_uc = cte.lattice['N_uc']
+    S_conc = float(cte.lattice['S_conc'])
+    A_conc = float(cte.lattice['A_conc'])
+    lattice_name = cte.lattice['name']
 
     if num_uc <= 0:
         raise LatticeError('Wrong number of unit cells: {}. '.format(num_uc) +
@@ -942,8 +946,8 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
         msg += ' Their sum must be between 0% and 100%.'
         raise LatticeError(msg)
 
-    num_S_states = cte['states']['sensitizer_states']
-    num_A_states = cte['states']['activator_states']
+    num_S_states = cte.states['sensitizer_states']
+    num_A_states = cte.states['activator_states']
     if (S_conc != 0 and num_S_states == 0) or (A_conc != 0 and num_A_states == 0):
         raise LatticeError('The number of states of each ion cannot be zero.')
 
@@ -986,15 +990,15 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
     logger.info('Building matrices...')
     logger.info('Absorption and decay matrices...')
     total_abs_matrix = _create_total_absorption_matrix(sensitizer_states, activator_states,
-                                                       num_energy_states, cte['excitations'],
+                                                       num_energy_states, cte.excitations,
                                                        indices_S_i, indices_A_j)
-    decay_matrix = _create_decay_matrix(sensitizer_states, activator_states, cte['decay'],
+    decay_matrix = _create_decay_matrix(sensitizer_states, activator_states, cte.decay,
                                         indices_S_i, indices_A_j)
 
     # ET matrices
     logger.info('Energy transfer matrices...')
     # use the avg value if present
-    ET_dict = cte['energy_transfer'].copy()
+    ET_dict = cte.energy_transfer.copy()
     for process in ET_dict.values():
         if process.strength_avg is not None:
             process.strength = process.strength_avg
@@ -1007,8 +1011,11 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
     # clean emtpy columns in the matrix due to energy migration
     ET_matrix = ET_matrix.toarray()
     emtpy_indices = [ind for ind in range(N_indices.shape[0]) if np.allclose(ET_matrix[:,ind], 0)]
-    ET_matrix = csr_matrix(np.delete(ET_matrix, np.array(emtpy_indices), axis=1))
-    N_indices = np.delete(N_indices, np.array(emtpy_indices), axis=0)
+    if emtpy_indices:
+        ET_matrix = csr_matrix(np.delete(ET_matrix, np.array(emtpy_indices), axis=1))
+        N_indices = np.delete(N_indices, np.array(emtpy_indices), axis=0)
+    else:
+        ET_matrix = csr_matrix(ET_matrix)
 
     jac_indices = _calculate_jac_matrices(N_indices)
     logger.info('Number of interactions: %d.', N_indices.shape[0])
@@ -1045,23 +1052,23 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
 #    logger.debug('Called from main.')
 #
 #    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
+#    cte = settings.load('config_file_ESA.cfg')
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
 ##    logger.setLevel(logging.DEBUG)
 #
-#    cte['lattice']['S_conc'] = 5
-#    cte['lattice']['A_conc'] = 2
-##    cte['lattice']['N_uc'] = 7
-##    cte['states']['sensitizer_states'] = 2
-##    cte['states']['activator_states'] = 7
+##    cte.lattice['S_conc'] = 5
+##    cte.lattice['A_conc'] = 2
+##    cte.lattice['N_uc'] = 7
+##    cte.states['sensitizer_states'] = 2
+##    cte.states['activator_states'] = 7
 ##
-##    cte['excitations']['NIR_980'][0].active = False
-##    cte['excitations']['Vis_473'][0].active = True
-##    cte['excitations']['NIR_800'][0].active = False
+##    cte.excitations['NIR_980'][0].active = False
+##    cte.excitations['Vis_473'][0].active = True
+##    cte.excitations['NIR_800'][0].active = False
 #
-#    full_path='test/test_setup/data_1S_1A.hdf5'
-##    full_path = None
+##    full_path='test/test_setup/data_2S_2A.hdf5'
+#    full_path = None
 #
 #    (cte, initial_population, index_S_i, index_A_j,
 #     total_abs_matrix, decay_matrix, ET_matrix,
@@ -1070,7 +1077,7 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
 #     coop_jac_indices) = setup_microscopic_eqs(cte, full_path=full_path)
 #
 #
-#    ET_matrix = ET_matrix.toarray()
-#    coop_ET_matrix = coop_ET_matrix.toarray()
-#    total_abs_matrix = total_abs_matrix.toarray()
-#    decay_matrix = decay_matrix.toarray()
+##    ET_matrix = ET_matrix.toarray()
+##    coop_ET_matrix = coop_ET_matrix.toarray()
+##    total_abs_matrix = total_abs_matrix.toarray()
+##    decay_matrix = decay_matrix.toarray()

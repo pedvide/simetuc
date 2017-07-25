@@ -11,7 +11,6 @@ from lmfit import Parameters
 
 import simetuc.optimize as optimize
 import simetuc.simulations as simulations
-from simetuc.settings import Settings
 from simetuc.util import Excitation, IonType, DecayTransition, EneryTransferProcess, Transition
 from simetuc.util import temp_bin_filename
 
@@ -19,7 +18,12 @@ from simetuc.util import temp_bin_filename
 def setup_cte():
     '''Load the cte data structure'''
 
-    cte = {'ET': {
+    class Cte(dict):
+        __getattr__= dict.__getitem__
+        __setattr__= dict.__setitem__
+        __delattr__= dict.__delitem__
+
+    cte = Cte({'energy_transfer': {
               'CR50': EneryTransferProcess([Transition(IonType.A, 5, 3),
                                             Transition(IonType.A, 0, 2)],
                                            mult=6, strength=2893199540.0, name='CR50'),
@@ -96,11 +100,11 @@ def setup_cte():
           'energy_states': 791,
           'sensitizer_ion_label': 'Yb',
           'sensitizer_states': 2,
-          'sensitizer_states_labels': ['GS', 'ES']}}
+          'sensitizer_states_labels': ['GS', 'ES']}})
 
     cte['no_console'] = False
     cte['no_plot'] = True
-    return Settings(cte)
+    return cte
 
 B_43 = DecayTransition(IonType.A, 3, 1, branching_ratio=0.3)
 CR50 = EneryTransferProcess([Transition(IonType.A, 5, 3), Transition(IonType.A, 0, 2)],

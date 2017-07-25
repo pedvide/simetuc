@@ -17,7 +17,7 @@ from lmfit import Minimizer, minimizer, Parameters, fit_report, report_fit
 
 import simetuc.simulations as simulations
 import simetuc.settings as settings
-from simetuc.util import console_logger_level, EneryTransferProcess
+from simetuc.util import disable_logger_below, EneryTransferProcess
 
 
 def optim_fun(params: Parameters, sim: simulations.Simulations,
@@ -34,7 +34,7 @@ def optim_fun(params: Parameters, sim: simulations.Simulations,
         return dynamics_sol.errors
     else:
         # first switch off all excitations
-        for exc_lst in sim.cte['excitations'].values():
+        for exc_lst in sim.cte.excitations.values():
             for excitation in exc_lst:
                 excitation.active = False
 
@@ -101,7 +101,7 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
     if not cte.optimization.get('excitations', False):
         optim_exc = []
         # look for active excitations
-        for label, exc_lst in cte['excitations'].items():
+        for label, exc_lst in cte.excitations.items():
             if exc_lst[0].active is True:
                 optim_exc.append(label)
     else:
@@ -119,7 +119,7 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
     minner = Minimizer(optim_fun, params, fcn_args=(sim, average),
                        iter_cb=callback_fun)
     # minimize logging only warnings or worse to console.
-    with console_logger_level(logging.WARNING):
+    with disable_logger_below(logging.INFO):
         result = minner.minimize(method=method, **options_dict)
     optim_progbar.update(1)
     optim_progbar.close()
@@ -158,7 +158,7 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
 #    import simetuc.settings as settings
 #    cte = settings.load('config_file.cfg')
 #
-##    cte['optimization']['excitations'] = []
+##    cte.optimization['excitations'] = []
 #
 #    cte['no_console'] = False
 #    cte['no_plot'] = True

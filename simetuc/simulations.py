@@ -11,6 +11,7 @@ import logging
 import warnings
 import os
 from typing import List, Tuple, Iterator, Sequence, cast
+import copy
 
 import h5py
 import ruamel_yaml as yaml
@@ -29,7 +30,8 @@ import simetuc.odesolver as odesolver
 #import simetuc.odesolver_assimulo as odesolver  # warning: it's slower!
 import simetuc.plotter as plotter
 from simetuc.util import Conc
-from simetuc.util import cached_property, log_exceptions_warnings, console_logger_level
+from simetuc.util import cached_property, log_exceptions_warnings, disable_logger_below
+import simetuc.settings as settings
 from simetuc.settings import Settings
 
 
@@ -46,7 +48,7 @@ class Solution():
         # list of average population for each state
         self._list_avg_data = np.array([])
         # settings
-        self.cte = Settings(cte)
+        self.cte = copy.deepcopy(cte)
         # sensitizer and activator indices of their ground states
         self.index_S_i = index_S_i
         self.index_A_j = index_A_j
@@ -91,51 +93,50 @@ class Solution():
 
     def _calculate_avg_populations(self) -> List[np.array]:
         '''Returs the average populations of each state. First S then A states.'''
-
         cte = self.cte
         index_S_i = self.index_S_i
         index_A_j = self.index_A_j
         y_sol = self.y_sol
 
         # average population of the ground and excited states of S
-        if cte['ions']['sensitizers'] is not 0:
+        if cte.ions['sensitizers'] is not 0:
             sim_data_Sensitizer = []
-            for state in range(cte['states']['sensitizer_states']):
+            for state in range(cte.states['sensitizer_states']):
                 population = np.sum([y_sol[:, index_S_i[i]+state]
-                                     for i in range(cte['ions']['total'])
-                                     if index_S_i[i] != -1], 0)/cte['ions']['sensitizers']
+                                     for i in range(cte.ions['total'])
+                                     if index_S_i[i] != -1], 0)/cte.ions['sensitizers']
                 sim_data_Sensitizer.append(population.clip(0).reshape((y_sol.shape[0],)))
         else:
-            sim_data_Sensitizer = cte['states']['sensitizer_states']*[np.zeros((y_sol.shape[0],))]
+            sim_data_Sensitizer = cte.states['sensitizer_states']*[np.zeros((y_sol.shape[0],))]
         # average population of the ground and excited states of A
-        if cte['ions']['activators'] is not 0:
+        if cte.ions['activators'] is not 0:
             sim_data_Activator = []
-            for state in range(cte['states']['activator_states']):
+            for state in range(cte.states['activator_states']):
                 population = np.sum([y_sol[:, index_A_j[i]+state]
-                                     for i in range(cte['ions']['total'])
-                                     if index_A_j[i] != -1], 0)/cte['ions']['activators']
+                                     for i in range(cte.ions['total'])
+                                     if index_A_j[i] != -1], 0)/cte.ions['activators']
                 sim_data_Activator.append(population.clip(0).reshape((y_sol.shape[0],)))
         else:
-            sim_data_Activator = cte['states']['activator_states']*[np.zeros((y_sol.shape[0],))]
+            sim_data_Activator = cte.states['activator_states']*[np.zeros((y_sol.shape[0],))]
 
         return sim_data_Sensitizer + sim_data_Activator
 
     def _get_ion_state_labels(self) -> List[str]:
         '''Returns a list of ion_state labels'''
         cte = self.cte
-        sensitizer_labels = [cte['states']['sensitizer_ion_label'] + '_' + s
-                             for s in cte['states']['sensitizer_states_labels']]
-        activator_labels = [cte['states']['activator_ion_label'] + '_' + s
-                            for s in cte['states']['activator_states_labels']]
+        sensitizer_labels = [cte.states['sensitizer_ion_label'] + '_' + s
+                             for s in cte.states['sensitizer_states_labels']]
+        activator_labels = [cte.states['activator_ion_label'] + '_' + s
+                            for s in cte.states['activator_states_labels']]
         state_labels = sensitizer_labels + activator_labels
         return state_labels
 
     def save_file_full_name(self, prefix: str = None) -> str:  # pragma: no cover
         '''Return the full name to save a file (without extention or prefix).'''
-        lattice_name = self.cte['lattice']['name']
+        lattice_name = self.cte.lattice['name']
         path = os.path.join('results', lattice_name)
         os.makedirs(path, exist_ok=True)
-        filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(self.cte['lattice']['N_uc']),
+        filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(self.cte.lattice['N_uc']),
                                                         float(self.concentration.S_conc),
                                                         float(self.concentration.A_conc))
         return os.path.join(path, filename)
@@ -154,32 +155,36 @@ class Solution():
     @log_exceptions_warnings
     def power_dens(self) -> float:
         '''Return the power density used to obtain this solution.'''
-        for excitation in self.cte['excitations'].keys():  # pragma: no branch
-            if self.cte['excitations'][excitation][0].active:
-                return self.cte['excitations'][excitation][0].power_dens
+        for excitation in self.cte.excitations.keys():  # pragma: no branch
+            if self.cte.excitations[excitation][0].active:
+                return self.cte.excitations[excitation][0].power_dens
         raise AttributeError('This Solution has no power_dens attribute!')
 
     @cached_property
     def concentration(self) -> Conc:
         '''Return the tuple (sensitizer, activator) concentration used to obtain this solution.'''
-        return Conc(self.cte['lattice']['S_conc'], self.cte['lattice']['A_conc'])
+        return Conc(self.cte.lattice['S_conc'], self.cte.lattice['A_conc'])
 
     def _plot_avg(self) -> None:
         '''Plot the average simulated data (list_avg_data).
             Override to plot other lists of averaged data or experimental data.
         '''
-        plotter.plot_avg_decay_data(self.t_sol, self.list_avg_data,
-                                    state_labels=self.state_labels, colors=self.cte['colors'])
+        index_GS_S = 0
+        index_GS_A = self.cte.states['sensitizer_states']
+        list_data = self.list_avg_data[index_GS_S+1:index_GS_A-1] + self.list_avg_data[index_GS_A+1:]
+        list_labels = self.state_labels[index_GS_S+1:index_GS_A-1] + self.state_labels[index_GS_A+1:]
+        plotter.plot_avg_decay_data(self.t_sol, list_data,
+                                    state_labels=list_labels, colors=self.cte['colors'])
 
     def _plot_state(self, state: int) -> None:
         '''Plot all decays of a state as a function of time.'''
-        if state < self.cte['states']['sensitizer_states']:
+        if state < self.cte.states['sensitizer_states']:
             indices = self.index_S_i
             label = self.state_labels[state]
         else:
             indices = self.index_A_j
             label = self.state_labels[state]
-            state -= self.cte['states']['sensitizer_states']
+            state -= self.cte.states['sensitizer_states']
         populations = np.array([self.y_sol[:, index+state]
                                 for index in indices if index != -1])
         plotter.plot_state_decay_data(self.t_sol, populations.T,
@@ -206,22 +211,26 @@ class Solution():
 
     def save(self, full_path: str = None) -> None:
         '''Save data to disk as a HDF5 file'''
+        logger = logging.getLogger(__name__)
         if full_path is None:  # pragma: no cover
             full_path = self.save_file_full_name(self._prefix) + '.hdf5'
+        logger.info('Saving solution to {}.'.format(full_path))
         with h5py.File(full_path, 'w') as file:
             file.create_dataset("t_sol", data=self.t_sol, compression='gzip')
             file.create_dataset("y_sol", data=self.y_sol, compression='gzip')
             file.create_dataset("y_sol_avg", data=self.list_avg_data, compression='gzip')
             file.create_dataset("index_S_i", data=self.index_S_i, compression='gzip')
             file.create_dataset("index_A_j", data=self.index_A_j, compression='gzip')
-            # serialze cte as text and store it as an attribute
-            file.attrs['cte'] = yaml.dump(self.cte)
             file.attrs['config_file'] = self.cte['config_file']
+            # serialize cte
+            file.attrs['cte'] = yaml.dump(self.cte.settings)
 
     def save_txt(self, full_path: str = None, mode: str = 'wt') -> None:
         '''Save the settings, the time and the average populations to disk as a textfile'''
+        logger = logging.getLogger(__name__)
         if full_path is None:  # pragma: no cover
             full_path = self.save_file_full_name(self._prefix) + '.txt'
+        logger.info('Saving solution as text to {}.'.format(full_path))
         # print cte
         with open(full_path, mode) as csvfile:
             csvfile.write('Settings:\n')
@@ -229,9 +238,9 @@ class Solution():
             csvfile.write('\n\n\nData:\n')
         # print t_sol and avg sim data
         header = ('time (s)      ' +
-                  '         '.join(self.cte['states']['sensitizer_states_labels']) +
+                  '         '.join(self.cte.states['sensitizer_states_labels']) +
                   '         ' +
-                  '         '.join(self.cte['states']['activator_states_labels']))
+                  '         '.join(self.cte.states['activator_states_labels']))
         with open(full_path, 'ab') as csvfile:
             np.savetxt(csvfile, np.transpose([self.t_sol, *self.list_avg_data]),
                        fmt='%1.4e', delimiter=', ', newline='\r\n', header=header)
@@ -240,6 +249,8 @@ class Solution():
     @log_exceptions_warnings
     def load(cls, full_path: str) -> 'Solution':
         '''Load data from a HDF5 file'''
+        logger = logging.getLogger(__name__)
+        logger.info('Loading solution from {}.'.format(full_path))
         try:
             with h5py.File(full_path, 'r') as file:
                 t_sol = np.array(file['t_sol'])
@@ -247,7 +258,11 @@ class Solution():
                 index_S_i = list(file['index_S_i'])
                 index_A_j = list(file['index_A_j'])
                 # deserialze cte
-                cte = yaml.load(file.attrs['cte'])
+                cte_dict = yaml.load(file.attrs['cte'])
+                cte = settings.load_from_text(cte_dict['config_file'])
+                for key, value in cte_dict.items():
+                    cte[key] = value
+
             return cls(t_sol, y_sol, index_S_i, index_A_j, cte)
         except OSError as err:
             msg = 'File not found! ({})'.format(full_path)
@@ -334,10 +349,10 @@ class DynamicsSolution(Solution):
                 with open(path, 'rt') as file:
                     try:  # TODO: get a better way to read data, PANDAS?
                         #  data = np.loadtxt(path, usecols=(0, 1)) # 10x slower
-                        data = csv.reader(file, delimiter=delim)  # type: ignore
+                        csv_data = csv.reader(file, delimiter=delim)
                         # ignore emtpy lines and comments
-                        data = [row for row in data if len(row) == 2 and not row[0].startswith('#')]
-                        data = np.array(data, dtype=np.float64)
+                        data = np.array([row for row in csv_data
+                                         if len(row) == 2 and not row[0].startswith('#')], dtype=np.float64)
 
                         # if data isn't right, retry with a different delimiter
                         if (not isinstance(data, np.ndarray) or
@@ -471,33 +486,53 @@ class DynamicsSolution(Solution):
         '''Load and return the decay experimental data.'''
         # get filenames from the ion_state labels, excitation and concentrations
         state_labels = self.state_labels
-        active_exc_labels = [label for label, excitation in self.cte['excitations'].items()
+        active_exc_labels = [label for label, excitation in self.cte.excitations.items()
                              if excitation[0].active]
         exc_label = '_'.join(active_exc_labels)
-        S_conc = str(float(self.cte['lattice']['S_conc']))
-        S_label = self.cte['states']['sensitizer_ion_label']
-        A_conc = str(float(self.cte['lattice']['A_conc']))
-        A_label = self.cte['states']['activator_ion_label']
+        S_conc = str(float(self.cte.lattice['S_conc']))
+        S_label = self.cte.states['sensitizer_ion_label']
+        A_conc = str(float(self.cte.lattice['A_conc']))
+        A_label = self.cte.states['activator_ion_label']
         conc_str = '_' + S_conc + S_label + '_' + A_conc + A_label
         exp_data_filenames = ['decay_' + label + '_exc_' + exc_label + conc_str + '.txt'
                               for label in state_labels]
 
         # if exp data doesn't exist, it's set to zero inside the function
-        list_exp_data = [self._load_exp_data(filename, self.cte['lattice']['name'])
-                         for filename in exp_data_filenames]
+        _list_exp_data = [self._load_exp_data(filename, self.cte.lattice['name'])
+                          for filename in exp_data_filenames]
 
-        return list_exp_data
+        return _list_exp_data
 
     def _plot_avg(self) -> None:
         '''Overrides the Solution method to plot
             the average offset-corrected simulated data (list_avg_data) and experimental data.
         '''
-        list_t_sim = [data[:, 0] if data is not None else self.t_sol for data in self.list_exp_data]
+        index_GS_S = 0
+        index_GS_A = self.cte.states['sensitizer_states']
 
-        plotter.plot_avg_decay_data(list_t_sim, self.list_binned_data,
-                                    state_labels=self.state_labels,
-                                    list_exp_data=self.list_exp_data,
+        list_t_sim = [data[:, 0] if data is not None else self.t_sol for data in self.list_exp_data]
+        list_t_sim = list_t_sim[index_GS_S+1:index_GS_A-1] + list_t_sim[index_GS_A+1:]
+
+        list_data = self.list_binned_data[index_GS_S+1:index_GS_A-1] + self.list_binned_data[index_GS_A+1:]
+        list_exp_data = self.list_exp_data[index_GS_S+1:index_GS_A-1] + self.list_exp_data[index_GS_A+1:]
+        list_labels = self.state_labels[index_GS_S+1:index_GS_A-1] + self.state_labels[index_GS_A+1:]
+
+        plotter.plot_avg_decay_data(list_t_sim, list_data,
+                                    state_labels=list_labels,
+                                    list_exp_data=list_exp_data,
                                     colors=self.cte['colors'])
+
+#    def save(self, full_path: str = None) -> None:
+#        '''Save data to disk as a HDF5 file'''
+#        # save common data
+#        super(DynamicsSolution, self).save(full_path)
+#
+#        if full_path is None:  # pragma: no cover
+#            full_path = self.save_file_full_name(self._prefix) + '.hdf5'
+#
+#        # save exp data
+#        with h5py.File(full_path, 'a') as file:
+#            file.create_dataset("list_exp_data", data=self.list_exp_data, compression='gzip')
 
     def log_errors(self) -> None:
         '''Log errors'''
@@ -566,7 +601,9 @@ class DynamicsSolution(Solution):
     def list_exp_data(self) -> List[np.array]:
         '''List of ofset-corrected average populations for each state in the solution'''
         # if empty, calculate
-        return self._load_decay_data()
+        if not self._list_exp_data:
+            self._list_exp_data = self._load_decay_data()
+        return self._list_exp_data
 
 
 class SolutionList(Sequence[Solution]):
@@ -632,7 +669,7 @@ class SolutionList(Sequence[Solution]):
                 group.create_dataset("index_S_i", data=sol.index_S_i, compression='gzip')
                 group.create_dataset("index_A_j", data=sol.index_A_j, compression='gzip')
                 # serialze cte as text and store it as an attribute
-                group.attrs['cte'] = yaml.dump(sol.cte)
+                group.attrs['cte'] = yaml.dump(sol.cte.settings)
                 file.attrs['config_file'] = sol.cte['config_file']
             if hasattr(self, 'dynamics'):
                 file.attrs['dynamics'] = self.dynamics
@@ -652,10 +689,15 @@ class SolutionList(Sequence[Solution]):
                 sol_list.dynamics = dynamics
                 for group_num in file:
                     group = file[group_num]
+                    # deserialze cte
+                    cte_dict = yaml.load(group.attrs['cte'])
+                    cte = settings.load_from_text(cte_dict['config_file'])
+                    for key, value in cte_dict.items():
+                        cte[key] = value
                     # create appropiate object
                     sol = sol_list._items_class(np.array(group['t_sol']), np.array(group['y_sol']),
                                                 list(group['index_S_i']), list(group['index_A_j']),
-                                                yaml.load(group.attrs['cte']))
+                                                cte)
                     solutions.append(sol)
         except OSError as err:
             msg = 'File not found! ({})'.format(full_path)
@@ -782,8 +824,8 @@ class ConcentrationDependenceSolution(SolutionList):
             sim_data_arr = np.array([np.array(sol.steady_state_populations)
                                      for sol in self])
 
-            S_states = self[0].cte['states']['sensitizer_states']
-            A_states = self[0].cte['states']['activator_states']
+            S_states = self[0].cte.states['sensitizer_states']
+            A_states = self[0].cte.states['activator_states']
             conc_factor_arr = np.array([([float(sol.concentration.S_conc)]*S_states +
                                          [float(sol.concentration.A_conc)]*A_states)
                                         for sol in self])
@@ -813,7 +855,7 @@ class Simulations():
 
     def __init__(self, cte: Settings, full_path: str = None) -> None:
         # settings
-        self.cte = Settings(cte)
+        self.cte = cte
         self.full_path = full_path
 
     def __bool__(self) -> bool:
@@ -834,21 +876,17 @@ class Simulations():
 
     def __repr__(self) -> str:
         '''Representation of a simulation.'''
-        if 'energy_states' in self.cte.states:
-            return '{}(lattice={}, '.format(self.__class__.__name__,
-                                            self.cte['lattice']['name']) +\
-                   'n_uc={}, num_states={})'.format(self.cte['lattice']['N_uc'],
-                                                    self.cte['states']['energy_states'])
-        else:
-            return '{}(lattice={}, n_uc={}, before precalculate)'.format(self.__class__.__name__,
-                                                                         self.cte.lattice['name'],
-                                                                         self.cte.lattice['N_uc'])
+        return '{}(lattice={}, '.format(self.__class__.__name__,
+                                        self.cte.lattice['name']) +\
+               'n_uc={}, num_states={})'.format(self.cte.lattice['N_uc'],
+                                                self.cte.states['energy_states'])
+
 
     @log_exceptions_warnings
     def _get_t_pulse(self) -> float:
         '''Return the pulse width of the simulation'''
         try:
-            for excitation in self.cte['excitations'].values():  # pragma: no branch
+            for excitation in self.cte.excitations.values():  # pragma: no branch
                 if excitation[0].active:
                     tf_p = excitation[0].t_pulse  # pulse width.
                     break
@@ -864,7 +902,7 @@ class Simulations():
         lattice_name = self.cte.lattice['name']
         path = os.path.join('results', lattice_name)
         os.makedirs(path, exist_ok=True)
-        filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(self.cte['lattice']['N_uc']),
+        filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(self.cte.lattice['N_uc']),
                                                         float(self.cte.lattice['S_conc']),
                                                         float(self.cte.lattice['A_conc']))
         return os.path.join(path, filename)
@@ -892,7 +930,7 @@ class Simulations():
          coop_jac_indices) = setup_func(self.cte, full_path=self.full_path)
 
         # update cte
-        self.cte = Settings(cte_updated)
+        self.cte = cte_updated
 
         # initial and final times for excitation and relaxation
         t0 = 0
@@ -902,10 +940,10 @@ class Simulations():
         N_steps_pulse = 2
         t0_sol = tf_p
         tf_sol = tf
-        N_steps = self.cte['simulation_params']['N_steps']
+        N_steps = self.cte.simulation_params['N_steps']
 
-        rtol = self.cte['simulation_params']['rtol']
-        atol = self.cte['simulation_params']['atol']
+        rtol = self.cte.simulation_params['rtol']
+        atol = self.cte.simulation_params['atol']
 
         start_time_ODE = time.time()
         logger.info('Solving equations...')
@@ -913,7 +951,7 @@ class Simulations():
         # excitation pulse
         logger.info('Solving excitation pulse...')
         logger.info('Active excitation(s): ')
-        for exc_label, excitation in self.cte['excitations'].items():
+        for exc_label, excitation in self.cte.excitations.items():
             # if the current excitation is not active jump to the next one
             if excitation[0].active is True:
                 logger.info(exc_label)
@@ -975,17 +1013,17 @@ class Simulations():
          coop_jac_indices) = setup_func(self.cte, full_path=self.full_path)
 
         # update cte
-        self.cte = Settings(cte_updated)
+        self.cte = cte_updated
 
         # initial and final times for excitation and relaxation
         t0 = 0
         tf = (10*np.max(precalculate.get_lifetimes(self.cte))).round(8)  # total simulation time
         t0_p = t0
         tf_p = tf
-        N_steps_pulse = self.cte['simulation_params']['N_steps']
+        N_steps_pulse = self.cte.simulation_params['N_steps']
 
-        rtol = self.cte['simulation_params']['rtol']
-        atol = self.cte['simulation_params']['atol']
+        rtol = self.cte.simulation_params['rtol']
+        atol = self.cte.simulation_params['atol']
 
         start_time_ODE = time.time()
         logger.info('Solving equations...')
@@ -993,10 +1031,10 @@ class Simulations():
         # steady state
         logger.info('Solving steady state...')
         logger.info('Active excitation(s): ')
-        for exc_label, excitation in self.cte['excitations'].items():
+        for exc_label, excitation in self.cte.excitations.items():
             # if the current excitation is not active jump to the next one
             if excitation[0].active is True:
-                logger.info(exc_label)
+                logger.info('{}: P = {} W/cm2.'.format(exc_label, excitation[0].power_dens))
         t_pulse = np.linspace(t0_p, tf_p, N_steps_pulse)
         y_pulse = odesolver.solve_pulse(t_pulse, initial_population.transpose(),
                                         total_abs_matrix, decay_matrix,
@@ -1043,10 +1081,11 @@ class Simulations():
                                total=num_power_steps, disable=self.cte['no_console'],
                                desc='Total progress'):
             # update power density
-            for excitation in self.cte['excitations'].keys():
-                self.cte['excitations'][excitation][0].power_dens = power_dens
+            for excitation in self.cte.excitations.keys():
+                for exc in self.cte.excitations[excitation]:
+                    exc.power_dens = power_dens
             # calculate steady state populations
-            with console_logger_level(logging.WARNING):
+            with disable_logger_below(logging.INFO):
                 steady_sol = self.simulate_steady_state(average=average)
             solutions.append(steady_sol)
 
@@ -1084,9 +1123,9 @@ class Simulations():
                           total=num_conc_steps, disable=self.cte['no_console'],
                           desc='Total progress'):
             # update concentrations
-            self.cte['lattice']['S_conc'] = concs[0]
-            self.cte['lattice']['A_conc'] = concs[1]
-            with console_logger_level(logging.WARNING):
+            self.cte.lattice['S_conc'] = concs[0]
+            self.cte.lattice['A_conc'] = concs[1]
+            with disable_logger_below(logging.INFO):
                 # simulate
                 if dynamics:
                     sol = self.simulate_dynamics(average=average)  # type: Solution
@@ -1104,43 +1143,50 @@ class Simulations():
         return conc_dep_solution
 
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.INFO,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+
+    logger.info('Called from cmd.')
+
+    cte = settings.load('config_file_ESA.cfg')
+
+    cte['no_console'] = False
+    cte['no_plot'] = False
+
+    sim = Simulations(cte)
+
+#    solution = sim.simulate_dynamics()
+#    solution.log_errors()
+#    solution.plot()
+
+#    solution.save()
+#    sol = DynamicsSolution.load('results/bNaYF4/dynamics_20uc_0.0S_0.3A.hdf5')
+#    assert solution == sol
+#    sol.log_errors()
+#    sol.plot()
 #
-#    logger.info('Called from cmd.')
+#    solution.plot(state=7)
 #
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
+#    solution_avg = sim.simulate_avg_dynamics()
+#    solution_avg.log_errors()
+#    solution_avg.plot()
 #
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
 #
-#    sim = Simulations(cte)
+#    solution = sim.simulate_steady_state()
+#    solution.log_populations()
+#    solution.plot()
 #
-##    solution = sim.simulate_dynamics()
-##    solution.log_errors()
-##    solution.plot()
-##
-##    solution.plot(state=7)
-##
-##    solution_avg = sim.simulate_avg_dynamics()
-##    solution_avg.log_errors()
-##    solution_avg.plot()
-##
-##    solution = sim.simulate_steady_state()
-##    solution.log_populations()
-##    solution.plot()
-##
-##    solution_avg = sim.simulate_avg_steady_state()
-##    solution_avg.log_populations()
-##    solution_avg.plot()
-##
-##    power_dens_list = np.logspace(-2, 2, 5)
-##    solution = sim.simulate_power_dependence(cte['power_dependence'])
-##    solution.plot()
-##
-##    conc_list = [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3)]#, (0, 0.5)]#, (0, 1.0)]
-##    solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
-##    solution.plot()
+#
+#    solution_avg = sim.simulate_avg_steady_state()
+#    solution_avg.log_populations()
+#    solution_avg.plot()
+
+
+    solution = sim.simulate_power_dependence(cte.power_dependence, average=True)
+    solution.plot()
+
+#    conc_list = [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3)]#, (0, 0.5)]#, (0, 1.0)]
+#    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
+#    solution.plot()

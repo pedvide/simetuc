@@ -27,7 +27,7 @@ import simetuc.lattice as lattice
 import simetuc.simulations as simulations
 import simetuc.settings as settings
 import simetuc.optimize as optimize
-#from simetuc.util import console_logger_level
+#from simetuc.util import disable_logger_below
 
 from simetuc import VERSION
 from simetuc import DESCRIPTION
@@ -185,14 +185,14 @@ def main(ext_args: List[str] = None) -> None:
     elif args.power_dependence:  # simulate power dependence
         logger.info('Simulating power dependence...')
         sim = simulations.Simulations(cte)
-        power_dens_list = cte['power_dependence']
+        power_dens_list = cte.power_dependence
         solution = sim.simulate_power_dependence(power_dens_list, average=args.average)
         print('')
 
     elif args.conc_dependence:  # simulate concentration dependence
         logger.info('Simulating concentration dependence...')
         sim = simulations.Simulations(cte)
-        conc_list = cte['conc_dependence']
+        conc_list = cte.concentration_dependence
         dynamics = True if args.conc_dependence == 'd' else False
         solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics,
                                                              average=args.average)

@@ -22,6 +22,7 @@ from ase.spacegroup import crystal
 from simetuc.util import ConfigError, log_exceptions_warnings
 import simetuc.plotter as plotter
 import simetuc.settings as settings
+from simetuc.settings import SettingsValueError
 import simetuc.settings_config as configs
 
 
@@ -36,12 +37,10 @@ def _check_lattice_settings(cte: settings.Settings) -> None:
 
     # parse the settings to catch any errors due to wrong magnitude of a setting
     try:
-        # parse all values
-        # cast to Value so mypy doesn't complain
-        lst_confs = settings.cast(List[settings.Value], configs.settings)
-        settings_lattice = [value for value in lst_confs if value.name is 'lattice'][0]
-        settings_lattice.parse(cte['lattice'])
-    except (ValueError, ConfigError) as err:
+        # validate lattice settings
+        settings_lattice = configs.settings['lattice']
+        settings_lattice.validate(cte.lattice)
+    except (SettingsValueError, ConfigError) as err:
         raise LatticeError('Wrong lattice settings.') from err
 
     # modify some values
@@ -53,7 +52,7 @@ def _check_lattice_settings(cte: settings.Settings) -> None:
     cte_lattice['d_max'] = cte_lattice.get('d_max', np.inf)
     cte_lattice['d_max_coop'] = cte_lattice.get('d_max_coop', np.inf)
 
-    radius = cte['lattice'].get('radius', None)
+    radius = cte.lattice.get('radius', None)
     if radius:
         # use enough unit cells for the radius
         min_param = min(cte_lattice['cell_par'][0:3])
@@ -69,8 +68,8 @@ def _check_lattice_settings(cte: settings.Settings) -> None:
         msg = 'The number of sites must be the same in sites_pos and sites_occ.'
         raise LatticeError(msg)
 
-    S_conc = float(cte['lattice']['S_conc'])
-    A_conc = float(cte['lattice']['A_conc'])
+    S_conc = float(cte.lattice['S_conc'])
+    A_conc = float(cte.lattice['A_conc'])
 
     # if the concentrations are not in the correct range
     if not (0 <= S_conc+A_conc <= 100.0):
@@ -79,8 +78,8 @@ def _check_lattice_settings(cte: settings.Settings) -> None:
         raise LatticeError(msg)
 
     # at least a state must exist
-    num_S_states = cte['states']['sensitizer_states']
-    num_A_states = cte['states']['activator_states']
+    num_S_states = cte.states['sensitizer_states']
+    num_A_states = cte.states['activator_states']
     if (S_conc != 0 and num_S_states == 0) or (A_conc != 0 and num_A_states == 0):
         raise LatticeError('The number of states of each ion cannot be zero.')
 
@@ -338,11 +337,11 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
 
     _check_lattice_settings(cte)
 
-    num_uc = cte['lattice']['N_uc']
-    S_conc = float(cte['lattice']['S_conc'])
-    A_conc = float(cte['lattice']['A_conc'])
-    lattice_name = cte['lattice']['name']
-    radius = cte['lattice'].get('radius', None)
+    num_uc = cte.lattice['N_uc']
+    S_conc = float(cte.lattice['S_conc'])
+    A_conc = float(cte.lattice['A_conc'])
+    lattice_name = cte.lattice['name']
+    radius = cte.lattice.get('radius', None)
 
     start_time = time.time()
 
@@ -357,8 +356,8 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
     # it would be more efficient to directly create a doped lattice,
     # i.e.: without creating un-doped atoms first
     # however, this is very fast anyways
-    atoms = _create_lattice(cte['lattice']['spacegroup'], cte['lattice']['cell_par'],
-                            num_uc, cte['lattice']['sites_pos'], cte['lattice']['sites_occ'])
+    atoms = _create_lattice(cte.lattice['spacegroup'], cte.lattice['cell_par'],
+                            num_uc, cte.lattice['sites_pos'], cte.lattice['sites_occ'])
     num_atoms = len(atoms)
     logger.info('Total number of atoms: %d', num_atoms)
 
@@ -375,8 +374,8 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
     num_doped_atoms = len(atoms)
     num_A = np.count_nonzero(ion_type)
     num_S = num_doped_atoms-num_A
-    num_S_states = cte['states']['sensitizer_states']
-    num_A_states = cte['states']['activator_states']
+    num_S_states = cte.states['sensitizer_states']
+    num_A_states = cte.states['activator_states']
     num_states = num_S_states*num_S + num_A_states*num_A
 
     if num_doped_atoms == 0 or num_states == 0:
@@ -431,7 +430,7 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
         # check if folder exists
         if full_path is None: # pragma: no cover
             folder_path = os.path.join('latticeData', lattice_name)
-            radius = cte['lattice'].get('radius', None)
+            radius = cte.lattice.get('radius', None)
             full_path = make_full_path(folder_path, num_uc, S_conc, A_conc, radius=radius)
 
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -485,14 +484,14 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
 #
-##    cte['lattice']['S_conc'] = 100
-##    cte['lattice']['A_conc'] = 0
-##    cte['lattice']['N_uc'] = 1
-##    cte['lattice']['radius'] = 20
-##    cte['states']['sensitizer_states'] = 0
-##    cte['states']['activator_states'] = 0
+##    cte.lattice['S_conc'] = 100
+##    cte.lattice['A_conc'] = 0
+##    cte.lattice['N_uc'] = 1
+##    cte.lattice['radius'] = 20
+##    cte.states['sensitizer_states'] = 0
+##    cte.states['activator_states'] = 0
 #
-#    cte.lattice['sites_occ'] = 1.0
+##    cte.lattice['sites_occ'] = 1.0
 ##    cte.lattice['A_conc'] = 75.0
 ##    cte.lattice['S_conc'] = 75.0
 #
