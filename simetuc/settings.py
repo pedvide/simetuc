@@ -373,8 +373,7 @@ def load_file(filename: str) -> None:
     ''' Load filename and extract the settings for the simulations
         If mandatory values are missing, errors are logged
         and exceptions are raised
-        Warnings are logged if extra settings are found
-    '''
+        Warnings are logged if extra settings are found'''
     logger = logging.getLogger(__name__)
     logger.info('Reading settings file (%s)...', filename)
 

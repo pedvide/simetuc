@@ -84,6 +84,7 @@ def _check_lattice_settings(cte: settings.Settings) -> None:
         raise LatticeError('The number of states of each ion cannot be zero.')
 
 
+
 def _create_lattice(spacegroup: Union[int, str], cell_par: List[float], num_uc: int,
                     sites_pos: List[float], sites_occ: List[float]) -> ase.Atoms:
     '''Creates the lattice with the specified parameters.

@@ -1143,20 +1143,19 @@ class Simulations():
         return conc_dep_solution
 
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-
-    logger.info('Called from cmd.')
-
-    cte = settings.load('config_file_ESA.cfg')
-
-    cte['no_console'] = False
-    cte['no_plot'] = False
-
-    sim = Simulations(cte)
-
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#    logger.info('Called from cmd.')
+#
+#    cte = settings.load('config_file_ESA.cfg')
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+#
+#    sim = Simulations(cte)
+#
 #    solution = sim.simulate_dynamics()
 #    solution.log_errors()
 #    solution.plot()
@@ -1182,11 +1181,11 @@ if __name__ == "__main__":
 #    solution_avg = sim.simulate_avg_steady_state()
 #    solution_avg.log_populations()
 #    solution_avg.plot()
-
-
-    solution = sim.simulate_power_dependence(cte.power_dependence, average=True)
-    solution.plot()
-
+#
+#
+#    solution = sim.simulate_power_dependence(cte.power_dependence, average=True)
+#    solution.plot()
+#
 #    conc_list = [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3)]#, (0, 0.5)]#, (0, 1.0)]
 #    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
 #    solution.plot()
