@@ -1600,3 +1600,4 @@ activator_branching_ratios:
     assert issubclass(warning.category, SettingsExtraValueWarning)
     assert 'Some values or sections should not be present in the file' in str(warning.message)
 
+
