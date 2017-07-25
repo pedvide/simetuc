@@ -14,8 +14,7 @@ import scipy.sparse as sparse
 
 import simetuc.precalculate as precalculate
 import simetuc.lattice as lattice # for the LatticeError exception
-from simetuc.util import temp_bin_filename
-from simetuc.settings import Settings
+from simetuc.util import temp_bin_filename, Excitation, IonType, DecayTransition, Transition, EneryTransferProcess
 
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
@@ -24,25 +23,27 @@ test_folder_path = os.path.dirname(os.path.abspath(__file__))
 def setup_cte():
     '''Load the cte data structure'''
 
-    cte = dict([('lattice',
-              dict([('name', 'bNaYF4'),
-                           ('N_uc', 8),
-                           ('S_conc', 0.3),
-                           ('A_conc', 0.3),
-                           ('a', 5.9738),
-                           ('b', 5.9738),
-                           ('c', 3.5297),
-                           ('alpha', 90),
-                           ('beta', 90),
-                           ('gamma', 120),
-                           ('spacegroup', 'P-6'),
-                           ('sites_ions', ['Y', 'Y']),
-                           ('sites_pos',
-                            [(0.0, 0.0, 0.0),
-                             (0.6666666666666666, 0.3333333333333333, 0.5)]),
-                           ('sites_occ', [1.0, 0.5]),
-                           ('cell_par',
-                            [5.9738, 5.9738, 3.5297, 90.0, 90.0, 120.0])])),
+    class Cte(dict):
+        __getattr__= dict.__getitem__
+        __setattr__= dict.__setitem__
+        __delattr__= dict.__delitem__
+
+
+    cte = Cte([('lattice', {'A_conc': 0.3,
+                         'N_uc': 20,
+                         'S_conc': 0.3,
+                         'a': 5.9738,
+                         'alpha': 90.0,
+                         'b': 5.9738,
+                         'beta': 90.0,
+                         'c': 3.5297,
+                         'gamma': 120.0,
+                         'd_max': 100.0,
+                         'd_max_coop': 25.0,
+                         'name': 'bNaYF4',
+                         'sites_occ': [1.0, 0.5],
+                         'sites_pos': [(0.0, 0.0, 0.0), (2/3, 1/3, 0.5)],
+                         'spacegroup': 'P-6'}),
              ('states',
               dict([('sensitizer_ion_label', 'Yb'),
                            ('sensitizer_states_labels', ['GS', 'ES']),
@@ -51,108 +52,62 @@ def setup_cte():
                             ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2']),
                            ('sensitizer_states', 2),
                            ('activator_states', 7)])),
-             ('excitations',
-              dict([('Vis_473',
-                            dict([('active', True),
-                                         ('power_dens', 1000000.0),
-                                         ('t_pulse', 1e-08),
-                                         ('process', ['Tm(3H6) -> Tm(1G4)']),
-                                         ('degeneracy', [1.4444444444444444]),
-                                         ('pump_rate', [0.00093]),
-                                         ('init_state', [0]),
-                                         ('final_state', [5]),
-                                         ('ion_exc', ['A'])])),
-                           ('NIR_980',
-                            dict([('active', False),
-                                         ('power_dens', 10000000.0),
-                                         ('t_pulse', 1e-08),
-                                         ('process', ['Yb(GS)->Yb(ES)']),
-                                         ('degeneracy', [1.3333333333333333]),
-                                         ('pump_rate', [0.0044]),
-                                         ('init_state', [0]),
-                                         ('final_state', [1]),
-                                         ('ion_exc', ['S'])])),
-                           ('NIR_1470',
-                            dict([('active', False),
-                                         ('power_dens', 10000000.0),
-                                         ('t_pulse', 1e-08),
-                                         ('process', ['Tm(1G4) -> Tm(1D2)']),
-                                         ('degeneracy', [1.8]),
-                                         ('pump_rate', [0.0002]),
-                                         ('init_state', [5]),
-                                         ('final_state', [6]),
-                                         ('ion_exc', ['A'])])),
-                           ('NIR_800',
-                            dict([('active', False),
-                                         ('power_dens', 10000000.0),
-                                         ('t_pulse', 1e-08),
-                                         ('process', ['Tm(3H6)->Tm(3H4)', 'Tm(3H5)->Tm(1G4)']),
-                                         ('degeneracy', [1.4444444444444444, 1.2222222222222223]),
-                                         ('pump_rate', [0.0044, 0.002]),
-                                         ('init_state', [0, 2]),
-                                         ('final_state', [3, 5]),
-                                         ('ion_exc', ['A', 'A'])]))])),
+             ('excitations', {
+                  'NIR_1470': [Excitation(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
+                 'NIR_800': [Excitation(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
+                             Excitation(IonType.A, 2, 5, False, 11/9, 0.002, 1e7, 1e-8)],
+                 'NIR_980': [Excitation(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
+                 'Vis_473': [Excitation(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]}
+             ),
              ('optimization_params', ['CR50']),
              ('decay',
-              {'B_pos_value_A': [(1, 0, 1.0),
-                (2, 1, 0.4),
-                (3, 1, 0.3),
-                (4, 3, 0.999),
-                (5, 1, 0.15),
-                (5, 2, 0.16),
-                (5, 3, 0.04),
-                (5, 4, 0.0),
-                (6, 1, 0.43)],
-               'B_pos_value_S': [(1, 0, 1.0)],
-               'pos_value_A': [(1, 83.33333333333333),
-                (2, 40000.0),
-                (3, 500.0),
-                (4, 500000.0),
-                (5, 1315.7894736842104),
-                (6, 14814.814814814814)],
-               'pos_value_S': [(1, 400.0)]}),
-             ('ET', # OrderedDict so the explicit examples are correct
-              OrderedDict([('CR50',
-                            {'indices': [5, 0, 3, 2],
-                             'mult': 6,
-                             'type': 'AA',
-                             'value': 887920884.0,
-                             'value_avg': 1.0e3}),
-                           ('ETU53',
-                            {'indices': [5, 3, 6, 1],
-                             'mult': 6,
-                             'type': 'AA',
-                             'value': 450220614.0}),
-                           ('ETU55',
-                            {'indices': [5, 5, 6, 4],
-                             'mult': 6,
-                             'type': 'AA',
-                             'value': 0.0}),
-                           ('ETU1',
-                            {'indices': [1, 0, 0, 2],
-                             'mult': 6,
-                             'type': 'SA',
-                             'value': 10000.0}),
-                           ('BackET',
-                            {'indices': [3, 0, 0, 1],
-                             'mult': 6,
-                             'type': 'AS',
-                             'value': 4502.20614}),
-                           ('EM',
-                            {'indices': [1, 0, 0, 1],
-                             'mult': 6,
-                             'type': 'SS',
-                             'value': 45022061400.0}),
-                            ('coop1',
-                             {'indices': [1, 1, 0, 0, 0, 5],
-                              'mult': 6,
-                              'type': 'SSA',
-                              'value': 1000.0})
-                            ]))])
+              {'branching_A': {DecayTransition(IonType.A, 1, 0, branching_ratio=1.0),
+                DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
+                DecayTransition(IonType.A, 3, 1, branching_ratio=0.3),
+                DecayTransition(IonType.A, 4, 3, branching_ratio=0.999),
+                DecayTransition(IonType.A, 5, 1, branching_ratio=0.15),
+                DecayTransition(IonType.A, 5, 2, branching_ratio=0.16),
+                DecayTransition(IonType.A, 5, 3, branching_ratio=0.04),
+                DecayTransition(IonType.A, 5, 4, branching_ratio=0.0),
+                DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)},
+               'branching_S': {DecayTransition(IonType.S, 1, 0, branching_ratio=1.0)},
+               'decay_A': {DecayTransition(IonType.A, 1, 0, decay_rate=83.33333333333333),
+                DecayTransition(IonType.A, 2, 0, decay_rate=40000.0),
+                DecayTransition(IonType.A, 3, 0, decay_rate=500.0),
+                DecayTransition(IonType.A, 4, 0, decay_rate=500000.0),
+                DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
+                DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)},
+               'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=400.0)}}),
+             ('energy_transfer', # OrderedDict so the explicit examples are correct
+              OrderedDict({
+              'CR50': EneryTransferProcess([Transition(IonType.A, 5, 3),
+                                            Transition(IonType.A, 0, 2)],
+                                           mult=6, strength=887920884.0),
+              'ETU53': EneryTransferProcess([Transition(IonType.A, 5, 6),
+                                             Transition(IonType.A, 3, 1)],
+                                            mult=6, strength=450220614.0),
+              'ETU55': EneryTransferProcess([Transition(IonType.A, 5, 6),
+                                             Transition(IonType.A, 5, 4)],
+                                            mult=6, strength=0.0),
+              'ETU1': EneryTransferProcess([Transition(IonType.S, 1, 0),
+                                            Transition(IonType.A, 0, 2)],
+                                           mult=6, strength=10000.0),
+              'BackET': EneryTransferProcess([Transition(IonType.A, 3, 0),
+                                              Transition(IonType.S, 0, 1)],
+                                             mult=6, strength=4502.20614),
+              'EM': EneryTransferProcess([Transition(IonType.S, 1, 0),
+                                          Transition(IonType.S, 0, 1)],
+                                         mult=6, strength=45022061400.0),
+              'coop1': EneryTransferProcess([Transition(IonType.S, 1, 0),
+                                             Transition(IonType.S, 1, 0),
+                                             Transition(IonType.A, 0, 5)],
+                                            mult=6, strength=1000.0)})
+
+              )])
 
     cte['no_console'] = True
     cte['no_plot'] = True
-    return Settings(cte_dict=cte)
+    return cte
 
 # SIMPLE LATTICES WITH 1 OR 2 ACTIVATORS AND SENSITIZERS
 # THESE RESULTS HAVE BEEN CHECKED BY HAND
@@ -169,7 +124,7 @@ def test_lattice_1A(setup_cte):
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
-    power_dens = cte['excitations']['Vis_473']['power_dens']
+    power_dens = cte['excitations']['Vis_473'][0].power_dens
 
     assert  np.all(initial_population == np.array([1, 0, 0, 0, 0, 0, 0]))
 
@@ -207,8 +162,9 @@ def test_lattice_1A_ESA(setup_cte): # use the ESA processes in NIR_800 excitatio
 
     test_filename = os.path.join(test_folder_path, 'data_0S_1A.hdf5')
 
-    setup_cte['excitations']['Vis_473']['active'] = False
-    setup_cte['excitations']['NIR_800']['active'] = True
+    setup_cte['excitations']['Vis_473'][0].active = False
+    setup_cte['excitations']['NIR_800'][0].active = True
+    setup_cte['excitations']['NIR_800'][1].active = True
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
@@ -216,11 +172,12 @@ def test_lattice_1A_ESA(setup_cte): # use the ESA processes in NIR_800 excitatio
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
-    power_dens = cte['excitations']['NIR_800']['power_dens']
+    power_dens = cte['excitations']['NIR_800'][0].power_dens
 
     # reset active excitation so next tests will work
-    setup_cte['excitations']['Vis_473']['active'] = True
-    setup_cte['excitations']['NIR_800']['active'] = False
+    setup_cte['excitations']['Vis_473'][0].active = True
+    setup_cte['excitations']['NIR_800'][0].active = False
+    setup_cte['excitations']['NIR_800'][1].active = False
 
     assert np.all(initial_population == np.array([1, 0, 0, 0, 0, 0, 0]))
 
@@ -268,8 +225,8 @@ def test_lattice_1A_two_color(setup_cte): # use two color excitation
 
     test_filename = os.path.join(test_folder_path, 'data_0S_1A.hdf5')
 
-    setup_cte['excitations']['Vis_473']['active'] = True
-    setup_cte['excitations']['NIR_1470']['active'] = True
+    setup_cte['excitations']['Vis_473'][0].active = True
+    setup_cte['excitations']['NIR_1470'][0].active = True
 
     (cte, initial_population, index_S_i, index_A_j,
      total_abs_matrix, decay_matrix, UC_matrix,
@@ -277,12 +234,12 @@ def test_lattice_1A_two_color(setup_cte): # use two color excitation
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
-    power_dens_GSA = cte['excitations']['Vis_473']['power_dens']
-    power_dens_ESA = cte['excitations']['NIR_1470']['power_dens']
+    power_dens_GSA = cte['excitations']['Vis_473'][0].power_dens
+    power_dens_ESA = cte['excitations']['NIR_1470'][0].power_dens
 
     # reset active excitation so next tests will work
-    setup_cte['excitations']['Vis_473']['active'] = True
-    setup_cte['excitations']['NIR_1470']['active'] = False
+    setup_cte['excitations']['Vis_473'][0].active = True
+    setup_cte['excitations']['NIR_1470'][0].active = False
 
     assert  np.all(initial_population == np.array([1, 0, 0, 0, 0, 0, 0]))
 
@@ -335,7 +292,7 @@ def test_lattice_2A(setup_cte):
     UC_matrix = UC_matrix.toarray()
     total_abs_matrix = total_abs_matrix.toarray()
     decay_matrix = decay_matrix.toarray()
-    power_dens = cte['excitations']['Vis_473']['power_dens']
+    power_dens = cte['excitations']['Vis_473'][0].power_dens
 
     assert  np.all(initial_population == np.array([1, 0, 0, 0, 0, 0, 0,
                                                    1, 0, 0, 0, 0, 0, 0]))
@@ -755,8 +712,8 @@ def idfn(params):
 def test_random_lattice(setup_cte, params, absorption, problem):
     '''Test a lattice with a random number of A and S
         This test may depend on the functioning of the lattice module
-        if the lattices need to be generated so it\'s not really a unit test
-        the pre-computed lattices are stored in the test/test_setup folder
+        if the lattices need to be generated so it's not really a unit test
+        the pre-computed lattices are stored in a temp folder
     '''
 
     cte = setup_cte
@@ -768,17 +725,17 @@ def test_random_lattice(setup_cte, params, absorption, problem):
     cte['states']['activator_states'] = params[4]
 
     if absorption == 'NIR_980': # sensitizer absorbs
-        cte['excitations']['NIR_980']['active'] = True
-        cte['excitations']['Vis_473']['active'] = False
-        cte['excitations']['NIR_800']['active'] = False
+        cte['excitations']['NIR_980'][0].active = True
+        cte['excitations']['Vis_473'][0].active = False
+        cte['excitations']['NIR_800'][0].active = False
     elif absorption == 'Vis_473': # activator absorbs, normal GSA
-        cte['excitations']['NIR_980']['active'] = False
-        cte['excitations']['Vis_473']['active'] = True
-        cte['excitations']['NIR_800']['active'] = False
+        cte['excitations']['NIR_980'][0].active = False
+        cte['excitations']['Vis_473'][0].active = True
+        cte['excitations']['NIR_800'][0].active = False
     elif absorption == 'NIR_800': # activator absorbs, ESA
-        cte['excitations']['NIR_980']['active'] = False
-        cte['excitations']['Vis_473']['active'] = False
-        cte['excitations']['NIR_800']['active'] = True
+        cte['excitations']['NIR_980'][0].active = False
+        cte['excitations']['Vis_473'][0].active = False
+        cte['excitations']['NIR_800'][0].active = True
 
     setup_func = precalculate.setup_microscopic_eqs
     if problem == 'setup_average_eqs':
@@ -889,7 +846,7 @@ def test_random_lattice(setup_cte, params, absorption, problem):
                                     (5.0, 0.0, 10, 5, 0), # no A_states, no A_conc
                                     (0.0, 1.0, 8, 0, 4), # no S_states, no S_conc
                                     (5.0, 5.0, 10, 2, 1), # low A_states
-                                    (5.0, 5.0, 8, 1, 7)], # low S_states
+                                    (5.0, 5.0, 8, 0, 7)], # low S_states
                          ids=idfn)
 def test_random_wrong_lattice(setup_cte, params, absorption, problem):
     cte = setup_cte
@@ -905,17 +862,17 @@ def test_random_wrong_lattice(setup_cte, params, absorption, problem):
         setup_func = precalculate.setup_average_eqs
 
     if absorption == 'NIR_980': # sensitizer absorbs
-        cte['excitations']['NIR_980']['active'] = True
-        cte['excitations']['Vis_473']['active'] = False
-        cte['excitations']['NIR_800']['active'] = False
+        cte['excitations']['NIR_980'][0].active = True
+        cte['excitations']['Vis_473'][0].active = False
+        cte['excitations']['NIR_800'][0].active = False
     elif absorption == 'Vis_473': # activator absorbs, normal GSA
-        cte['excitations']['NIR_980']['active'] = False
-        cte['excitations']['Vis_473']['active'] = True
-        cte['excitations']['NIR_800']['active'] = False
+        cte['excitations']['NIR_980'][0].active = False
+        cte['excitations']['Vis_473'][0].active = True
+        cte['excitations']['NIR_800'][0].active = False
     elif absorption == 'NIR_800': # activator absorbs, ESA
-        cte['excitations']['NIR_980']['active'] = False
-        cte['excitations']['Vis_473']['active'] = False
-        cte['excitations']['NIR_800']['active'] = True
+        cte['excitations']['NIR_980'][0].active = False
+        cte['excitations']['Vis_473'][0].active = False
+        cte['excitations']['NIR_800'][0].active = True
 
     with pytest.raises(lattice.LatticeError):
         with temp_bin_filename() as temp_filename:
@@ -963,18 +920,21 @@ def test_wrong_number_states(setup_cte):
          N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
 
 
-def test_radius(setup_cte):
+def test_radius(setup_cte, mocker):
 
     cte = setup_cte
     cte['lattice']['S_conc'] = 10.5
     cte['lattice']['A_conc'] = 5.2
-    cte['lattice']['radius'] = 70
+    cte['lattice']['radius'] = 30
     cte['states']['sensitizer_states'] = 2
     cte['states']['activator_states'] = 7
+
+    # ignore error when lattice checks that the settings do not contain both N_uc and radius
+    mocker.patch('simetuc.settings_config.DictValue.validate')
 
     with temp_bin_filename() as temp_filename:
         (cte, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix, ET_matrix,
          N_indices, jac_indices, coop_ET_matrix, coop_N_indices, coop_jac_indices) = precalculate.setup_microscopic_eqs(cte, full_path=temp_filename)
 
-    assert cte['lattice']['radius'] == 70
+    assert cte['lattice']['radius'] == 30

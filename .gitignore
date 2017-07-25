@@ -29,14 +29,17 @@ var/
 data*uc*
 
 # cubby conflicts
-*(conflict at*)*
+*(conflict)*
 
 simetuc/logs/
 simetuc/flake8.txt
 simetuc/results/
+results/
 simetuc/latticeData/
 *.old
-simetuc/config_file_TiO.cfg
+
+# mypy
+.mypy_cache/
 
 
 # PyInstaller
@@ -105,6 +108,9 @@ ENV/
 # Rope project settings
 .ropeproject
 
+# mypy
+.mypy_cache
+
 # =========================
 # Operating System Files
 # =========================
@@ -158,3 +164,4 @@ $RECYCLE.BIN/
 *.lyx~
 pylint_res.txt
 *.lyx#
+simetuc/config_file_ESA.cfg

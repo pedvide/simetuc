@@ -7,7 +7,7 @@ Created on Sun Oct 16 11:53:51 2016
 
 # TODO: INCLUDE PULSE FREQUENCY IN STEADY STATE FOR NON CW-LASER EXCITATION
 # notTODO: INCLUDE .CIF FILE GENERATION OF LATTICE -> doesn't work with multiple sites...
-# TODO: cooperative sensitization: in progress
+# TODO: cooperative sensitization: in progress: SSA works for up and downconversion
 
 import sys
 import logging
@@ -21,13 +21,13 @@ from typing import Any, Union, List
 
 #import numpy as np
 import matplotlib.pyplot as plt
-import yaml
+import ruamel_yaml as yaml
 
 import simetuc.lattice as lattice
 import simetuc.simulations as simulations
 import simetuc.settings as settings
 import simetuc.optimize as optimize
-from simetuc.util import change_console_logger_level as change_console_logger_level
+#from simetuc.util import disable_logger_below
 
 from simetuc import VERSION
 from simetuc import DESCRIPTION
@@ -101,7 +101,7 @@ def _setup_logging(console_level: int) -> None:
         print('ERROR! Logging settings file ({}) not found!'.format(_log_config_file))
         print('Logging won\'t be available!!')
         # minimum settings without errors
-        log_settings = {'version': 1}  # type: Dict
+        log_settings = {'version': 1}  # type: dict
     else:
         try:
             log_settings = yaml.safe_load(_log_config_location)
@@ -185,41 +185,23 @@ def main(ext_args: List[str] = None) -> None:
     elif args.power_dependence:  # simulate power dependence
         logger.info('Simulating power dependence...')
         sim = simulations.Simulations(cte)
-        power_dens_list = cte['power_dependence']
-
-        # change the logging level of the console handler
-        # so it only prints warnings to screen while calculating all solutions
-        change_console_logger_level(logging.WARNING)
+        power_dens_list = cte.power_dependence
         solution = sim.simulate_power_dependence(power_dens_list, average=args.average)
-        # restore old level value
-        change_console_logger_level(console_level)
         print('')
 
     elif args.conc_dependence:  # simulate concentration dependence
+        logger.info('Simulating concentration dependence...')
         sim = simulations.Simulations(cte)
-
-        conc_list = cte['conc_dependence']
-
-        dynamics = False
-        if args.conc_dependence == 'd':
-            dynamics = True
-            logger.info('Simulating concentration dependence of dynamics...')
-        else:
-            logger.info('Simulating concentration dependence of steady state...')
-
-        # change the logging level of the console handler
-        # so it only prints warnings to screen while calculating all solutions
-        change_console_logger_level(logging.WARNING)
+        conc_list = cte.concentration_dependence
+        dynamics = True if args.conc_dependence == 'd' else False
         solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics,
-                                                         average=args.average)
-        # restore old level value
-        change_console_logger_level(console_level)
+                                                             average=args.average)
         print('')
 
     elif args.optimize:  # optimize
-        logger.info('Optimizing ET parameters...')
+        logger.info('Optimizing parameters...')
 
-        best_x, min_f = optimize.optimize_dynamics(cte, average=args.average)
+        optimize.optimize_dynamics(cte, average=args.average)
 
     # save results to disk
     if solution is not None:
@@ -237,6 +219,8 @@ def main(ext_args: List[str] = None) -> None:
             solution.plot()
         logger.info('Close the plot window to exit.')
         plt.show()
+
+    logging.shutdown()
 
 
 if __name__ == "__main__":

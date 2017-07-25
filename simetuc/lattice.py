@@ -13,77 +13,76 @@ from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import h5py
-import yaml
+import ruamel_yaml as yaml
 from tqdm import tqdm
 
 import ase
 from ase.spacegroup import crystal
 
+from simetuc.util import ConfigError, log_exceptions_warnings
 import simetuc.plotter as plotter
+import simetuc.settings as settings
+from simetuc.settings import SettingsValueError
+import simetuc.settings_config as configs
 
 
 class LatticeError(Exception):
     '''The generated lattice is not valid'''
     pass
 
-
-def _check_lattice_settings(cte: Dict):
+@log_exceptions_warnings
+def _check_lattice_settings(cte: settings.Settings) -> None:
     '''Checks that the settings for the lattice are correct.'''
-    logger = logging.getLogger(__name__)
+    cte_lattice = cte.lattice
 
-    num_uc = cte['lattice']['N_uc']
-    S_conc = float(cte['lattice']['S_conc'])
-    A_conc = float(cte['lattice']['A_conc'])
-    radius = cte['lattice'].get('radius', None)
+    # parse the settings to catch any errors due to wrong magnitude of a setting
+    try:
+        # validate lattice settings
+        settings_lattice = configs.settings['lattice']
+        settings_lattice.validate(cte.lattice)
+    except (SettingsValueError, ConfigError) as err:
+        raise LatticeError('Wrong lattice settings.') from err
 
-    if num_uc <= 0:
-        logger.error('Wrong number of unit cells: %d.', num_uc)
-        logger.error('It must be a positive integer.')
-        raise LatticeError('Wrong number of unit cells.')
+    # modify some values
+    # this should go to lattice.py
+    cte_lattice['cell_par'] = []
+    for key in ['a', 'b', 'c', 'alpha', 'beta', 'gamma']:
+        cte_lattice['cell_par'].append(cte_lattice[key])
 
-    # radius must be positive
-    if radius and radius <= 0:
-        msg = 'The radius must be greater than zero.'
-        logger.error(msg)
+    cte_lattice['d_max'] = cte_lattice.get('d_max', np.inf)
+    cte_lattice['d_max_coop'] = cte_lattice.get('d_max_coop', np.inf)
+
+    radius = cte.lattice.get('radius', None)
+    if radius:
+        # use enough unit cells for the radius
+        min_param = min(cte_lattice['cell_par'][0:3])
+        cte_lattice['N_uc'] = int(np.ceil(cte_lattice['radius']/min_param))
+
+    # sites pos and occs are always lists of lists and lists, respectively
+    sites_pos = cte_lattice['sites_pos']
+    cte_lattice['sites_pos'] = sites_pos if isinstance(sites_pos[0], (list, tuple)) else [sites_pos]
+    sites_occ = cte_lattice['sites_occ']
+    cte_lattice['sites_occ'] = sites_occ if isinstance(sites_occ, (list, tuple)) else [sites_occ]
+
+    if not len(cte_lattice['sites_pos']) == len(cte_lattice['sites_occ']):
+        msg = 'The number of sites must be the same in sites_pos and sites_occ.'
         raise LatticeError(msg)
+
+    S_conc = float(cte.lattice['S_conc'])
+    A_conc = float(cte.lattice['A_conc'])
 
     # if the concentrations are not in the correct range
-    if not ((0.0 <= S_conc <= 100.0) and (0.0 <= A_conc <= 100.0) and
-            (0 <= S_conc+A_conc <= 100.0)):
-        logger.error('Wrong ion concentrations:' +
-                     '%.2f%% Sensitizer, %.2f%% Activator.', S_conc, A_conc)
-        logger.error('They must be between 0% and 100%, and their sum too.')
-        raise LatticeError('Wrong ion concentrations.')
+    if not (0 <= S_conc+A_conc <= 100.0):
+        msg = 'Wrong ion concentrations: {:.2f}% Sensitizer, {:.2f}% Activator.'.format(S_conc, A_conc)
+        msg += ' Their sum must be between 0% and 100%.'
+        raise LatticeError(msg)
 
-    num_S_states = cte['states']['sensitizer_states']
-    num_A_states = cte['states']['activator_states']
+    # at least a state must exist
+    num_S_states = cte.states['sensitizer_states']
+    num_A_states = cte.states['activator_states']
     if (S_conc != 0 and num_S_states == 0) or (A_conc != 0 and num_A_states == 0):
-        logger.error('The number of states of each ion cannot be zero.')
-        raise LatticeError('Wrong number of states.')
+        raise LatticeError('The number of states of each ion cannot be zero.')
 
-    # lattice constant should have reasonable values
-    if any(val < 0 for val in cte['lattice']['cell_par'][:3]):
-        msg = 'The lattice constants must be greater than zero.'
-        logger.error(msg)
-        raise LatticeError(msg)
-
-    # angles should have reasonable values
-    if not all(0 < val < 360 for val in cte['lattice']['cell_par'][3:]):
-        msg = 'The angles must be between 0° and 360°.'
-        logger.error(msg)
-        raise LatticeError(msg)
-
-    # occupancies and positions between 0 and 1
-    if not all(0 <= val <= 1 for val in cte['lattice']['sites_occ']):
-        msg = 'Occupancies must be between 0 and 1.'
-        logger.error(msg)
-        raise LatticeError(msg)
-
-    if not np.alltrue(np.array(cte['lattice']['sites_pos']) >= 0) or\
-       not np.alltrue(np.array(cte['lattice']['sites_pos']) <= 1):
-        msg = 'The sites positions must be between 0 and 1.'
-        logger.error(msg)
-        raise LatticeError(msg)
 
 
 def _create_lattice(spacegroup: Union[int, str], cell_par: List[float], num_uc: int,
@@ -317,7 +316,8 @@ def make_full_path(folder_path: str, num_uc: int,
 
 
 # @profile
-def generate(cte: Dict, min_im_conv: bool = True,
+@log_exceptions_warnings
+def generate(cte: settings.Settings, min_im_conv: bool = True,
              full_path: str = None, no_save: bool = False) -> Tuple:
     '''
     Generates a list of (x,y,z) ion positions and a list with the type of ion (S or A)
@@ -336,13 +336,13 @@ def generate(cte: Dict, min_im_conv: bool = True,
     # show plots
     plot_toggle = not cte['no_plot']
 
-    num_uc = cte['lattice']['N_uc']
-    S_conc = float(cte['lattice']['S_conc'])
-    A_conc = float(cte['lattice']['A_conc'])
-    lattice_name = cte['lattice']['name']
-    radius = cte['lattice'].get('radius', None)
-
     _check_lattice_settings(cte)
+
+    num_uc = cte.lattice['N_uc']
+    S_conc = float(cte.lattice['S_conc'])
+    A_conc = float(cte.lattice['A_conc'])
+    lattice_name = cte.lattice['name']
+    radius = cte.lattice.get('radius', None)
 
     start_time = time.time()
 
@@ -357,8 +357,8 @@ def generate(cte: Dict, min_im_conv: bool = True,
     # it would be more efficient to directly create a doped lattice,
     # i.e.: without creating un-doped atoms first
     # however, this is very fast anyways
-    atoms = _create_lattice(cte['lattice']['spacegroup'], cte['lattice']['cell_par'],
-                            num_uc, cte['lattice']['sites_pos'], cte['lattice']['sites_occ'])
+    atoms = _create_lattice(cte.lattice['spacegroup'], cte.lattice['cell_par'],
+                            num_uc, cte.lattice['sites_pos'], cte.lattice['sites_occ'])
     num_atoms = len(atoms)
     logger.info('Total number of atoms: %d', num_atoms)
 
@@ -375,14 +375,13 @@ def generate(cte: Dict, min_im_conv: bool = True,
     num_doped_atoms = len(atoms)
     num_A = np.count_nonzero(ion_type)
     num_S = num_doped_atoms-num_A
-    num_S_states = cte['states']['sensitizer_states']
-    num_A_states = cte['states']['activator_states']
+    num_S_states = cte.states['sensitizer_states']
+    num_A_states = cte.states['activator_states']
     num_states = num_S_states*num_S + num_A_states*num_A
 
     if num_doped_atoms == 0 or num_states == 0:
         msg = ('No doped ions generated: the lattice or' +
                ' the concentrations are too small, or the number of energy states is zero!')
-        logger.error(msg)
         raise LatticeError(msg)
 
     logger.info('Total number of S+A: %d, (%.2f%%).',
@@ -432,7 +431,7 @@ def generate(cte: Dict, min_im_conv: bool = True,
         # check if folder exists
         if full_path is None: # pragma: no cover
             folder_path = os.path.join('latticeData', lattice_name)
-            radius = cte['lattice'].get('radius', None)
+            radius = cte.lattice.get('radius', None)
             full_path = make_full_path(folder_path, num_uc, S_conc, A_conc, radius=radius)
 
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
@@ -482,17 +481,20 @@ def generate(cte: Dict, min_im_conv: bool = True,
 #
 #    logger.debug('Called from main.')
 #
-#    import simetuc.settings as settings
 #    cte = settings.load('config_file.cfg')
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
 #
-##    cte['lattice']['S_conc'] = 100
-##    cte['lattice']['A_conc'] = 0
-##    cte['lattice']['N_uc'] = 10
-##    cte['lattice']['radius'] = 30
-##    cte['states']['sensitizer_states'] = 0
-##    cte['states']['activator_states'] = 4
+##    cte.lattice['S_conc'] = 100
+##    cte.lattice['A_conc'] = 0
+##    cte.lattice['N_uc'] = 1
+##    cte.lattice['radius'] = 20
+##    cte.states['sensitizer_states'] = 0
+##    cte.states['activator_states'] = 0
+#
+##    cte.lattice['sites_occ'] = 1.0
+##    cte.lattice['A_conc'] = 75.0
+##    cte.lattice['S_conc'] = 75.0
 #
 #    (dist_array, ion_type, doped_lattice, initial_population, lattice_info,
 #     index_S_i, index_A_j,

@@ -23,11 +23,12 @@ install:
   # install dependencies
   - conda config --add channels conda-forge
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION scipy numpy matplotlib ase
-    tqdm numba pytest pytest-cov pytest-mock pytest-xdist python-coveralls
-    PyYAML h5py flake8
+    tqdm numba lmfit
+    pytest pytest-cov pytest-mock pytest-xdist python-coveralls pytest-catchlog
+    ruamel_yaml h5py flake8
   - source activate test-environment
   # not in conda for py3.5 or py3.6
-  - pip install mypy-lang
+  - pip install mypy
   - python setup.py install
 
 # create graphical display so plots don't fail
@@ -39,7 +40,7 @@ before_script:
 script:
   - pytest -v
   - flake8 --tee
-  - mypy -s -p simetuc
+  - mypy -p simetuc
 
 after_success:
   - coverage report
@@ -52,24 +53,3 @@ notifications:
     on_success: change # default: change
     on_failure: always # default: always
 
-#deploy:
-#  provider: pypi
-#  user: pedvide
-#  password:
-#    secure: !!binary |
-#      MTB6Yk9RRW1oV3dBVDk0N2R2VW1wNlpXUmNZbmt4RlM1aVNFNEZaN3YzeDBKN1NHSjY2OWd2c2Z3
-#      MktNV0dOa3RScmk2SkMyMGkzenFBUGNiTmNDTWVVOWpFaThKdHdCM2twTWNoV2s2U2pwajNXamRL
-#      Q050a0xaY21DTzdMUmludWR6WnlKOUNsR0VFWitXRnIzc2VzZjBZZks0eFMwalAyZmsyWU5JL01p
-#      eUJ5OXJ4YXNtU1FLSmdBaTdOanRIdUZaQ0Y0TmRwY3RvRGJwdVNhMUw4cjlYUGh5K0V0RDNKcjV5
-#      NXM1NlFiWnozSFpqRE05OUxVa1BSUnVHam5tQ2UwSG14T2RQdmhRRDZLdjd4KzdXV1AzdGUwZHJS
-#      d3FVajRMMkg2VlFqbFloUjMvZ09PSk1DZ3RzZGI5RndVR044ZmZXT3U0SThqNGxEMWZsUWFzZ2Vr
-#      a1VqNFlYVDFUc3E4Z1RJU2FvN3o1VWYySis5MlBzU0JDNVgxM1pPYWVGM253RlZpd29qM09HcGk1
-#      bitMc1AvTDJKRFMyK2ZiQzY2UGR1dGwxQ1QwN0xISzFCN0l1aHlCcFdHeWVtcmpMWDhoT3dtSDQ1
-#      R1dvL1h1VktXemgyT3RvS1V3ckx2OGt5SXowZ01ERFMxTUg0V0VJdUw5RW41NDZDY2xublJkdFpL
-#      RnB4a1h6cVQ4MkNKVk1LZFQ2bHYra0FEQkprY3liOUdVZ3dHbndFTWtXMFBtTkEyYk1naFFmTWdU
-#      Y3ZFWWdSTEdIOVhDcDRDcWpSSmU3UkU1NHBMczN1QTd6aC8zMENTZnFuSnZHbEl3ZDJzVnd2QW8w
-#      TnFvODVNUmFZVDNSeWhwY2VoS3pxTzgvRW92Y2kzcGNQZVBFendMUXp1ZmJCR0kvb09keGUvekE9
-#  on:
-#    branch: master
-#    tags: true
-#  distributions: "sdist bdist_wheel" # Your distributions here

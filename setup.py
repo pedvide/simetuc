@@ -106,17 +106,18 @@ setup(
                       'scipy >=0.18',
                       'tqdm >=4.8',
                       'colorama',
-                      'PyYAML >=3.12',
+                      'ruamel_yaml',
                       'h5py >=2.6',
-                      'numba'],
+                      'numba',
+                      'lmfit'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
     # for example:
     # $ pip install -e .[dev,test]
     extras_require={
-        'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pytest-xdist',
-                 'python-coveralls', 'flake8', 'mypy-lang'],
+        'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pytest-xdist', 'pytest-catchlog',
+                 'python-coveralls', 'flake8', 'mypy'],
     },
 
     # If there are data files included in your packages that need to be

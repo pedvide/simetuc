@@ -1,5 +1,5 @@
 [MESSAGES CONTROL]
-# E1101 numpy erros
+# E1101 numpy errors
 # C0103 invalid name (using caps letters)
 # W0511 TODO gives a warning
 # C0326 spaces around keyword assignment are ok when type hints are given

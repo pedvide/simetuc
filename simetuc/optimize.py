@@ -5,204 +5,133 @@ Created on Tue Oct 11 15:58:58 2016
 @author: Pedro
 """
 
-import datetime
 import logging
-import functools
-from typing import Dict, Tuple, List, Callable
+import datetime
+from typing import Tuple
 
 import numpy as np
 # pylint: disable=E1101
 # pylint: disable=W0613
-import scipy.optimize as optimize
-
 import tqdm
+from lmfit import Minimizer, minimizer, Parameters, fit_report, report_fit
 
 import simetuc.simulations as simulations
-from simetuc.util import change_console_logger_level as change_console_logger_level
-from simetuc.util import get_console_logger_level as get_console_logger_level
+import simetuc.settings as settings
+from simetuc.util import disable_logger_below, EneryTransferProcess
 
 
-# I can't seem to find the right mypy syntax for this decorator.
-def cache(function):
-    '''Decorator to store a list of parameters and function values'''
-    cache.params_lst = []
-    cache.f_val_lst = []
+def optim_fun(params: Parameters, sim: simulations.Simulations,
+              average: bool = False) -> np.array:
+    '''Update parameter values, simulate dynamics and return total error'''
+    # update optimization parameter values
+    for num, new_value in enumerate(params.valuesdict().values()):
+        sim.cte.optimization['processes'][num].value = new_value
 
-    @functools.wraps(function)
-    # if @cache mypy syntax is fixed, add annotations here
-    def wrapper(*args):
-        '''Wraps a function to add a cache'''
-        f_val = function(*args)
-        cache.params_lst.append(tuple(*args))
-        cache.f_val_lst.append(f_val)
-        return f_val
-    return wrapper
-
-
-def optim_fun_factory(sim: simulations.Simulations,
-                      process_list: List[str], x0: np.array,
-                      average: bool = False, pbar: tqdm.tqdm = None) -> Callable:
-    '''Generate the function to be optimized.
-        This function modifies the ET params and returns the total error.
-    '''
-    if not sim.cte['optimization']['excitations']:
-        def optim_fun(x: np.array) -> float:
-            '''Update ET strengths, simulate dynamics and return total error'''
-            # update ET values if explicitly given
-            for process, value in zip(process_list, x*x0):
-                sim.modify_param_value(process, value)  # precondition
-
-            dynamics_sol = sim.simulate_dynamics(average=average)
-            total_error = dynamics_sol.total_error
-            # if a progress bar is given, advance it
-            if pbar is not None:  # pragma: no cover
-                pbar.update(1)
-            return total_error
-        return optim_fun
-
+    # if the user didn't select several excitations to optimize, use the active one
+    # otherwise, go through all requested exitations and calculate errors
+    if not sim.cte.optimization.get('excitations', False):
+        dynamics_sol = sim.simulate_dynamics(average=average)
+        return dynamics_sol.errors
     else:
-        # switch off all excitations
-        for exc_label in sim.cte['excitations']:
-            sim.cte['excitations'][exc_label]['active'] = False
+        # first switch off all excitations
+        for exc_lst in sim.cte.excitations.values():
+            for excitation in exc_lst:
+                excitation.active = False
 
-        def optim_fun_all_exc(x: np.array) -> float:
-            '''Update ET strengths, simulate dynamics for all excitations and return total error.'''
-            # update ET values if explicitly given
-            for process, value in zip(process_list, x*x0):
-                sim.modify_param_value(process, value)  # precondition
-
-            total_error = 0.0
-            # go through all required excitations, calculate errors and add all of them
-            for exc_label in sim.cte['optimization']['excitations']:
-                # switch on one excitation, solve and switch off again
-                sim.cte['excitations'][exc_label]['active'] = True
-                dynamics_sol = sim.simulate_dynamics(average=average)
-                sim.cte['excitations'][exc_label]['active'] = False
-                total_error += dynamics_sol.total_error**2
-
-            # if a progress bar is given, advance it
-            if pbar is not None:  # pragma: no cover
-                pbar.update(1)
-            return np.sqrt(total_error)
-        return optim_fun_all_exc
+        total_errors = np.zeros((sim.cte.states['activator_states'] +
+                                 sim.cte.states['sensitizer_states'],), dtype=np.float64)
+        # then, go through all required excitations, calculate errors and add all of them
+        for exc_label in sim.cte.optimization['excitations']:
+            # switch on one excitation, solve and switch off again
+            sim.cte.excitations[exc_label][0].active = True
+            dynamics_sol = sim.simulate_dynamics(average=average)
+            sim.cte.excitations[exc_label][0].active = False
+            total_errors += dynamics_sol.errors**2
+        return np.sqrt(total_errors)
 
 
-def optimize_dynamics(cte: Dict, average: bool = False) -> Tuple[np.array, float]:
+def optimize_dynamics(cte: settings.Settings, average: bool = False,
+                      full_path: str = None) -> Tuple[np.array, float, minimizer.MinimizerResult]:
     ''' Minimize the error between experimental data and simulation for the settings in cte
         average = True -> optimize average rate equations instead of microscopic ones
     '''
-    logger = logging.getLogger(__name__)
-
-    # disable logging to the console.
-    old_level = get_console_logger_level()
-
-    # if @cache mypy syntax is fixed, add annotations here
-    def callback_fun(Xi, *args):
+    def callback_fun(params: Parameters, iter_num: int, resid: np.array,
+                     sim: simulations.Simulations, average: bool = False) -> None:
         ''' This function is called after every minimization step
             It prints the current parameters and error from the cache
         '''
-        pbar.update(1)
+        optim_progbar.update(1)
         if not cte['no_console']:
-            format_params = ', '.join('{:.3e}'.format(val)
-                                      for val in cache.params_lst[-1]*x0)
-            msg = '({}): {:.3e}'.format(format_params, cache.f_val_lst[-1])
+            val_list = ', '.join('{:.3g}'.format(par.value) for par in params.values())
+            error =  (resid*resid).sum()
+            msg = '{},\t\t{:.3e},\t({})'.format(iter_num, error, val_list)
             tqdm.tqdm.write(msg)
-
-    cte['no_plot'] = True
-
-    sim = simulations.Simulations(cte)
+            logger.info(msg)
 
     start_time = datetime.datetime.now()
 
-    # Processes to optimize. If not given, all ET parameters will be optimized
-    process_list = cte.get('optimization', {}).get('processes', cte['energy_transfer'])
-    print(process_list)
+    logger = logging.getLogger(__name__)
+    cte['no_plot'] = True
+    sim = simulations.Simulations(cte)
 
-    # starting point
-    x0 = np.array([sim.get_ET_param_value(process, average) if isinstance(process, str)
-                      else sim.get_branching_ratio_value(process)
-                   for process in process_list], dtype=np.float64)
+    # multiply the values by these bounds to get the minimum and maximum allowed values
+    max_factor = cte.optimization['options'].get('max_factor', 1e5)
+    min_factor = cte.optimization['options'].get('min_factor', 1e-5)
 
-    tol = 1e-4
-    # the bounds depend on the type of process
-    # the bound are then normalized to x0
-    max_values = np.array([1e20 if isinstance(process, str)
-                               else 1/sim.get_branching_ratio_value(process)
-                           for process in process_list])
-    bounds = [(0, max_val) for max_val in max_values]
-#    print(bounds)
-
-    # select optimization method
-    method = cte.get('optimization', {}).get('method', 'SLSQP')
-    if method is None:
-        method = 'SLSQP'
+    method = cte.get('optimization', {}).get('method', 'leastsq').lower().replace('-', '')
+    if method not in (list(minimizer.SCALAR_METHODS.keys()) +
+                      list(minimizer.SCALAR_METHODS.values()) +
+                      ['leastsq', 'least_squares', 'brute_force']):
+        raise ValueError('Wrong optimization method ({})!'.format(method))
     logger.info('Optimization method: %s.', method)
 
-    # use the cache and print it if the method isn't brute force
-    if method != 'brute_force':
-        _optim_fun = optim_fun_factory(sim, process_list, x0, average=average)
-        _optim_fun = cache(_optim_fun)
-        msg = '(' + ', '.join('{}'.format(proc) for proc in process_list)
-        tqdm.tqdm.write(msg + '): RMS Error')
-        change_console_logger_level(logging.WARNING)
+    # Processes to optimize. If not given, all ET parameters will be optimized
+    process_list = cte.optimization['processes']
+    # create a set of Parameters
+    params = Parameters()
+    for process in process_list:
+        value = process.value
+        max_val = max_factor*value if isinstance(process, EneryTransferProcess) else 1
+        # don't let ET processes go to zero.
+        min_val = min_factor*value if isinstance(process, EneryTransferProcess) else 0
+        params.add(process.name, value=value, min=min_val, max=max_val)
+    logger.info('Optimization parameters: ' + ', '.join(proc.name for proc in process_list) + '.')
 
-        if method == 'COBYLA':
-            # minimize error. The starting point is preconditioned to be 1
-            pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
-            res = optimize.minimize(_optim_fun, np.ones_like(x0),
-                                    method=method, tol=tol)
+    # log active excitations
+    if not cte.optimization.get('excitations', False):
+        optim_exc = []
+        # look for active excitations
+        for label, exc_lst in cte.excitations.items():
+            if exc_lst[0].active is True:
+                optim_exc.append(label)
+    else:
+        optim_exc = cte.optimization['excitations']
+    logger.info('Optimization excitations: ' + ', '.join(label for label in optim_exc) + '.')
 
-        elif method in ['L-BFGS-B', 'TNC', 'SLSQP']:
-            pbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
-            res = optimize.minimize(_optim_fun, np.ones_like(x0), bounds=bounds,
-                                    method=method, tol=tol, callback=callback_fun)
-            pbar.update(1)
-            pbar.close()
+    # optional optimization options
+    options_dict = {}  # type: dict
+    if 'brute' in method:
+        options_dict['Ns'] = cte.optimization['options'].get('N_points', 10)
 
-        elif method == 'basin_hopping':
-            minimizer_kwargs = {"method": "SLSQP"}
+    optim_progbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
+    param_names = ', '.join(proc.name for proc in process_list)
+    tqdm.tqdm.write('Iter num\tRMSD\t\tParameters ({})'.format(param_names))
+    minner = Minimizer(optim_fun, params, fcn_args=(sim, average),
+                       iter_cb=callback_fun)
+    # minimize logging only warnings or worse to console.
+    with disable_logger_below(logging.INFO):
+        result = minner.minimize(method=method, **options_dict)
+    optim_progbar.update(1)
+    optim_progbar.close()
 
-    #        def accept_test(f_new, x_new, f_old, x_old) :
-    #            return np.alltrue(x_new > 0)
-
-            pbar = tqdm.tqdm(desc='Optimizing', unit=' points', disable=cte['no_console'])
-            res = optimize.basinhopping(_optim_fun, np.ones_like(x0),
-                                        minimizer_kwargs=minimizer_kwargs,
-                                        niter=10, stepsize=5, T=1e-2, callback=callback_fun)
-            pbar.update(1)
-            pbar.close()
-        else:
-            msg = 'Wrong optimization method!'
-            logger.error(msg)
-            raise ValueError(msg)
-
-        best_x = res.x*x0
-        min_f = res.fun
-
-    else: # method == 'brute_force'
-        # range and number of points. Total number is 1+N_points**2
-        rranges_unbounded = ((1e-1, 10.0),)*len(x0)
-        rranges = [(min_v, max_v if max_v < bound else bound)
-                   for (min_v, max_v), bound in zip(rranges_unbounded, max_values)]
-#        print(rranges)
-
-        N_points = 10
-        change_console_logger_level(logging.WARNING)
-        pbar = tqdm.tqdm(desc='Optimizing', total=1+N_points**2,
-                         unit='points', disable=cte['no_console'])
-
-        _optim_fun = optim_fun_factory(sim, process_list, x0, average=average, pbar=pbar)
-        res = optimize.brute(_optim_fun, ranges=rranges, Ns=N_points, full_output=True,
-                             finish=None, disp=True)
-        pbar.update(1)
-        pbar.close()
-        best_x = res[0]*x0
-        min_f = res[1]
-
-    # switch logging to the console back on
-    change_console_logger_level(old_level)
-
-    logger.debug(res)
+    report_fit(result.params)
+    logger.info(fit_report(result))
+#    logger.info(result.message)
+    best_x = np.array([par.value for par in result.params.values()])
+    if 'brute' in method:
+        min_f = result.candidates[0].score
+    else:
+        min_f = (result.residual**2).sum()
 
     total_time = datetime.datetime.now() - start_time
     hours, remainder = divmod(total_time.total_seconds(), 3600)
@@ -213,9 +142,9 @@ def optimize_dynamics(cte: Dict, average: bool = False) -> Tuple[np.array, float
     logger.info('Optimized RMS error: %.3e.', min_f)
     logger.info('Parameters name and value:')
     for proc, best_val in zip(process_list, best_x.T):
-        logger.info('%s: %.3e.', proc, best_val)
+        logger.info('%s: %.3e.', proc.name, best_val)
 
-    return best_x, min_f
+    return best_x, min_f, result
 
 
 #if __name__ == "__main__":
@@ -223,14 +152,15 @@ def optimize_dynamics(cte: Dict, average: bool = False) -> Tuple[np.array, float
 #    logging.basicConfig(level=logging.INFO,
 #                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 #
+#
 #    logger.debug('Called from cmd.')
 #
 #    import simetuc.settings as settings
 #    cte = settings.load('config_file.cfg')
 #
-##    cte['optimization']['excitations'] = []
+##    cte.optimization['excitations'] = []
 #
 #    cte['no_console'] = False
 #    cte['no_plot'] = True
 #
-#    optimize_dynamics(cte, average=False)
+#    best_x, min_f, res = optimize_dynamics(cte, average=False)
