@@ -18,7 +18,7 @@ Created on Tue Nov  1 16:17:59 2016
 # build and upload to pypi as before.
 # then on directory python/conda delete folder simetuc
 # then conda skeleton pypi --setup-options="--single-version-externally-managed --record=record.txt" simetuc
-# conda build --py 3.5 --py 3.6 simetuc
+# conda build --py 3.6 simetuc
 # conda convert -f --platform all PATH-TO-PACKAGE -o .
 # anaconda login
 # anaconda upload */simetuc-*
@@ -81,7 +81,6 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
 

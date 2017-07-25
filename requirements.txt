@@ -8,6 +8,7 @@ ruamel_yaml # anaconda
 h5py >=2.6 # anaconda
 numba
 lmfit
+settings_parser
 
 # only for tests
 pytest >=3.0.3 # anaconda
