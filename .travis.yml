@@ -2,7 +2,7 @@ language: python
 python:
 #  - "3.3" ase does not support python 3.3
 #  - "3.4" fails with tuple expansion in np.savetxt
-  - "3.5"
+#  - "3.5" fails because of Typing.Colections doesn't exist
   - "3.6"
 
 # command to install dependencies
