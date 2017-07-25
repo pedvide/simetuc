@@ -28,7 +28,7 @@ install:
     ruamel_yaml h5py flake8
   - source activate test-environment
   # not in conda for py3.5 or py3.6
-  - pip install mypy
+  - pip install mypy settings_parser
   - python setup.py install
 
 # create graphical display so plots don't fail
