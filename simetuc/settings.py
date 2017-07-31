@@ -225,8 +225,6 @@ def _parse_ET(parsed_settings: Settings) -> Dict:
         strength_avg = et_subdict.get('strength_avg', None)
 
         # get the ions and states labels involved
-        # find all patterns of "spaces,letters,spaces(spaces,letters,spaces)"
-        # and get the "letters", spaces may not exist
         list_init_final = _get_ion_and_state_labels(process)
         list_ions_num = [_get_ion_index(list_ion_label, ion) for ion, label in list_init_final]
         list_indices = [_get_state_index(tuple_state_labels[ion_num], label,

@@ -14,7 +14,7 @@ from typing import List, Tuple, Iterator, Sequence, cast
 import copy
 
 import h5py
-import ruamel_yaml as yaml
+import ruamel.yaml as yaml
 
 import numpy as np
 
@@ -30,9 +30,18 @@ import simetuc.odesolver as odesolver
 #import simetuc.odesolver_assimulo as odesolver  # warning: it's slower!
 import simetuc.plotter as plotter
 from simetuc.util import Conc
-from simetuc.util import cached_property, log_exceptions_warnings, disable_logger_below
+from simetuc.util import cached_property, log_exceptions_warnings, disable_loggers
 import simetuc.settings as settings
 from simetuc.settings import Settings
+
+
+def exp_to_10(float_number: float) -> str:
+    '''Convert a float to str using power of ten notation instead of exp.
+        ie: 3e5 -> 3×10^5'''
+    exponent = np.floor(np.log10(float_number))
+    mantissa = float_number/10**exponent
+    mantissa_format = str(mantissa)[0:3]
+    return "{}×10^{}".format(mantissa_format, str(int(exponent)))
 
 
 class Solution():
@@ -169,12 +178,17 @@ class Solution():
         '''Plot the average simulated data (list_avg_data).
             Override to plot other lists of averaged data or experimental data.
         '''
+        title = '{}: {}% {}, {}% {}. P={} W/cm²'.format(self.cte.lattice['name'],
+                                        self.concentration.S_conc, self.cte.states['sensitizer_ion_label'],
+                                        self.concentration.A_conc, self.cte.states['activator_ion_label'],
+                                        exp_to_10(self.power_dens))
         index_GS_S = 0
         index_GS_A = self.cte.states['sensitizer_states']
         list_data = self.list_avg_data[index_GS_S+1:index_GS_A-1] + self.list_avg_data[index_GS_A+1:]
         list_labels = self.state_labels[index_GS_S+1:index_GS_A-1] + self.state_labels[index_GS_A+1:]
         plotter.plot_avg_decay_data(self.t_sol, list_data,
-                                    state_labels=list_labels, colors=self.cte['colors'])
+                                    state_labels=list_labels, colors=self.cte['colors'],
+                                    title=title)
 
     def _plot_state(self, state: int) -> None:
         '''Plot all decays of a state as a function of time.'''
@@ -258,7 +272,7 @@ class Solution():
                 index_S_i = list(file['index_S_i'])
                 index_A_j = list(file['index_A_j'])
                 # deserialze cte
-                cte_dict = yaml.load(file.attrs['cte'])
+                cte_dict = yaml.load(file.attrs['cte'], Loader=yaml.Loader)
                 cte = settings.load_from_text(cte_dict['config_file'])
                 for key, value in cte_dict.items():
                     cte[key] = value
@@ -507,6 +521,11 @@ class DynamicsSolution(Solution):
         '''Overrides the Solution method to plot
             the average offset-corrected simulated data (list_avg_data) and experimental data.
         '''
+        title = '{}: {}% {}, {}% {}. P={} W/cm²'.format(self.cte.lattice['name'],
+                                        self.concentration.S_conc, self.cte.states['sensitizer_ion_label'],
+                                        self.concentration.A_conc, self.cte.states['activator_ion_label'],
+                                        exp_to_10(self.power_dens))
+
         index_GS_S = 0
         index_GS_A = self.cte.states['sensitizer_states']
 
@@ -520,7 +539,20 @@ class DynamicsSolution(Solution):
         plotter.plot_avg_decay_data(list_t_sim, list_data,
                                     state_labels=list_labels,
                                     list_exp_data=list_exp_data,
-                                    colors=self.cte['colors'])
+                                    colors=self.cte['colors'], title=title)
+
+#    def save(self, full_path: str = None) -> None:
+#        '''Save data to disk as a HDF5 file'''
+#        # save common data
+#        super(DynamicsSolution, self).save(full_path)
+#
+#        if full_path is None:  # pragma: no cover
+#            full_path = self.save_file_full_name(self._prefix) + '.hdf5'
+#
+#        # save exp data
+#        with h5py.File(full_path, 'a') as file:
+#            file.create_dataset("list_exp_data", data=self.list_exp_data, compression='gzip')
+
 
 #    def save(self, full_path: str = None) -> None:
 #        '''Save data to disk as a HDF5 file'''
@@ -555,7 +587,7 @@ class DynamicsSolution(Solution):
     def total_error(self) -> float:
         '''Total root-square-deviation between experiment and simulation'''
         if np.any(self.errors):
-            total_error = np.sqrt(np.mean(np.square(self.errors[self.errors > 0])))
+            total_error = np.sqrt(np.sum(self.errors**2))
         else:
             total_error = 0
         return total_error
@@ -690,7 +722,7 @@ class SolutionList(Sequence[Solution]):
                 for group_num in file:
                     group = file[group_num]
                     # deserialze cte
-                    cte_dict = yaml.load(group.attrs['cte'])
+                    cte_dict = yaml.load(group.attrs['cte'], Loader=yaml.Loader)
                     cte = settings.load_from_text(cte_dict['config_file'])
                     for key, value in cte_dict.items():
                         cte[key] = value
@@ -805,6 +837,11 @@ class ConcentrationDependenceSolution(SolutionList):
             warnings.warn(msg, plotter.PlotWarning)
             return
 
+        title = '{}: {}, {}. P={} W/cm²'.format(self[0].cte.lattice['name'],
+                                        self[0].cte.states['sensitizer_ion_label'],
+                                        self[0].cte.states['activator_ion_label'],
+                                        exp_to_10(self[0].power_dens))
+
         if self.dynamics is True:
             # plot all decay curves together
             import matplotlib.pyplot as plt
@@ -814,12 +851,13 @@ class ConcentrationDependenceSolution(SolutionList):
             single_figure = plotter.new_figure()
             for color, sol in zip(color_list, self):
                 sol = cast(DynamicsSolution, sol)  # no runtime effect, only for mypy
+
                 plotter.plot_avg_decay_data(sol.t_sol, sol.list_avg_data_ofs,
                                             list_exp_data=sol.list_exp_data,
                                             state_labels=sol.state_labels,
                                             concentration=sol.concentration,
                                             colors=color,
-                                            fig=single_figure)
+                                            fig=single_figure, title=title)
         else:
             sim_data_arr = np.array([np.array(sol.steady_state_populations)
                                      for sol in self])
@@ -913,7 +951,7 @@ class Simulations():
             Returns a DynamicsSolution instance
             average=True solves an average rate equation problem instead of the microscopic one.
         '''
-        logger = logging.getLogger(__name__)
+        logger = logging.getLogger(__name__ + '.dynamics')
 
         start_time = time.time()
         logger.info('Starting simulation...')
@@ -996,7 +1034,7 @@ class Simulations():
             Returns a SteadyStateSolution instance
             average=True solves an average rate equation problem instead of the microscopic one.
         '''
-        logger = logging.getLogger(__name__)
+        logger = logging.getLogger(__name__ + '.steady_state')
 
         start_time = time.time()
         logger.info('Starting simulation...')
@@ -1085,7 +1123,8 @@ class Simulations():
                 for exc in self.cte.excitations[excitation]:
                     exc.power_dens = power_dens
             # calculate steady state populations
-            with disable_logger_below(logging.INFO):
+            with disable_loggers([__name__+'.steady_state', 'simetuc.precalculate',
+                                   'simetuc.lattice']):
                 steady_sol = self.simulate_steady_state(average=average)
             solutions.append(steady_sol)
 
@@ -1125,11 +1164,15 @@ class Simulations():
             # update concentrations
             self.cte.lattice['S_conc'] = concs[0]
             self.cte.lattice['A_conc'] = concs[1]
-            with disable_logger_below(logging.INFO):
-                # simulate
-                if dynamics:
+
+            # simulate
+            if dynamics:
+                with disable_loggers([__name__+'.dynamics', 'simetuc.precalculate',
+                                       'simetuc.lattice']):
                     sol = self.simulate_dynamics(average=average)  # type: Solution
-                else:
+            else:
+                with disable_loggers([__name__+'.steady_state', 'simetuc.precalculate',
+                                       'simetuc.lattice']):
                     sol = self.simulate_steady_state(average=average)  # pylint: disable=R0204
             solutions.append(sol)
 
@@ -1144,22 +1187,26 @@ class Simulations():
 
 
 #if __name__ == "__main__":
+#    from simetuc.util import disable_console_handler
+#
 #    logger = logging.getLogger()
 #    logging.basicConfig(level=logging.INFO,
 #                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 #    logger.info('Called from cmd.')
 #
-#    cte = settings.load('config_file_ESA.cfg')
+#    cte = settings.load('config_file.cfg')
 #
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
 #
 #    sim = Simulations(cte)
 #
-#    solution = sim.simulate_dynamics()
-#    solution.log_errors()
-#    solution.plot()
-
+#    with disable_console_handler('simetuc.precalculate'):
+#
+#        solution = sim.simulate_dynamics()
+#        solution.log_errors()
+#        solution.plot()
+#
 #    solution.save()
 #    sol = DynamicsSolution.load('results/bNaYF4/dynamics_20uc_0.0S_0.3A.hdf5')
 #    assert solution == sol
@@ -1183,9 +1230,9 @@ class Simulations():
 #    solution_avg.plot()
 #
 #
-#    solution = sim.simulate_power_dependence(cte.power_dependence, average=True)
-#    solution.plot()
+#        solution = sim.simulate_power_dependence(cte.power_dependence)
+#        solution.plot()
 #
-#    conc_list = [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3)]#, (0, 0.5)]#, (0, 1.0)]
-#    solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
-#    solution.plot()
+#        conc_list = [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3), (0, 0.5)]#, (0, 1.0)]
+#        solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
+#        solution.plot()

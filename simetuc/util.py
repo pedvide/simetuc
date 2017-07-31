@@ -5,7 +5,7 @@ Created on Wed Nov 23 16:45:32 2016
 @author: Pedro
 """
 
-import sys
+#import sys
 import tempfile
 from contextlib import contextmanager
 import os
@@ -16,7 +16,7 @@ import warnings
 from functools import wraps
 
 from enum import Enum
-from typing import Generator, Sequence, Callable, Any, Tuple, Dict
+from typing import Generator, Sequence, Callable, Any, Tuple, Dict, List
 
 
 # http://stackoverflow.com/a/11892712
@@ -315,26 +315,47 @@ def log_exceptions_warnings(function: Callable) -> Callable:
         return ret
     return wrapper
 
+class Blacklist(logging.Filter):
+    def __init__(self, level: int, *blacklist: str) -> None:
+        self.level = level
+        self.blacklist = [logging.Filter(name) for name in blacklist]
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.levelno >= self.level:
+            return True
+        return not any(f.filter(record) for f in self.blacklist)
 
 @contextmanager
-def disable_logger_below(level: int) -> Generator:  # pragma: no cover
-    '''Temporary change the console handler level.'''
-#    logger = logging.getLogger()  # root logger
-#    for handler in logger.handlers:
-#        if isinstance(handler, logging.StreamHandler):
+def disable_console_handler(logger_name: str, level: int = logging.WARNING) -> Generator:  # pragma: no cover
+    '''Disable the console handler of the logger (for records lower than level).'''
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, logging.StreamHandler):
 #            if handler.stream == sys.stdout:  # type: ignore
-#                old_level = handler.level
-#                handler.setLevel(level)
-#                yield None
-#                handler.setLevel(old_level)
-#                return
-    logging.disable(level)
-    # in case no console handler exists
+            filter = Blacklist(level, logger_name)
+            handler.addFilter(filter)
+            yield None
+            handler.removeFilter(filter)
+            return
+
+
+@contextmanager
+def disable_loggers(logger_name_lst: List[str], level: int = logging.INFO) -> Generator:  # pragma: no cover
+    '''Temporary change the console handler level.'''
+    levels = []
+    for logger_name in logger_name_lst:
+        logger = logging.getLogger(logger_name)
+        levels.append(logger.getEffectiveLevel())
+        logger.disabled = True
+        logger.propagate = False
     yield None
-    logging.disable(logging.NOTSET)
+    for logger_name, logger_level in zip(logger_name_lst, levels):
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(logger_level)
+        logger.disabled = False
+        logger.propagate = True
     return
-
-
+  
+  
 #@contextmanager
 #def no_logging() -> Generator:  # pragma: no cover
 #    '''Temporary disable all logging.'''

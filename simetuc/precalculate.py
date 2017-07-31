@@ -21,7 +21,7 @@ import numba
 from typing import Dict, List, Tuple
 
 import h5py
-import ruamel_yaml as yaml
+import ruamel.yaml as yaml
 
 import numpy as np
 import scipy.sparse
@@ -39,7 +39,7 @@ def _load_lattice(filename: str) -> Dict:
     '''
     with h5py.File(filename, mode='r') as file:
         # deserialze lattice_info
-        lattice_info = yaml.load(file.attrs['lattice_info'])
+        lattice_info = yaml.safe_load(file.attrs['lattice_info'])
 
     return lattice_info
 

@@ -13,7 +13,7 @@ from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import h5py
-import ruamel_yaml as yaml
+import ruamel.yaml as yaml
 from tqdm import tqdm
 
 import ase

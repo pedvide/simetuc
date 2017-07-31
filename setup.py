@@ -105,7 +105,7 @@ setup(
                       'scipy >=0.18',
                       'tqdm >=4.8',
                       'colorama',
-                      'ruamel_yaml',
+                      'ruamel.yaml',
                       'h5py >=2.6',
                       'numba',
                       'lmfit',

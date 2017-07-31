@@ -17,7 +17,7 @@ from lmfit import Minimizer, minimizer, Parameters, fit_report, report_fit
 
 import simetuc.simulations as simulations
 import simetuc.settings as settings
-from simetuc.util import disable_logger_below, EneryTransferProcess
+from simetuc.util import disable_loggers, disable_console_handler, EneryTransferProcess
 
 
 def optim_fun(params: Parameters, sim: simulations.Simulations,
@@ -55,6 +55,8 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
     ''' Minimize the error between experimental data and simulation for the settings in cte
         average = True -> optimize average rate equations instead of microscopic ones
     '''
+    logger = logging.getLogger(__name__)
+
     def callback_fun(params: Parameters, iter_num: int, resid: np.array,
                      sim: simulations.Simulations, average: bool = False) -> None:
         ''' This function is called after every minimization step
@@ -62,15 +64,14 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
         '''
         optim_progbar.update(1)
         if not cte['no_console']:
-            val_list = ', '.join('{:.3g}'.format(par.value) for par in params.values())
-            error =  (resid*resid).sum()
-            msg = '{},\t\t{:.3e},\t({})'.format(iter_num, error, val_list)
+            val_list = ', '.join('{:.3e}'.format(par.value) for par in params.values())
+            error =  np.sqrt((resid*resid).sum())
+            msg = '{},\t\t{:.4e},\t[{}]'.format(iter_num, error, val_list)
             tqdm.tqdm.write(msg)
             logger.info(msg)
 
     start_time = datetime.datetime.now()
 
-    logger = logging.getLogger(__name__)
     cte['no_plot'] = True
     sim = simulations.Simulations(cte)
 
@@ -119,8 +120,10 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
     minner = Minimizer(optim_fun, params, fcn_args=(sim, average),
                        iter_cb=callback_fun)
     # minimize logging only warnings or worse to console.
-    with disable_logger_below(logging.INFO):
-        result = minner.minimize(method=method, **options_dict)
+    with disable_loggers(['simetuc.simulations', 'simetuc.precalculate', 'simetuc.lattice']):
+        with disable_console_handler(__name__):
+            result = minner.minimize(method=method, **options_dict)
+
     optim_progbar.update(1)
     optim_progbar.close()
 
@@ -129,9 +132,9 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
 #    logger.info(result.message)
     best_x = np.array([par.value for par in result.params.values()])
     if 'brute' in method:
-        min_f = result.candidates[0].score
+        min_f = np.sqrt(result.candidates[0].score)
     else:
-        min_f = (result.residual**2).sum()
+        min_f = np.sqrt((result.residual**2).sum())
 
     total_time = datetime.datetime.now() - start_time
     hours, remainder = divmod(total_time.total_seconds(), 3600)
@@ -152,7 +155,6 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
 #    logging.basicConfig(level=logging.INFO,
 #                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 #
-#
 #    logger.debug('Called from cmd.')
 #
 #    import simetuc.settings as settings
@@ -160,7 +162,7 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
 #
 ##    cte.optimization['excitations'] = []
 #
-#    cte['no_console'] = False
-#    cte['no_plot'] = True
+##    cte['no_console'] = False
+##    cte['no_plot'] = True
 #
 #    best_x, min_f, res = optimize_dynamics(cte, average=False)

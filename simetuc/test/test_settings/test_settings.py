@@ -8,7 +8,7 @@ Created on Sat Oct 22 00:10:24 2016
 import pytest
 import os
 import numpy as np
-import ruamel_yaml as yaml
+import ruamel.yaml as yaml
 import copy
 
 from settings_parser import Settings, SettingsFileError, SettingsValueError, SettingsExtraValueWarning
@@ -652,7 +652,7 @@ def test_excitations_parse_excitations():
         degeneracy: 13/9
         pump_rate: 9.3e-4 # cm2/J
 '''
-    exc_dict = yaml.load(data_exc)
+    exc_dict = yaml.safe_load(data_exc)
 
     states_dict = {'activator_states_labels': ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2'],
                    'sensitizer_states_labels': ['GS', 'ES'],
