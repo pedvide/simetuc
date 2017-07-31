@@ -123,6 +123,7 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
     with disable_loggers(['simetuc.simulations', 'simetuc.precalculate', 'simetuc.lattice']):
         with disable_console_handler(__name__):
             result = minner.minimize(method=method, **options_dict)
+
     optim_progbar.update(1)
     optim_progbar.close()
 

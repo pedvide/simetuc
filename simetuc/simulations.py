@@ -553,6 +553,19 @@ class DynamicsSolution(Solution):
 #        with h5py.File(full_path, 'a') as file:
 #            file.create_dataset("list_exp_data", data=self.list_exp_data, compression='gzip')
 
+
+#    def save(self, full_path: str = None) -> None:
+#        '''Save data to disk as a HDF5 file'''
+#        # save common data
+#        super(DynamicsSolution, self).save(full_path)
+#
+#        if full_path is None:  # pragma: no cover
+#            full_path = self.save_file_full_name(self._prefix) + '.hdf5'
+#
+#        # save exp data
+#        with h5py.File(full_path, 'a') as file:
+#            file.create_dataset("list_exp_data", data=self.list_exp_data, compression='gzip')
+
     def log_errors(self) -> None:
         '''Log errors'''
         logger = logging.getLogger(__name__)
@@ -1151,6 +1164,7 @@ class Simulations():
             # update concentrations
             self.cte.lattice['S_conc'] = concs[0]
             self.cte.lattice['A_conc'] = concs[1]
+
             # simulate
             if dynamics:
                 with disable_loggers([__name__+'.dynamics', 'simetuc.precalculate',

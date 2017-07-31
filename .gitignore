@@ -37,7 +37,9 @@ simetuc/results/
 results/
 simetuc/latticeData/
 *.old
-simetuc/config_file_TiO.cfg
+
+# mypy
+.mypy_cache/
 
 
 # PyInstaller
@@ -162,3 +164,4 @@ $RECYCLE.BIN/
 *.lyx~
 pylint_res.txt
 *.lyx#
+simetuc/config_file_ESA.cfg
