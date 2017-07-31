@@ -20,7 +20,7 @@ install:
   # install dependencies
   - conda config --add channels conda-forge
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION scipy numpy matplotlib ase
-    tqdm numba lmfit settings_parser
+    tqdm numba lmfit
     pytest pytest-cov pytest-mock pytest-xdist python-coveralls pytest-catchlog
     ruamel.yaml h5py flake8
   - conda install -c pedvide settings_parser
