@@ -13,7 +13,7 @@ from typing import Dict, List, Tuple, Union
 
 import numpy as np
 import h5py
-import ruamel_yaml as yaml
+import ruamel.yaml as yaml
 from tqdm import tqdm
 
 import ase
@@ -82,6 +82,7 @@ def _check_lattice_settings(cte: settings.Settings) -> None:
     num_A_states = cte.states['activator_states']
     if (S_conc != 0 and num_S_states == 0) or (A_conc != 0 and num_A_states == 0):
         raise LatticeError('The number of states of each ion cannot be zero.')
+
 
 
 def _create_lattice(spacegroup: Union[int, str], cell_par: List[float], num_uc: int,

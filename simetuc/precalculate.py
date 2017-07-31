@@ -21,7 +21,7 @@ import numba
 from typing import Dict, List, Tuple
 
 import h5py
-import ruamel_yaml as yaml
+import ruamel.yaml as yaml
 
 import numpy as np
 import scipy.sparse
@@ -39,7 +39,7 @@ def _load_lattice(filename: str) -> Dict:
     '''
     with h5py.File(filename, mode='r') as file:
         # deserialze lattice_info
-        lattice_info = yaml.load(file.attrs['lattice_info'])
+        lattice_info = yaml.safe_load(file.attrs['lattice_info'])
 
     return lattice_info
 
@@ -1011,8 +1011,11 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
     # clean emtpy columns in the matrix due to energy migration
     ET_matrix = ET_matrix.toarray()
     emtpy_indices = [ind for ind in range(N_indices.shape[0]) if np.allclose(ET_matrix[:,ind], 0)]
-    ET_matrix = csr_matrix(np.delete(ET_matrix, np.array(emtpy_indices), axis=1))
-    N_indices = np.delete(N_indices, np.array(emtpy_indices), axis=0)
+    if emtpy_indices:
+        ET_matrix = csr_matrix(np.delete(ET_matrix, np.array(emtpy_indices), axis=1))
+        N_indices = np.delete(N_indices, np.array(emtpy_indices), axis=0)
+    else:
+        ET_matrix = csr_matrix(ET_matrix)
 
     jac_indices = _calculate_jac_matrices(N_indices)
     logger.info('Number of interactions: %d.', N_indices.shape[0])
@@ -1049,7 +1052,7 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
 #    logger.debug('Called from main.')
 #
 #    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
+#    cte = settings.load('config_file_ESA.cfg')
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
 ##    logger.setLevel(logging.DEBUG)

@@ -501,6 +501,68 @@ def test_sim_power_dep4(setup_cte, mocker):
     for num, pow_dens in enumerate(power_dens_list):
         assert solution[num].power_dens == pow_dens
 
+def test_sim_power_dep_ESA():
+    test_filename = os.path.join(test_folder_path, 'data_0S_1A.hdf5')
+
+    cte = {'version': 1,
+           'decay': {'decay_A': {DecayTransition(IonType.A, 1, 0, decay_rate=1e3),
+                           DecayTransition(IonType.A, 2, 0, decay_rate=1e6)},
+                     'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=1e1)},
+                     'branching_S': {}, 'branching_A': {}},
+           'excitations': {
+                  'ESA': [Excitation(IonType.A, 0, 1, True, 0, 1e-3, 1e6, 5e-9),
+                             Excitation(IonType.A, 1, 2, True, 0, 1e-3, 1e6, 5e-9)]},
+           'energy_transfer': {},
+           'lattice': {'A_conc': 0.3,
+                       'N_uc': 20,
+                       'S_conc': 0.0,
+                       'a': 5.9738,
+                       'alpha': 90.0,
+                       'b': 5.9738,
+                       'beta': 90.0,
+                       'c': 3.5297,
+                       'gamma': 120.0,
+                       'name': 'bNaYF4',
+                       'sites_occ': [1.0, 0.5],
+                       'sites_pos': [(0.0, 0.0, 0.0), (2/3, 1/3, 0.5)],
+                       'spacegroup': 'P-6'},
+           'no_console': False,
+           'no_plot': False,
+           'simulation_params': {'N_steps': 1000,
+                                 'N_steps_pulse': 100,
+                                 'atol': 1e-15,
+                                 'rtol': 0.001},
+           'states': {'activator_ion_label': 'Tm',
+                      'activator_states': 3,
+                      'activator_states_labels': ['GS', 'ES1', 'ES2'],
+                      'energy_states': 3,
+                      'sensitizer_ion_label': 'Yb',
+                      'sensitizer_states': 2,
+                      'sensitizer_states_labels': ['GS', 'ES']}}
+    simple_cte =  Settings.load_from_dict(cte)
+
+    power_dens_list = np.logspace(1, 6, 6)
+
+    sim = simulations.Simulations(simple_cte, full_path=test_filename)
+
+    solution = sim.simulate_power_dependence(power_dens_list, average=True)
+
+    # check that the ES1 and ES2 populations are close to the theoretical values
+    for sol in solution:
+        GS = sol.steady_state_populations[2]
+        ES1 = sol.steady_state_populations[3]
+        ES2 = sol.steady_state_populations[4]
+        P = sol.power_dens*sol.cte.excitations['ESA'][0].pump_rate
+        k1 = 1e3
+        k2 = 1e6
+        theo_ES1 = GS*P/(k1+P)
+        theo_ES2 = GS*P**2/((k1+P)*k2)
+#        print('ES1: {}, theo_ES1: {}'.format(ES1, theo_ES1))
+#        print('ES2: {}, theo_ES2: {}'.format(ES2, theo_ES2))
+        assert np.allclose(theo_ES1, ES1, rtol=1e-4)
+        assert np.allclose(theo_ES2, ES2, rtol=1e-4)
+
+
 def test_sim_conc_dep_steady(setup_cte, mocker):
     '''Test that the concentration dependence works'''
     with temp_bin_filename() as temp_filename:

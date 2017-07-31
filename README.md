@@ -1,4 +1,4 @@
-﻿# simetuc
+# simetuc
 Simulating Energy Transfer and Upconversion
 
 ------
@@ -13,7 +13,7 @@ Simulating Energy Transfer and Upconversion
 
 ## Installation
 
-Python 3.5 or 3.6 is required.
+Python 3.6 is required.
 Installing [Anaconda](https://www.continuum.io/downloads) is recommended; it works with Windows (64/32 bits), Linux (64/32 bits) and Mac (64 bits).
 
 After installing Anaconda execute the following commands at the command prompt (cmd.exe for Windows, shell for Linux and Mac):
@@ -105,7 +105,7 @@ If you use this software in a scientific publication, please cite the appropriat
 
 The financial support of the EU FP7 ITN LUMINET (Grant agreement No. 316906) is gratefully acknowledged.
 
-This work was started at the University of Cantabria under Prof. Rafael Valiente and continued at the University of Bern under PD Dr. Karl Krämer.
+This work was started at the University of Cantabria under Prof. Rafael Valiente, continued at the University of Bern under PD Dr. Karl Krämer and then at the Utrecht University under Prof. Andries Meijerink.
 
 ## License
 
@@ -113,4 +113,4 @@ Copyright Pedro Villanueva Delgado, 2016-2017.
 
 Distributed under the terms of the [MIT](LICENSE.txt) license, simetuc is free and open source software.
 
-[//]: # (convert .md (github) to .rst (pypi) use: pandoc --from=markdown --to=rst --output=README.rst README.md)
+<!--- # (convert .md (github) to .rst (pypi) use: pandoc --from=markdown --to=rst --output=README.rst README.md) -->

@@ -17,7 +17,7 @@ import matplotlib as mpl
 from simetuc.util import Conc
 
 
-A_TOL = 1e-15
+A_TOL = 1e-20
 
 ColorMap = Type[mpl.colors.Colormap]
 
@@ -39,7 +39,8 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
                         concentration: Conc = None,
                         atol: float = A_TOL,
                         colors: Union[str, Tuple[ColorMap, ColorMap]] = 'rk',
-                        fig: mpl.figure.Figure = None) -> None:
+                        fig: mpl.figure.Figure = None,
+                        title: str = '') -> None:
     ''' Plot the list of simulated and experimental data (optional) against time in t_sol.
         If concentration is given, the legend will show the concentrations
         along with the state_labels (it can get long).
@@ -70,6 +71,8 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
 
     if fig is None:
         fig = plt.figure()
+
+    fig.suptitle(title)
 
     list_axes = fig.get_axes()  # type: List
     if not list_axes:
@@ -144,9 +147,12 @@ def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
 
     avg_sim = np.mean(sim_data_array, axis=1)
 
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+
     # nonposy='clip': clip non positive values to a very small positive number
-    plt.semilogy(t_sol*1000, sim_data_array, 'k', nonposy='clip')
-    plt.semilogy(t_sol*1000, avg_sim, 'r', nonposy='clip', linewidth=5)
+    ax.semilogy(t_sol*1000, sim_data_array, 'k', nonposy='clip')
+    ax.semilogy(t_sol*1000, avg_sim, 'r', nonposy='clip', linewidth=5)
     plt.yscale('log', nonposy='clip')
     plt.axis('tight')
     plt.xlim(xmin=0.0)
@@ -171,6 +177,11 @@ def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
 def plot_power_dependence(sim_data_arr: np.ndarray, power_dens_arr: np.ndarray,
                           state_labels: List[str]) -> None:
     ''' Plots the intensity as a function of power density for each state'''
+
+    non_zero_data = np.array([np.any(sim_data_arr[:, num]) for num in range(sim_data_arr.shape[1])])
+    sim_data_arr = sim_data_arr[:, non_zero_data]
+    state_labels = np.array(state_labels)[non_zero_data]
+
     num_plots = len(state_labels)
     num_rows = 3
     num_cols = int(np.ceil(num_plots/3))
@@ -183,25 +194,28 @@ def plot_power_dependence(sim_data_arr: np.ndarray, power_dens_arr: np.ndarray,
     slopes = [np.gradient(Y_arr, dX[0]) for Y_arr in Y.T]
     slopes = np.around(slopes, 1)
 
-    for num, state_label in enumerate(state_labels):  # for each state
+    fig = plt.figure()
+    for num in range(num_plots):
+        fig.add_subplot(num_rows, num_cols, num+1)
+    list_axes = fig.get_axes()
+
+    for num, (state_label, ax) in enumerate(zip(state_labels, list_axes)):  # for each state
         sim_data = sim_data_arr[:, num]
         if not np.any(sim_data):
             continue
 
-        axis = plt.subplot(num_rows, num_cols, num+1)
-
-        plt.loglog(power_dens_arr, sim_data, '.-r', mfc='k', ms=10, label=state_label)
+        ax.loglog(power_dens_arr, sim_data, '.-r', mfc='k', ms=10, label=state_label)
         plt.axis('tight')
         margin_factor = np.array([0.7, 1.3])
         plt.ylim(*np.array(plt.ylim())*margin_factor)  # add some white space on top
         plt.xlim(*np.array(plt.xlim())*margin_factor)
 
-        plt.legend(loc="best")
+        ax.legend(loc="best")
         plt.xlabel('Power density (W/cm\u00B2)')
 
         for i, txt in enumerate(slopes[num]):
-            axis.annotate(txt, (power_dens_arr[i], sim_data[i]), xytext=(5, -7),
-                          xycoords='data', textcoords='offset points')
+            ax.annotate(txt, (power_dens_arr[i], sim_data[i]), xytext=(5, -7),
+                        xycoords='data', textcoords='offset points')
 
 
 def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray,

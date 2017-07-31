@@ -144,9 +144,9 @@ def test_optim(setup_cte, mocker, method, average, processes, excitations):
 
     assert len(best_x) == len(processes)
     if method in 'brute_force':
-        assert min_f == res.candidates[0].score
+        assert min_f == np.sqrt(res.candidates[0].score)
     else:
-        assert min_f == (res.residual**2).sum()
+        assert min_f == np.sqrt((res.residual**2).sum())
 
 def test_optim_no_dict_params(setup_cte, mocker):
     '''Test that the optimization works with an empty optimization dict'''
@@ -163,7 +163,7 @@ def test_optim_no_dict_params(setup_cte, mocker):
         best_x, min_f, res = optimize.optimize_dynamics(setup_cte, full_path=temp_filename)
 
     assert len(best_x) == len(init_param)
-    assert min_f == (res.residual**2).sum()
+    assert min_f == np.sqrt((res.residual**2).sum())
 
 
 def test_optim_wrong_method(setup_cte, mocker):

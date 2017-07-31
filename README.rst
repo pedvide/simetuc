@@ -11,8 +11,8 @@ Status| |Coverage Status|
 Installation
 ------------
 
-Python 3.5 or 3.6 is required. Installing
-`Anaconda <https://www.continuum.io/downloads>`_ is recommended; it
+Python 3.6 is required. Installing
+`Anaconda <https://www.continuum.io/downloads>`__ is recommended; it
 works with Windows (64/32 bits), Linux (64/32 bits) and Mac (64 bits).
 
 After installing Anaconda execute the following commands at the command
@@ -88,7 +88,7 @@ Features
    -  Energy transfer from sensitizers to activators.
    -  Back transfer from activators to sensitizers.
 
--  See the example `configuration file <https://github.com/pedvide/simetuc/blob/master/simetuc/config_file.cfg>`_ in
+-  See the example `configuration file <https://github.com/pedvide/simetuc/blob/master/simetuc/config_file.cfg>`__ in
    the simetuc folder.
 -  Add decay experimental data as two column text data, separated by
    tabs or spaces.
@@ -112,7 +112,7 @@ Features
 Documentation
 -------------
 
-See the `manual <https://github.com/pedvide/simetuc/blob/master/docs/manual/simetuc_user_manual.pdf>`_.
+See the `manual <https://github.com/pedvide/simetuc/blob/master/docs/manual/simetuc_user_manual.pdf>`__.
 
 TODO
 ----
@@ -141,7 +141,7 @@ This software has been described and used in these publications:
    Tm3+ <http://pubs.acs.org/doi/10.1021/acs.jpcc.5b06770>`__
 -  Villanueva-Delgado, P.; Krämer, K. W.; Valiente, R.; de Jong, M. &
    Meijerink, A. `Modeling Blue to UV Upconversion in β-NaYF4:
-   Tm3+ <http://pubs.rsc.org/en/Content/ArticleLanding/2016/CP/C6CP04347J#!divAbstract>`_
+   Tm3+ <http://pubs.rsc.org/en/Content/ArticleLanding/2016/CP/C6CP04347J#!divAbstract>`__
 
 If you use this software in a scientific publication, please cite the
 appropriate articles above.
@@ -153,16 +153,17 @@ The financial support of the EU FP7 ITN LUMINET (Grant agreement No.
 316906) is gratefully acknowledged.
 
 This work was started at the University of Cantabria under Prof. Rafael
-Valiente and continued at the University of Bern under PD Dr. Karl
-Krämer.
+Valiente, continued at the University of Bern under PD Dr. Karl Krämer
+and then at the Utrecht University under Prof. Andries Meijerink.
 
 License
 -------
 
 Copyright Pedro Villanueva Delgado, 2016-2017.
 
-Distributed under the terms of the `MIT <https://github.com/pedvide/simetuc/blob/master/LICENSE.txt>`_ license,
+Distributed under the terms of the `MIT <https://github.com/pedvide/simetuc/blob/master/LICENSE.txt>`__ license,
 simetuc is free and open source software.
+
 
 .. |License| image:: https://img.shields.io/github/license/pedvide/simetuc.svg
    :target: https://github.com/pedvide/simetuc/blob/master/LICENSE.txt

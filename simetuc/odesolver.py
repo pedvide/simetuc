@@ -165,32 +165,29 @@ def _solve_ode(t_arr: np.array,
     # console bar enabled for INFO
     # this doesn't work, as there are two handlers with different levels
     cmd_bar_disable = quiet
-    pbar_cmd = tqdm(total=N_steps, unit='step', smoothing=0.1,
-                    disable=cmd_bar_disable, desc='ODE progress')
 
     # catch numpy warnings and log them
     # DVODE (the internal routine used by the integrator 'vode') will throw a warning
     # if it needs too many steps to solve the ode.
-    np.seterr(all='raise')
-    with warnings.catch_warnings():
+    with warnings.catch_warnings(), np.errstate(all='raise'), tqdm(total=N_steps, unit='step',
+                                                                   smoothing=0.1,
+                                                                   disable=cmd_bar_disable,
+                                                                   desc='ODE progress') as pbar_cmd:
         # transform warnings into exceptions that we can catch
         warnings.filterwarnings('error')
-        try:
-            while ode_obj.successful() and step < N_steps:
+        while ode_obj.successful() and step < N_steps:
+            try:
                 # advance ode to the next time step
                 y_arr[step, :] = ode_obj.integrate(t_arr[step])
                 step += 1
                 pbar_cmd.update(1)
-        except UserWarning as err:  # pragma: no cover
-            logger.warning(str(err))
-            logger.warning('Most likely the ode solver is taking too many steps.')
-            logger.warning('Either change your settings or increase "nsteps".')
-            logger.warning('The program will continue, but the accuracy of the ' +
-                           'results cannot be guaranteed.')
-    np.seterr(all='ignore')  # restore settings
-
-    pbar_cmd.update(1)
-    pbar_cmd.close()
+            except UserWarning as err:  # pragma: no cover
+                logger.warning(str(err))
+                logger.warning('Most likely the ode solver is taking too many steps.')
+                logger.warning('Either change your settings or increase "nsteps".')
+                logger.warning('The program will continue, but the accuracy of the ' +
+                               'results cannot be guaranteed.')
+        pbar_cmd.update(1)
 
     return y_arr
 

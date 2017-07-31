@@ -1,8 +1,5 @@
 language: python
 python:
-#  - "3.3" ase does not support python 3.3
-#  - "3.4" fails with tuple expansion in np.savetxt
-  - "3.5"
   - "3.6"
 
 # command to install dependencies
@@ -23,11 +20,11 @@ install:
   # install dependencies
   - conda config --add channels conda-forge
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION scipy numpy matplotlib ase
-    tqdm numba lmfit
+    tqdm numba lmfit settings_parser
     pytest pytest-cov pytest-mock pytest-xdist python-coveralls pytest-catchlog
-    ruamel_yaml h5py flake8
+    ruamel.yaml h5py flake8 settings_parser
   - source activate test-environment
-  # not in conda for py3.5 or py3.6
+  # not in conda for py3.6
   - pip install mypy
   - python setup.py install
 

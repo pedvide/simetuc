@@ -18,7 +18,7 @@ Created on Tue Nov  1 16:17:59 2016
 # build and upload to pypi as before.
 # then on directory python/conda delete folder simetuc
 # then conda skeleton pypi --setup-options="--single-version-externally-managed --record=record.txt" simetuc
-# conda build --py 3.5 --py 3.6 simetuc
+# conda build --py 3.6 simetuc
 # conda convert -f --platform all PATH-TO-PACKAGE -o .
 # anaconda login
 # anaconda upload */simetuc-*
@@ -81,7 +81,6 @@ setup(
 
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
     ],
 
@@ -106,10 +105,11 @@ setup(
                       'scipy >=0.18',
                       'tqdm >=4.8',
                       'colorama',
-                      'ruamel_yaml',
+                      'ruamel.yaml',
                       'h5py >=2.6',
                       'numba',
-                      'lmfit'],
+                      'lmfit',
+                      'settings_parser'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,

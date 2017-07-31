@@ -21,13 +21,12 @@ from typing import Any, Union, List
 
 #import numpy as np
 import matplotlib.pyplot as plt
-import ruamel_yaml as yaml
+import ruamel.yaml as yaml
 
 import simetuc.lattice as lattice
 import simetuc.simulations as simulations
 import simetuc.settings as settings
 import simetuc.optimize as optimize
-#from simetuc.util import console_logger_level
 
 from simetuc import VERSION
 from simetuc import DESCRIPTION
