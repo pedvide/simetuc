@@ -363,7 +363,7 @@ class DynamicsSolution(Solution):
                 with open(path, 'rt') as file:
                     try:  # TODO: get a better way to read data, PANDAS?
                         #  data = np.loadtxt(path, usecols=(0, 1)) # 10x slower
-                        csv_data = csv.reader(file, delimiter=delim)  # type: ignore
+                        csv_data = csv.reader(file, delimiter=delim)
                         # ignore emtpy lines and comments
                         data = np.array([row for row in csv_data
                                          if len(row) == 2 and not row[0].startswith('#')], dtype=np.float64)

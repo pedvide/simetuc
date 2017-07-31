@@ -22,7 +22,8 @@ install:
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION scipy numpy matplotlib ase
     tqdm numba lmfit settings_parser
     pytest pytest-cov pytest-mock pytest-xdist python-coveralls pytest-catchlog
-    ruamel.yaml h5py flake8 settings_parser
+    ruamel.yaml h5py flake8
+  - conda install -c pedvide settings_parser
   - source activate test-environment
   # not in conda for py3.6
   - pip install mypy

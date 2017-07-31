@@ -4,5 +4,5 @@ Created on Mon Oct 31 14:27:37 2016
 
 @author: Pedro
 """
-VERSION = '1.6.1'
+VERSION = '1.6.2'
 DESCRIPTION = 'simetuc: Simulating Energy Transfer and Upconversion'

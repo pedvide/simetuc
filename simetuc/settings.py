@@ -227,7 +227,7 @@ def _parse_ET(parsed_settings: Settings) -> Dict:
         # get the ions and states labels involved
         list_init_final = _get_ion_and_state_labels(process)
         list_ions_num = [_get_ion_index(list_ion_label, ion) for ion, label in list_init_final]
-        list_indices = [_get_state_index(tuple_state_labels[ion_num], label,  # type: ignore
+        list_indices = [_get_state_index(tuple_state_labels[ion_num], label,
                                          section='ET process',
                                          process=process, num=num)
                         for ion_num, (ion_label, label) in zip(list_ions_num, list_init_final)]

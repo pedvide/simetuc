@@ -339,7 +339,7 @@ def disable_console_handler(logger_name: str, level: int = logging.WARNING) -> G
 
 
 @contextmanager
-def disable_loggers(logger_name_lst: str, level: int = logging.INFO) -> Generator:  # pragma: no cover
+def disable_loggers(logger_name_lst: List[str], level: int = logging.INFO) -> Generator:  # pragma: no cover
     '''Temporary change the console handler level.'''
     levels = []
     for logger_name in logger_name_lst:
