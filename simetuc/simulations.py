@@ -1254,23 +1254,23 @@ class Simulations():
         return conc_dep_solution
 
 
-if __name__ == "__main__":
-    from simetuc.util import disable_console_handler
-
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-    logger.info('Called from cmd.')
-
-    cte = settings.load('config_file.cfg')
-
-    cte['no_console'] = False
-    cte['no_plot'] = False
-
-    sim = Simulations(cte)
-
-    with disable_console_handler('simetuc.precalculate'):
-        pass
+#if __name__ == "__main__":
+#    from simetuc.util import disable_console_handler
+#
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#    logger.info('Called from cmd.')
+#
+#    cte = settings.load('config_file.cfg')
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+#
+#    sim = Simulations(cte)
+#
+#    with disable_console_handler('simetuc.precalculate'):
+#        pass
 
 #        solution = sim.simulate_dynamics()
 #        solution.log_errors()
@@ -1289,7 +1289,7 @@ if __name__ == "__main__":
 #    solution_avg.plot()
 #
 #
-        solution = sim.simulate_steady_state()
+#        solution = sim.simulate_steady_state()
 #        solution.log_populations()
 #        solution.plot()
 

@@ -61,8 +61,8 @@ def optim_fun_dynamics_conc(params: Parameters, sim: simulations.Simulations,
                             average: bool = False) -> np.array:
     '''Update parameter values, simulate dynamics for the concentrations and return error vector'''
     function = functools.partial(sim.simulate_concentration_dependence,
-                                 sim.cte.concentration_dependence,
-                                 sim.cte.concentration_dependence_N_uc,
+                                 sim.cte.concentration_dependence['concentrations'],
+                                 sim.cte.concentration_dependence['N_uc_list'],
                                  dynamics=True)
     return optim_fun(function, params, sim)  # type: ignore
 
@@ -194,7 +194,7 @@ def optimize_concentrations(cte: settings.Settings,
                             full_path: str = None) -> Tuple[np.array, float, minimizer.MinimizerResult]:
     materials = ['{}% {}, {}% {}.'.format(S_conc, cte.states['sensitizer_ion_label'],
                                           A_conc, cte.states['activator_ion_label'])
-                for (S_conc, A_conc) in cte.concentration_dependence]
+                for (S_conc, A_conc) in cte.concentration_dependence['concentrations']]
     materials_text = '{}: '.format(cte.lattice['name']) + '; '.join(materials)
     return optimize(optim_fun_dynamics_conc, cte, average=average, material_text=materials_text,
                     full_path=full_path)

@@ -92,10 +92,9 @@ settings = {'version': Value(int, val_max=1, val_min=1),
 
             'power_dependence': Value(List[float], len_min=3, len_max=3, kind=Value.optional),
 
-            'concentration_dependence': Value(List[List[float]], val_min=0, val_max=100,
-                                              len_min=[2, None], len_max=[2, None],
-                                              kind=Value.optional),
-            'concentration_dependence_N_uc': Value(List[int], val_min=0,
-                                                   kind=Value.optional),
+            'concentration_dependence': DictValue({'concentrations': Value(List[List[float]], val_min=0, val_max=100,
+                                                                           len_min=[2, None], len_max=[2, None]),
+                                                   'N_uc_list': Value(List[int], val_min=0,  kind=Value.optional)
+                                                   }, kind=Value.optional),
 
            }

@@ -6,7 +6,6 @@ Created on Fri Oct 14 13:33:57 2016
 """
 # pylint: disable=E1101
 
-from collections import OrderedDict
 import re
 #import sys
 import logging
@@ -48,7 +47,7 @@ def _parse_excitations(dict_states: Dict, dict_excitations: Dict) -> Dict:
                 len(exc_dict['pump_rate']) ==
                 len(exc_dict['process'])):
             msg = ('pump_rate, degeneracy, and process ' +
-               'must have the same number of items in {}.').format(exc_label)
+                   'must have the same number of items in {}.').format(exc_label)
             raise SettingsValueError(msg)
 
         exc_dict['init_state'] = []
@@ -348,13 +347,14 @@ def _parse_power_dependence(user_list: List = None) -> List[float]:
     return list(power_list)
 
 @log_exceptions_warnings
-def _parse_conc_dependence(user_list: Tuple[List[float], List[float]] = None
-                          ) -> List[Tuple[float, float]]:
+def _parse_conc_dependence(conc_dep_d: Dict, N_uc: int) -> Dict:
     '''Parses the concentration dependence list with
         the minimum, maximum and number of points.'''
+    parsed_dict = {}
 
     # get the lists of concentrations from the user
     # if empty, set to 0.0
+    user_list = conc_dep_d['concentrations']
     S_conc_l = user_list[0]
     A_conc_l = user_list[1]
 
@@ -363,8 +363,21 @@ def _parse_conc_dependence(user_list: Tuple[List[float], List[float]] = None
     conc_grid[0].shape = (conc_grid[0].size, 1)
     conc_grid[1].shape = (conc_grid[0].size, 1)
     conc_list = [((float(a), float(b))) for a, b in zip(conc_grid[0], conc_grid[1])]
+    parsed_dict['concentrations'] = conc_list
 
-    return conc_list
+    N_uc_list = conc_dep_d.get('N_uc_list', [N_uc]*len(conc_list))
+
+    # if it's smaller extend with the last element
+    if len(N_uc_list) < len(conc_list):
+        N_uc_list.extend([N_uc_list[-1]]*(len(conc_list) - len(N_uc_list)))
+    # if it's too big, raise an error
+    elif len(N_uc_list) > len(conc_list):
+        msg = 'N_uc_list has more elements than concentrations.'
+        raise SettingsValueError(msg)
+
+    parsed_dict['N_uc_list'] = N_uc_list
+
+    return parsed_dict
 
 @log_exceptions_warnings
 def load_file(filename: str) -> None:
@@ -410,7 +423,7 @@ def load_file(filename: str) -> None:
     if 'energy_transfer' in settings:
         settings.energy_transfer = _parse_ET(settings)
     else:
-        settings.energy_transfer = OrderedDict()
+        settings.energy_transfer = dict()
 
     # OPTIMIZATION
     settings.optimization = _parse_optimization(settings)
@@ -427,9 +440,10 @@ def load_file(filename: str) -> None:
     # CONCENTRATION DEPENDENCE LIST
     # not mandatory -> check
     if 'concentration_dependence' in settings:
-        settings.concentration_dependence = _parse_conc_dependence(settings.concentration_dependence)
-        if 'concentration_dependence_N_uc' not in settings:
-            settings.concentration_dependence_N_uc = [settings.lattice['N_uc']]*len(settings.concentration_dependence)
+        settings.concentration_dependence = _parse_conc_dependence(
+            settings.concentration_dependence,
+            settings.lattice['N_uc'])
+
 
     settings['no_console'] = False
     settings['no_plot'] = False

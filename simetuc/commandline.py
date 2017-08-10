@@ -193,7 +193,7 @@ def main(ext_args: List[str] = None) -> None:
     elif args.conc_dependence:  # simulate concentration dependence
         logger.info('Simulating concentration dependence...')
         sim = simulations.Simulations(cte)
-        conc_list = cte.concentration_dependence
+        conc_list = cte.concentration_dependence['concentrations']
         dynamics = True if args.conc_dependence.strip() == 'd' else False
         solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics,
                                                              average=args.average)

@@ -138,4 +138,5 @@ simulation_params: # default values for certain parameters in the ODE solver
 
 power_dependence: [1e0, 1e7, 8]
 
-concentration_dependence: [[0], [0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]
+concentration_dependence:
+    concentrations: [[0], [0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]

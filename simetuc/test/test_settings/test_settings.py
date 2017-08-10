@@ -58,7 +58,8 @@ def setup_cte():
                                                                                       mult=6, strength=2893199540.0)],
                                'options': {}}),
              ('power_dependence', [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0]),
-             ('concentration_dependence', [(0.0, 0.01), (0.0, 0.1), (0.0, 0.2), (0.0, 0.3), (0.0, 0.4), (0.0, 0.5)]),
+             ('concentration_dependence', {'concentrations': [(0.0, 0.01), (0.0, 0.1), (0.0, 0.2), (0.0, 0.3), (0.0, 0.4), (0.0, 0.5)],
+                                           'N_uc_list': [20, 20, 20, 20, 20, 20]}),
              ('simulation_params', {'N_steps': 1000,
                                     'N_steps_pulse': 2,
                                     'atol': 1e-15,
@@ -1504,11 +1505,13 @@ def test_pow_dep_config4(): # text instead numbers
 
 
 def test_conc_dep_config1(): # ok
-    data = data_ET_ok + '''concentration_dependence: [[0, 1, 2], [0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]'''
+    data = data_ET_ok + '''concentration_dependence:
+    concentrations: [[0, 1, 2], [0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]'''
 
     with temp_config_filename(data) as filename:
         cte = settings.load(filename)
-    assert cte.concentration_dependence == [(0.0, 0.01), (1.0, 0.01), (2.0, 0.01), (0.0, 0.1),
+    assert cte.concentration_dependence['concentrations'] == [
+                                      (0.0, 0.01), (1.0, 0.01), (2.0, 0.01), (0.0, 0.1),
                                       (1.0, 0.1), (2.0, 0.1), (0.0, 0.2), (1.0, 0.2),
                                       (2.0, 0.2), (0.0, 0.3), (1.0, 0.3), (2.0, 0.3),
                                       (0.0, 0.4), (1.0, 0.4), (2.0, 0.4), (0.0, 0.5),
@@ -1522,17 +1525,19 @@ def test_conc_dep_config2(): # not present
         assert 'concentration_dependence' not in cte
 
 def test_conc_dep_config3(): # ok, but empty
-    data = data_ET_ok + '''concentration_dependence: []'''
+    data = data_ET_ok + '''concentration_dependence:
+    concentrations: []'''
 
     with pytest.raises(SettingsValueError) as excinfo:
         with temp_config_filename(data) as filename:
             settings.load(filename)
-    assert excinfo.match(r"Length of concentration_dependence")
+    assert excinfo.match(r"Length of concentrations")
     assert excinfo.match(r"cannot be smaller than 2")
     assert excinfo.type == SettingsValueError
 
 def test_conc_dep_config4(): # negative number
-    data = data_ET_ok + '''concentration_dependence: [[0, 1, 2], [-0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]'''
+    data = data_ET_ok + '''concentration_dependence:
+    concentrations: [[0, 1, 2], [-0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]'''
 
     with pytest.raises(SettingsValueError) as excinfo:
         with temp_config_filename(data) as filename:

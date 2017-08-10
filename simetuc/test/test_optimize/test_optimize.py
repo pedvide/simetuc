@@ -85,7 +85,8 @@ def setup_cte():
           'spacegroup': 'P-6'},
          'no_console': False,
          'no_plot': False,
-         'concentration_dependence': [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3), (0.0, 0.5)],
+         'concentration_dependence': {'concentrations': [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3), (0.0, 0.5)],
+                                      'N_uc_list': [30, 30, 20, 20]},
          'concentration_dependence_N_uc': [30, 20, 20, 10],
          'optimization': {'method': 'leastsq',
                           'processes': [EneryTransferProcess([Transition(IonType.A, 5, 3), Transition(IonType.A, 0, 2)],
@@ -212,7 +213,7 @@ def test_optim_fun(setup_cte, mocker, excitations):
 
     optimize.optim_fun_dynamics(params, sim, average=False)
 
-    sim.cte['concentration_dependence'] = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
+    sim.cte['concentration_dependence']['concentrations'] = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
     optimize.optim_fun_dynamics_conc(params, sim)
 
     assert mocked_dyn.called
