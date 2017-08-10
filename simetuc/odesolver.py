@@ -10,50 +10,16 @@ Created on Thu Dec  1 14:44:51 2016
 
 import logging
 import warnings
-import ctypes
 
 from typing import Callable, Tuple
 
 import numpy as np
-from numpy.ctypeslib import ndpointer
 
-from scipy.sparse import csr_matrix, csc_matrix
+from scipy.sparse import csr_matrix
 from scipy.integrate import ode
 
 # nice progress bar
 from tqdm import tqdm
-
-def _rate_eq_pulse(t: np.array, y: np.array, abs_matrix: np.array, decay_matrix: np.array,
-                   UC_matrix: np.array, N_indices: np.array,
-                   coop_ET_matrix: np.array, coop_N_indices: np.array) -> np.array:
-    ''' Calculates the rhs of the ODE for the excitation pulse
-    '''
-    N_prod_sel = y[N_indices[:, 0]]*y[N_indices[:, 1]]
-    UC_matrix = UC_matrix.dot(N_prod_sel)
-
-    N_coop_prod_sel = y[coop_N_indices[:, 0]]*y[coop_N_indices[:, 1]]*y[coop_N_indices[:, 2]]
-    coop_ET_matrix = coop_ET_matrix.dot(N_coop_prod_sel)
-
-    return abs_matrix.dot(y) + decay_matrix.dot(y) + UC_matrix + coop_ET_matrix
-
-
-def _jac_rate_eq_pulse(t: np.array, y: np.array, abs_matrix: np.array, decay_matrix: np.array,
-                       UC_matrix: np.array, jac_indices: np.array,
-                       coop_ET_matrix: np.array, coop_jac_indices: np.array) -> np.array:
-    ''' Calculates the jacobian of the ODE for the excitation pulse
-    '''
-    y_values = y[jac_indices[:, 2]]
-    nJ_matrix = csr_matrix((y_values, (jac_indices[:, 0], jac_indices[:, 1])),
-                           shape=(UC_matrix.shape[1], UC_matrix.shape[0]), dtype=np.float64)
-    UC_J_matrix = UC_matrix.dot(nJ_matrix).toarray()
-
-    y_coop_values = y[coop_jac_indices[:, 2]]*y[coop_jac_indices[:, 3]]
-    nJ_coop_matrix = csr_matrix((y_coop_values, (coop_jac_indices[:, 0], coop_jac_indices[:, 1])),
-                                shape=(coop_ET_matrix.shape[1], coop_ET_matrix.shape[0]),
-                                dtype=np.float64)
-    UC_J_coop_matrix = coop_ET_matrix.dot(nJ_coop_matrix).toarray()
-
-    return abs_matrix.toarray() + decay_matrix.toarray() + UC_J_matrix + UC_J_coop_matrix
 
 
 def _rate_eq(t: np.array, y: np.array, decay_matrix: np.array,
@@ -88,53 +54,24 @@ def _jac_rate_eq(t: np.array, y: np.array, decay_matrix: np.array,
     return decay_matrix.toarray() + UC_J_matrix + UC_J_coop_matrix
 
 
-def _rate_eq_dll(decay_matrix: np.array,
-                 UC_matrix: np.array, N_indices: np.array) -> np.array:  # pragma: no cover
-    ''' Calculates the rhs of the ODE for the relaxation using odesolver.dll'''
-    ext_odesolver = ctypes.windll.odesolver
+def _rate_eq_pulse(t: np.array, y: np.array, abs_matrix: np.array, decay_matrix: np.array,
+                   UC_matrix: np.array, N_indices: np.array,
+                   coop_ET_matrix: np.array, coop_N_indices: np.array) -> np.array:
+    ''' Calculates the rhs of the ODE for the excitation pulse
+    '''
+    return abs_matrix.dot(y) + _rate_eq(t, y, decay_matrix, UC_matrix, N_indices,
+                                        coop_ET_matrix, coop_N_indices)
 
-    matrix_ctype = ndpointer(dtype=np.float64, ndim=2, flags='F_CONTIGUOUS')
-    # uint64 not supported by c++?, use int32
-    vector_int_ctype = ndpointer(dtype=np.int32, ndim=1, flags='F_CONTIGUOUS')
-    vector_ctype = ndpointer(dtype=np.float64, ndim=1, flags='F_CONTIGUOUS')
 
-    ext_odesolver.rateEq.argtypes = [ctypes.c_double, vector_ctype,
-                                     matrix_ctype,
-                                     vector_ctype, vector_int_ctype, vector_int_ctype,
-                                     vector_int_ctype, vector_int_ctype,
-                                     ctypes.c_uint, ctypes.c_uint, vector_ctype]
-    ext_odesolver.rateEq.restype = ctypes.c_int
+def _jac_rate_eq_pulse(t: np.array, y: np.array, abs_matrix: np.array, decay_matrix: np.array,
+                       UC_matrix: np.array, jac_indices: np.array,
+                       coop_ET_matrix: np.array, coop_jac_indices: np.array) -> np.array:
+    ''' Calculates the jacobian of the ODE for the excitation pulse
+    '''
+    return abs_matrix.toarray() + _jac_rate_eq(t, y, decay_matrix, UC_matrix, jac_indices,
+                                               coop_ET_matrix, coop_jac_indices)
 
-    n_states = decay_matrix.shape[0]
-    n_inter = UC_matrix.shape[1]
 
-#        initial_population = np.asfortranarray(initial_population, dtype=np.float64)
-
-    # eigen uses Fortran ordering
-#    abs_matrix = np.asfortranarray(abs_matrix.toarray(), dtype=np.float64)
-    decay_matrix = np.asfortranarray(decay_matrix.toarray(), dtype=np.float64)
-
-    # precalculate gives csr matrix, which isn't fortran style
-    UC_matrix = csc_matrix(UC_matrix)  # precalculate gives csr matrix, which isn't fortran style
-    UC_matrix_data = np.asfortranarray(UC_matrix.data, dtype=np.float64)
-    UC_matrix_indices = np.asfortranarray(UC_matrix.indices, dtype=np.uint32)
-    UC_matrix_indptr = np.asfortranarray(UC_matrix.indptr, dtype=np.uint32)
-
-    N_indices_i = np.asfortranarray(N_indices[:, 0], dtype=np.uint32)
-    N_indices_j = np.asfortranarray(N_indices[:, 1], dtype=np.uint32)
-
-    out_vector = np.asfortranarray(np.zeros((n_states,)), dtype=np.float64)
-
-    def rate_eq_fast(t: np.array, y: np.array) -> np.array:
-        '''Calculates the rhs of the ODE for the relaxation'''
-        ext_odesolver.rateEq(y,
-                             decay_matrix,
-                             UC_matrix_data, UC_matrix_indices, UC_matrix_indptr,
-                             N_indices_i, N_indices_j,
-                             n_states, n_inter, out_vector)
-        return out_vector
-
-    return rate_eq_fast
 
 
 def _solve_ode(t_arr: np.array,
@@ -198,7 +135,7 @@ def solve_pulse(t_pulse: np.array, initial_pop: np.array,
                 coop_ET_matrix: csr_matrix,
                 coop_N_indices: np.array, coop_jac_indices: np.array,
                 nsteps: int = 100, rtol: float = 1e-3, atol: float = 1e-15,
-                quiet: bool = False) -> np.array:
+                quiet: bool = False, method: str = 'adams') -> np.array:
     '''Solve the response to an excitation pulse.'''
     return _solve_ode(t_pulse, _rate_eq_pulse,
                       (total_abs_matrix, decay_matrix, UC_matrix, N_indices,
@@ -206,7 +143,7 @@ def solve_pulse(t_pulse: np.array, initial_pop: np.array,
                       _jac_rate_eq_pulse,
                       (total_abs_matrix, decay_matrix, UC_matrix, jac_indices,
                        coop_ET_matrix, coop_jac_indices),
-                      initial_pop, method='adams',
+                      initial_pop, method=method,
                       rtol=rtol, atol=atol, nsteps=nsteps, quiet=quiet)
 
 

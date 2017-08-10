@@ -36,6 +36,16 @@ import simetuc.settings as settings
 from simetuc.settings import Settings
 
 
+def save_file_full_name(lattice: dict, prefix: str = None) -> str:  # pragma: no cover
+    '''Return the full name to save a file (without extention or prefix).'''
+    path = os.path.join('results', lattice['name'])
+    os.makedirs(path, exist_ok=True)
+    filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(lattice['N_uc']),
+                                                    float(lattice['S_conc']),
+                                                    float(lattice['A_conc']))
+    return os.path.join(path, filename)
+
+
 class Solution():
     '''Base class for solutions of rate equation problems'''
 
@@ -142,16 +152,6 @@ class Solution():
         '''
         return np.array([0])
 
-    def save_file_full_name(self, prefix: str = None) -> str:  # pragma: no cover
-        '''Return the full name to save a file (without extention or prefix).'''
-        lattice_name = self.cte.lattice['name']
-        path = os.path.join('results', lattice_name)
-        os.makedirs(path, exist_ok=True)
-        filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(self.cte.lattice['N_uc']),
-                                                        float(self.concentration.S_conc),
-                                                        float(self.concentration.A_conc))
-        return os.path.join(path, filename)
-
     @cached_property
     def state_labels(self) -> List[str]:
         '''List of ion_state labels'''
@@ -231,7 +231,7 @@ class Solution():
         '''Save data to disk as a HDF5 file'''
         logger = logging.getLogger(__name__)
         if full_path is None:  # pragma: no cover
-            full_path = self.save_file_full_name(self._prefix) + '.hdf5'
+            full_path = save_file_full_name(self.cte.lattice, self._prefix) + '.hdf5'
         logger.info('Saving solution to {}.'.format(full_path))
         with h5py.File(full_path, 'w') as file:
             file.create_dataset("t_sol", data=self.t_sol, compression='gzip')
@@ -247,7 +247,7 @@ class Solution():
         '''Save the settings, the time and the average populations to disk as a textfile'''
         logger = logging.getLogger(__name__)
         if full_path is None:  # pragma: no cover
-            full_path = self.save_file_full_name(self._prefix) + '.txt'
+            full_path = save_file_full_name(self.cte.lattice, self._prefix) + '.txt'
         logger.info('Saving solution as text to {}.'.format(full_path))
         # print cte
         with open(full_path, mode) as csvfile:
@@ -549,18 +549,6 @@ class DynamicsSolution(Solution):
                                     list_exp_data=list_exp_data,
                                     colors=self.cte['colors'], title=title)
 
-#    def save(self, full_path: str = None) -> None:
-#        '''Save data to disk as a HDF5 file'''
-#        # save common data
-#        super(DynamicsSolution, self).save(full_path)
-#
-#        if full_path is None:  # pragma: no cover
-#            full_path = self.save_file_full_name(self._prefix) + '.hdf5'
-#
-#        # save exp data
-#        with h5py.File(full_path, 'a') as file:
-#            file.create_dataset("list_exp_data", data=self.list_exp_data, compression='gzip')
-
     def log_errors(self) -> None:
         '''Log errors'''
         logger = logging.getLogger(__name__)
@@ -689,7 +677,7 @@ class SolutionList(Sequence[Solution]):
         '''Save all data from all solutions in a HDF5 file'''
         logger = logging.getLogger(__name__)
         if full_path is None:  # pragma: no cover
-            full_path = self[0].save_file_full_name(self._prefix) + '.hdf5'
+            full_path = save_file_full_name(self[0].cte.lattice, self._prefix) + '.hdf5'
 
         logger.info('Saving solution to {}.'.format(full_path))
         with h5py.File(full_path, 'w') as file:
@@ -739,7 +727,7 @@ class SolutionList(Sequence[Solution]):
     def save_txt(self, full_path: str = None, mode: str = 'w') -> None:
         '''Save the settings, the time and the average populations to disk as a textfile'''
         if full_path is None:  # pragma: no cover
-            full_path = self[0].save_file_full_name('solutionlist') + '.txt'
+            full_path = save_file_full_name(self[0].cte.lattice, 'solutionlist') + '.txt'
         with open(full_path, mode+'t') as csvfile:
             csvfile.write('Solution list:\n')
         for sol in self:
@@ -980,16 +968,6 @@ class Simulations():
             raise ValueError(msg)
         return tf_p
 
-    def save_file_full_name(self, prefix: str = None) -> str:  # pragma: no cover
-        '''Return the full name to save a file (without extention or prefix).'''
-        lattice_name = self.cte.lattice['name']
-        path = os.path.join('results', lattice_name)
-        os.makedirs(path, exist_ok=True)
-        filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(self.cte.lattice['N_uc']),
-                                                        float(self.cte.lattice['S_conc']),
-                                                        float(self.cte.lattice['A_conc']))
-        return os.path.join(path, filename)
-
 #    @profile
     def simulate_dynamics(self, average: bool = False) -> DynamicsSolution:
         ''' Simulates the absorption, decay and energy transfer processes contained in cte
@@ -1124,7 +1102,7 @@ class Simulations():
                                         total_abs_matrix, decay_matrix,
                                         ET_matrix, N_indices, jac_indices,
                                         coop_ET_matrix, coop_N_indices, coop_jac_indices,
-                                        nsteps=1000,
+                                        nsteps=1000, method='bdf',
                                         rtol=rtol, atol=atol, quiet=self.cte['no_console'])
 
         logger.info('Equations solved! Total time: %.2fs.', time.time()-start_time_ODE)
@@ -1294,9 +1272,9 @@ if __name__ == "__main__":
     with disable_console_handler('simetuc.precalculate'):
         pass
 
-        solution = sim.simulate_dynamics()
-        solution.log_errors()
-        solution.plot()
+#        solution = sim.simulate_dynamics()
+#        solution.log_errors()
+#        solution.plot()
 #
 #    solution.save()
 #    sol = DynamicsSolution.load('results/bNaYF4/dynamics_20uc_0.0S_0.3A.hdf5')
@@ -1311,9 +1289,9 @@ if __name__ == "__main__":
 #    solution_avg.plot()
 #
 #
-#    solution = sim.simulate_steady_state()
-#    solution.log_populations()
-#    solution.plot()
+        solution = sim.simulate_steady_state()
+#        solution.log_populations()
+#        solution.plot()
 
 #        solution = sim.simulate_pulsed_steady_state()
 #        solution.log_populations()
