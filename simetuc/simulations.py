@@ -20,6 +20,7 @@ import numpy as np
 
 import scipy.signal as signal
 import scipy.interpolate as interpolate
+from scipy import integrate
 from scipy import stats
 
 # nice progress bar
@@ -30,18 +31,9 @@ import simetuc.odesolver as odesolver
 #import simetuc.odesolver_assimulo as odesolver  # warning: it's slower!
 import simetuc.plotter as plotter
 from simetuc.util import Conc
-from simetuc.util import cached_property, log_exceptions_warnings, disable_loggers
+from simetuc.util import cached_property, log_exceptions_warnings, disable_loggers, exp_to_10
 import simetuc.settings as settings
 from simetuc.settings import Settings
-
-
-def exp_to_10(float_number: float) -> str:
-    '''Convert a float to str using power of ten notation instead of exp.
-        ie: 3e5 -> 3×10^5'''
-    exponent = np.floor(np.log10(float_number))
-    mantissa = float_number/10**exponent
-    mantissa_format = str(mantissa)[0:3]
-    return "{}×10^{}".format(mantissa_format, str(int(exponent)))
 
 
 class Solution():
@@ -66,6 +58,9 @@ class Solution():
 
         # average or microscopic rate equations?
         self.average = average
+
+        # total time for the simulation of this solution
+        self.time = 0.0
 
         # The first is the sim color, the second the exp data color.
         self.cte['colors'] = 'bk' if average else 'rk'
@@ -140,6 +135,13 @@ class Solution():
         state_labels = sensitizer_labels + activator_labels
         return state_labels
 
+    @property
+    def errors(self) -> np.array:
+        '''List of root-square-deviation between experiment and simulation
+            for each state in the solution
+        '''
+        return np.array([0])
+
     def save_file_full_name(self, prefix: str = None) -> str:  # pragma: no cover
         '''Return the full name to save a file (without extention or prefix).'''
         lattice_name = self.cte.lattice['name']
@@ -167,7 +169,7 @@ class Solution():
         for excitation in self.cte.excitations.keys():  # pragma: no branch
             if self.cte.excitations[excitation][0].active:
                 return self.cte.excitations[excitation][0].power_dens
-        raise AttributeError('This Solution has no power_dens attribute!')
+        raise AttributeError('This Solution has no power_dens attribute!') # pragma: no cover
 
     @cached_property
     def concentration(self) -> Conc:
@@ -179,13 +181,15 @@ class Solution():
             Override to plot other lists of averaged data or experimental data.
         '''
         title = '{}: {}% {}, {}% {}. P={} W/cm²'.format(self.cte.lattice['name'],
-                                        self.concentration.S_conc, self.cte.states['sensitizer_ion_label'],
-                                        self.concentration.A_conc, self.cte.states['activator_ion_label'],
-                                        exp_to_10(self.power_dens))
+                self.concentration.S_conc, self.cte.states['sensitizer_ion_label'],
+                self.concentration.A_conc, self.cte.states['activator_ion_label'],
+                exp_to_10(self.power_dens))
         index_GS_S = 0
         index_GS_A = self.cte.states['sensitizer_states']
-        list_data = self.list_avg_data[index_GS_S+1:index_GS_A-1] + self.list_avg_data[index_GS_A+1:]
-        list_labels = self.state_labels[index_GS_S+1:index_GS_A-1] + self.state_labels[index_GS_A+1:]
+        list_data = (self.list_avg_data[index_GS_S+1:index_GS_A-1] +
+                     self.list_avg_data[index_GS_A+1:])
+        list_labels = (self.state_labels[index_GS_S+1:index_GS_A-1] +
+                       self.state_labels[index_GS_A+1:])
         plotter.plot_avg_decay_data(self.t_sol, list_data,
                                     state_labels=list_labels, colors=self.cte['colors'],
                                     title=title)
@@ -366,7 +370,8 @@ class DynamicsSolution(Solution):
                         csv_data = csv.reader(file, delimiter=delim)
                         # ignore emtpy lines and comments
                         data = np.array([row for row in csv_data
-                                         if len(row) == 2 and not row[0].startswith('#')], dtype=np.float64)
+                                         if len(row) == 2 and not row[0].startswith('#')],
+                                        dtype=np.float64)
 
                         # if data isn't right, retry with a different delimiter
                         if (not isinstance(data, np.ndarray) or
@@ -522,9 +527,9 @@ class DynamicsSolution(Solution):
             the average offset-corrected simulated data (list_avg_data) and experimental data.
         '''
         title = '{}: {}% {}, {}% {}. P={} W/cm²'.format(self.cte.lattice['name'],
-                                        self.concentration.S_conc, self.cte.states['sensitizer_ion_label'],
-                                        self.concentration.A_conc, self.cte.states['activator_ion_label'],
-                                        exp_to_10(self.power_dens))
+                self.concentration.S_conc, self.cte.states['sensitizer_ion_label'],
+                self.concentration.A_conc, self.cte.states['activator_ion_label'],
+                exp_to_10(self.power_dens))
 
         index_GS_S = 0
         index_GS_A = self.cte.states['sensitizer_states']
@@ -532,27 +537,17 @@ class DynamicsSolution(Solution):
         list_t_sim = [data[:, 0] if data is not None else self.t_sol for data in self.list_exp_data]
         list_t_sim = list_t_sim[index_GS_S+1:index_GS_A-1] + list_t_sim[index_GS_A+1:]
 
-        list_data = self.list_binned_data[index_GS_S+1:index_GS_A-1] + self.list_binned_data[index_GS_A+1:]
-        list_exp_data = self.list_exp_data[index_GS_S+1:index_GS_A-1] + self.list_exp_data[index_GS_A+1:]
-        list_labels = self.state_labels[index_GS_S+1:index_GS_A-1] + self.state_labels[index_GS_A+1:]
+        list_data = (self.list_binned_data[index_GS_S+1:index_GS_A-1] +
+                     self.list_binned_data[index_GS_A+1:])
+        list_exp_data = (self.list_exp_data[index_GS_S+1:index_GS_A-1] +
+                         self.list_exp_data[index_GS_A+1:])
+        list_labels = (self.state_labels[index_GS_S+1:index_GS_A-1] +
+                       self.state_labels[index_GS_A+1:])
 
         plotter.plot_avg_decay_data(list_t_sim, list_data,
                                     state_labels=list_labels,
                                     list_exp_data=list_exp_data,
                                     colors=self.cte['colors'], title=title)
-
-#    def save(self, full_path: str = None) -> None:
-#        '''Save data to disk as a HDF5 file'''
-#        # save common data
-#        super(DynamicsSolution, self).save(full_path)
-#
-#        if full_path is None:  # pragma: no cover
-#            full_path = self.save_file_full_name(self._prefix) + '.hdf5'
-#
-#        # save exp data
-#        with h5py.File(full_path, 'a') as file:
-#            file.create_dataset("list_exp_data", data=self.list_exp_data, compression='gzip')
-
 
 #    def save(self, full_path: str = None) -> None:
 #        '''Save data to disk as a HDF5 file'''
@@ -647,6 +642,7 @@ class SolutionList(Sequence[Solution]):
         self._items_class = Solution
         self._prefix = 'solutionlist'
         self.dynamics = False
+        self.average = False
 
     def __bool__(self) -> bool:
         '''Instance is True if its list is not emtpy.'''
@@ -685,13 +681,17 @@ class SolutionList(Sequence[Solution]):
 
     def add_solutions(self, sol_list: List[Solution]) -> None:
         '''Add a list of solutions.'''
-        self.solution_list = list(sol_list)
+        if sol_list:
+            self.solution_list = list(sol_list)
+            self.average = self.solution_list[0].average
 
     def save(self, full_path: str = None) -> None:
         '''Save all data from all solutions in a HDF5 file'''
+        logger = logging.getLogger(__name__)
         if full_path is None:  # pragma: no cover
             full_path = self[0].save_file_full_name(self._prefix) + '.hdf5'
 
+        logger.info('Saving solution to {}.'.format(full_path))
         with h5py.File(full_path, 'w') as file:
             for num, sol in enumerate(self):
                 group = file.create_group(str(num))
@@ -703,7 +703,7 @@ class SolutionList(Sequence[Solution]):
                 # serialze cte as text and store it as an attribute
                 group.attrs['cte'] = yaml.dump(sol.cte.settings)
                 file.attrs['config_file'] = sol.cte['config_file']
-            if hasattr(self, 'dynamics'):
+                file.attrs['average'] = self.average
                 file.attrs['dynamics'] = self.dynamics
 
     @classmethod
@@ -713,10 +713,8 @@ class SolutionList(Sequence[Solution]):
         solutions = []
         try:
             with h5py.File(full_path, 'r') as file:
-                if file.attrs.get('dynamics', None) is not None:
-                    dynamics = file.attrs['dynamics']
-                else:
-                    dynamics = False
+                average = file.attrs['average']
+                dynamics = file.attrs['dynamics']
                 sol_list = cls()
                 sol_list.dynamics = dynamics
                 for group_num in file:
@@ -727,9 +725,10 @@ class SolutionList(Sequence[Solution]):
                     for key, value in cte_dict.items():
                         cte[key] = value
                     # create appropiate object
+                    index_S_i = list(np.array(group['index_S_i']).flatten())
+                    index_A_j = list(np.array(group['index_A_j']).flatten())
                     sol = sol_list._items_class(np.array(group['t_sol']), np.array(group['y_sol']),
-                                                list(group['index_S_i']), list(group['index_A_j']),
-                                                cte)
+                                                index_S_i, index_A_j, cte, average=average)
                     solutions.append(sol)
         except OSError as err:
             msg = 'File not found! ({})'.format(full_path)
@@ -809,6 +808,7 @@ class ConcentrationDependenceSolution(SolutionList):
             self._items_class = DynamicsSolution
         else:
             self._items_class = SteadyStateSolution
+
         self._prefix = 'conc_dep'
 
     def __repr__(self) -> str:
@@ -818,6 +818,36 @@ class ConcentrationDependenceSolution(SolutionList):
         return ('{}(num_solutions={}, concs={}, '.format(self.__class__.__name__,
                                                          len(self), concs) +
                 'power_dens={}, dynamics={})'.format(power, self.dynamics))
+
+    def log_errors(self) -> None:
+        '''Log errors'''
+        logger = logging.getLogger(__name__)
+
+        # log errors
+        logger.info('State errors: ')
+        for (label, error) in zip(self[0].state_labels, self.errors):
+            logger.info('%s: %.4e', label, error)
+        logger.info('Total error: %.4e', self.total_error)
+
+    @cached_property
+    def errors(self) -> np.array:
+        '''List of root-square-deviation between experiment and simulation
+            for each state in the solution
+        '''
+        error_list = np.array([sol.errors**2 for sol in self.solution_list])
+        if np.any(error_list):
+            return np.sum(error_list, axis=0)
+        else:
+            return [0]*len(self.solution_list)
+
+    @cached_property
+    def total_error(self) -> float:
+        '''Total root-square-deviation between experiment and simulation'''
+        if np.any(self.errors):
+            total_error = np.sqrt(np.sum(self.errors**2))
+        else:
+            total_error = 0
+        return total_error
 
     @log_exceptions_warnings
     def plot(self) -> None:
@@ -845,16 +875,31 @@ class ConcentrationDependenceSolution(SolutionList):
         if self.dynamics is True:
             # plot all decay curves together
             import matplotlib.pyplot as plt
-            color_map = plt.get_cmap('Paired', 2*len(self))
+            color_map = plt.get_cmap('Paired')
             color_list = [(color_map(num), color_map(num+1)) for num in range(0, 2*len(self), 2)]
             # plot all concentrations in the same figure
             single_figure = plotter.new_figure()
             for color, sol in zip(color_list, self):
                 sol = cast(DynamicsSolution, sol)  # no runtime effect, only for mypy
 
-                plotter.plot_avg_decay_data(sol.t_sol, sol.list_avg_data_ofs,
-                                            list_exp_data=sol.list_exp_data,
-                                            state_labels=sol.state_labels,
+                # ignore the ground states
+                index_GS_S = 0
+                index_GS_A = sol.cte.states['sensitizer_states']
+
+                list_t_sim = [data[:, 0] if data is not None else sol.t_sol
+                              for data in sol.list_exp_data]
+                list_t_sim = list_t_sim[index_GS_S+1:index_GS_A-1] + list_t_sim[index_GS_A+1:]
+
+                list_data = (sol.list_binned_data[index_GS_S+1:index_GS_A-1] +
+                            sol.list_binned_data[index_GS_A+1:])
+                list_exp_data = (sol.list_exp_data[index_GS_S+1:index_GS_A-1] +
+                                 sol.list_exp_data[index_GS_A+1:])
+                list_labels = (sol.state_labels[index_GS_S+1:index_GS_A-1] +
+                               sol.state_labels[index_GS_A+1:])
+
+                plotter.plot_avg_decay_data(list_t_sim, list_data,
+                                            list_exp_data=list_exp_data,
+                                            state_labels=list_labels,
                                             concentration=sol.concentration,
                                             colors=color,
                                             fig=single_figure, title=title)
@@ -1021,6 +1066,7 @@ class Simulations():
         # store solution and settings
         dynamics_sol = DynamicsSolution(t_sol, y_sol, index_S_i, index_A_j,
                                         self.cte, average=average)
+        dynamics_sol.time = total_time
         return dynamics_sol
 
     def simulate_avg_dynamics(self) -> DynamicsSolution:
@@ -1090,6 +1136,7 @@ class Simulations():
         # store solution and settings
         steady_sol = SteadyStateSolution(t_pulse, y_pulse, index_S_i, index_A_j,
                                          self.cte, average=average)
+        steady_sol.time = total_time
         return steady_sol
 
     def simulate_avg_steady_state(self) -> SteadyStateSolution:
@@ -1097,6 +1144,29 @@ class Simulations():
             it calls simulate_steady_state
         '''
         return self.simulate_steady_state(average=True)
+
+    def simulate_pulsed_steady_state(self, average: bool = False) -> SteadyStateSolution:
+        '''If the excitation source is pulsed, simulate the dynamics and integrate the area
+        under the curves.'''
+
+        dyn_sol = self.simulate_dynamics(average=average)
+
+        t_sol = dyn_sol.t_sol
+        y_steady = np.array([integrate.cumtrapz(y_state, x=t_sol, initial=0)
+                             for y_state in dyn_sol.y_sol.T]).T
+
+        # store solution and settings
+        steady_sol = SteadyStateSolution(dyn_sol.t_sol, y_steady,
+                                         dyn_sol.index_S_i, dyn_sol.index_A_j,
+                                         dyn_sol.cte, average=average)
+        steady_sol.time = dyn_sol.time
+        return steady_sol
+
+    def simulate_avg_pulsed_steady_state(self) -> SteadyStateSolution:
+        '''Simulates the steady state of a pulsed average rate equations system,
+            it calls simulate_pulsed_steady_state
+        '''
+        return self.simulate_pulsed_steady_state(average=True)
 
     def simulate_power_dependence(self, power_dens_list: List[float],
                                   average: bool = False) -> PowerDependenceSolution:
@@ -1115,6 +1185,16 @@ class Simulations():
         num_power_steps = len(power_dens_list)
         solutions = []  # type: List[Solution]
 
+        # chekc if active excitation(s) is pulsed, use simulate_pulsed_steady_state if so and
+        # simulate_steady_state if not.
+        steady_state_function = self.simulate_steady_state
+        for excitation in self.cte.excitations.keys():
+            for exc in self.cte.excitations[excitation]:
+                if exc.active and exc.t_pulse is not None:
+                    steady_state_function = self.simulate_pulsed_steady_state
+                    logger.info('A pulsed excitation source is active.')
+                    break
+
         for power_dens in tqdm(power_dens_list, unit='points',
                                total=num_power_steps, disable=self.cte['no_console'],
                                desc='Total progress'):
@@ -1123,9 +1203,9 @@ class Simulations():
                 for exc in self.cte.excitations[excitation]:
                     exc.power_dens = power_dens
             # calculate steady state populations
-            with disable_loggers([__name__+'.steady_state', 'simetuc.precalculate',
-                                   'simetuc.lattice']):
-                steady_sol = self.simulate_steady_state(average=average)
+            with disable_loggers([__name__+'.steady_state', __name__+'.dynamics',
+                                  'simetuc.precalculate', 'simetuc.lattice']):
+                steady_sol = steady_state_function(average=average)
             solutions.append(steady_sol)
 
         total_time = time.time()-start_time
@@ -1138,6 +1218,7 @@ class Simulations():
         return power_dep_solution
 
     def simulate_concentration_dependence(self, concentration_list: List[Tuple[float, float]],
+                                          N_uc_list: List[int] = None,
                                           dynamics: bool = False, average: bool = False
                                          ) -> ConcentrationDependenceSolution:
         ''' Simulates the concentration dependence of the emission
@@ -1155,13 +1236,22 @@ class Simulations():
         # make sure it's a list of tuple of two floats
         concentration_list = [(float(a), float(b)) for a, b in list(concentration_list)]
 
+        if N_uc_list is None:
+            N_uc_list = [self.cte.lattice['N_uc']]*len(concentration_list)
+
+        # if the user list for the N_uc is smaller than the concentrations,
+        # use the last N_uc for all other concentrations
+        if len(N_uc_list) < len(concentration_list):
+            N_uc_list.extend([N_uc_list[-1]]*(len(concentration_list) - len(N_uc_list)))
+
         num_conc_steps = len(concentration_list)
         solutions = []  # type: List[Solution]
 
-        for concs in tqdm(concentration_list, unit='points',
+        for concs, N_uc in zip(tqdm(concentration_list, unit='points',
                           total=num_conc_steps, disable=self.cte['no_console'],
-                          desc='Total progress'):
-            # update concentrations
+                          desc='Total progress'), N_uc_list):
+            # update concentrations and N_uc
+            self.cte.lattice['N_uc'] = N_uc
             self.cte.lattice['S_conc'] = concs[0]
             self.cte.lattice['A_conc'] = concs[1]
 
@@ -1178,7 +1268,7 @@ class Simulations():
 
         total_time = time.time()-start_time
         formatted_time = time.strftime("%Mm %Ss", time.localtime(total_time))
-        logger.info('Power dependence curves finished! Total time: %s.', formatted_time)
+        logger.info('Concentration dependence curves finished! Total time: %s.', formatted_time)
 
         conc_dep_solution = ConcentrationDependenceSolution(dynamics=dynamics)
         conc_dep_solution.add_solutions(solutions)
@@ -1186,26 +1276,27 @@ class Simulations():
         return conc_dep_solution
 
 
-#if __name__ == "__main__":
-#    from simetuc.util import disable_console_handler
-#
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.INFO,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#    logger.info('Called from cmd.')
-#
-#    cte = settings.load('config_file.cfg')
-#
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
-#
-#    sim = Simulations(cte)
-#
-#    with disable_console_handler('simetuc.precalculate'):
-#
-#        solution = sim.simulate_dynamics()
-#        solution.log_errors()
-#        solution.plot()
+if __name__ == "__main__":
+    from simetuc.util import disable_console_handler
+
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+    logger.info('Called from cmd.')
+
+    cte = settings.load('config_file.cfg')
+
+    cte['no_console'] = False
+    cte['no_plot'] = False
+
+    sim = Simulations(cte)
+
+    with disable_console_handler('simetuc.precalculate'):
+        pass
+
+        solution = sim.simulate_dynamics()
+        solution.log_errors()
+        solution.plot()
 #
 #    solution.save()
 #    sol = DynamicsSolution.load('results/bNaYF4/dynamics_20uc_0.0S_0.3A.hdf5')
@@ -1223,6 +1314,10 @@ class Simulations():
 #    solution = sim.simulate_steady_state()
 #    solution.log_populations()
 #    solution.plot()
+
+#        solution = sim.simulate_pulsed_steady_state()
+#        solution.log_populations()
+#        solution.plot()
 #
 #
 #    solution_avg = sim.simulate_avg_steady_state()
@@ -1230,9 +1325,11 @@ class Simulations():
 #    solution_avg.plot()
 #
 #
-#        solution = sim.simulate_power_dependence(cte.power_dependence)
+#        solution = sim.simulate_power_dependence(cte.power_dependence, average=True)
 #        solution.plot()
-#
-#        conc_list = [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3), (0, 0.5)]#, (0, 1.0)]
-#        solution = sim.simulate_concentration_dependence(conc_list, dynamics=True)
+
+#        conc_list = [(0.0, 0.1), (0.0, 0.3), (0, 0.5)]#, (0, 1.0)]
+#        N_uc_list = [70, 50, 40]#, 30]
+#        solution = sim.simulate_concentration_dependence(conc_list, N_uc_list, dynamics=True)
+#        solution.log_errors()
 #        solution.plot()

@@ -95,5 +95,7 @@ settings = {'version': Value(int, val_max=1, val_min=1),
             'concentration_dependence': Value(List[List[float]], val_min=0, val_max=100,
                                               len_min=[2, None], len_max=[2, None],
                                               kind=Value.optional),
+            'concentration_dependence_N_uc': Value(List[int], val_min=0,
+                                                   kind=Value.optional),
 
            }

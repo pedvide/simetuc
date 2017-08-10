@@ -428,6 +428,8 @@ def load_file(filename: str) -> None:
     # not mandatory -> check
     if 'concentration_dependence' in settings:
         settings.concentration_dependence = _parse_conc_dependence(settings.concentration_dependence)
+        if 'concentration_dependence_N_uc' not in settings:
+            settings.concentration_dependence_N_uc = [settings.lattice['N_uc']]*len(settings.concentration_dependence)
 
     settings['no_console'] = False
     settings['no_plot'] = False

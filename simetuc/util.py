@@ -14,6 +14,7 @@ import logging
 import itertools
 import warnings
 from functools import wraps
+import numpy as np
 
 from enum import Enum
 from typing import Generator, Sequence, Callable, Any, Tuple, Dict, List
@@ -320,7 +321,7 @@ class Blacklist(logging.Filter):
         self.level = level
         self.blacklist = [logging.Filter(name) for name in blacklist]
 
-    def filter(self, record: logging.LogRecord) -> bool:
+    def filter(self, record: logging.LogRecord) -> bool:  # pragma: no cover
         if record.levelno >= self.level:
             return True
         return not any(f.filter(record) for f in self.blacklist)
@@ -354,15 +355,15 @@ def disable_loggers(logger_name_lst: List[str], level: int = logging.INFO) -> Ge
         logger.disabled = False
         logger.propagate = True
     return
-  
-  
-#@contextmanager
-#def no_logging() -> Generator:  # pragma: no cover
-#    '''Temporary disable all logging.'''
-#    logging.disable(logging.CRITICAL)
-#    yield None
-#    logging.disable(logging.NOTSET)
 
+
+def exp_to_10(float_number: float) -> str:
+    '''Convert a float to str using power of ten notation instead of exp.
+        ie: 3e5 -> 3×10^5'''
+    exponent = np.floor(np.log10(float_number))
+    mantissa = float_number/10**exponent
+    mantissa_format = str(mantissa)[0:3]
+    return "{}×10^{}".format(mantissa_format, str(int(exponent)))
 
 class LabelError(ValueError):
     '''A label in the configuration file is not correct'''

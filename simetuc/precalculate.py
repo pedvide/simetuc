@@ -1038,6 +1038,9 @@ def setup_average_eqs(cte: settings.Settings, gen_lattice: bool = False, full_pa
 #                                                sensitizer_states, activator_states)
 #    logger.info('Number of cooperative interactions: %d.', coop_N_indices.shape[0])
 
+    indices_S_i = list(itertools.chain.from_iterable(indices_S_i.tolist()))
+    indices_A_j = list(itertools.chain.from_iterable(indices_A_j.tolist()))
+
     logger.info('Setup finished. Total time: %.2fs.', time.time()-start_time)
     return (cte, initial_population, indices_S_i, indices_A_j,
             total_abs_matrix, decay_matrix,

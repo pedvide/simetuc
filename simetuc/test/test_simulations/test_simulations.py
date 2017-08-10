@@ -62,8 +62,8 @@ def setup_cte():
                'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=400.0)}},
            'excitations': {
                   'NIR_1470': [Excitation(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
-                  'NIR_800': [Excitation(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
-                             Excitation(IonType.A, 2, 5, False, 11/9, 0.002, 1e7, 1e-8)],
+                  'NIR_800': [Excitation(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, t_pulse=None),
+                             Excitation(IonType.A, 2, 5, False, 11/9, 0.002, 1e7, t_pulse=None)],
                   'NIR_980': [Excitation(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
                   'Vis_473': [Excitation(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]},
            'lattice': {'A_conc': 0.3,
@@ -249,11 +249,22 @@ def test_sim_dyn1(setup_cte):
         solution = sim.simulate_dynamics()
         assert solution
 
-    solution.total_error
-    solution.log_errors()
     solution.plot()
     solution.plot(state=7)
     solution.plot(state=1)
+
+def test_sim_dyn_errors(setup_cte):
+    '''Test that the dynamics work'''
+    setup_cte['lattice']['S_conc'] = 0
+
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        solution = sim.simulate_dynamics()
+
+        solution.errors
+        assert isinstance(solution.errors, np.ndarray)
+        solution.log_errors()
+
 
 def test_change_cte(setup_cte):
     '''Test that the cte is copied into the Solution.'''
@@ -420,8 +431,17 @@ def test_sim_no_plot(setup_cte):
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
 
-def test_sim_power_dep1(setup_cte, mocker):
+@pytest.mark.parametrize('average', [True, False])
+@pytest.mark.parametrize('excitation_name', ['NIR_800', 'Vis_473'])
+def test_sim_power_dep(setup_cte, mocker, average, excitation_name):
     '''Test that the power dependence works'''
+    for exc_name, exc_list in setup_cte.excitations.items():
+        for exc in exc_list:
+            if exc_name is excitation_name:
+                exc.active = True
+            else:
+                exc.active = False
+
     with temp_bin_filename() as temp_filename:
         mocked = mocker.patch('simetuc.odesolver._solve_ode')
         # the num_states changes when the temp lattice is created,
@@ -431,25 +451,36 @@ def test_sim_power_dep1(setup_cte, mocker):
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         assert sim.cte == setup_cte
         power_dens_list = np.logspace(1, 3, 3-1+1)
-        solution = sim.simulate_power_dependence(power_dens_list)
-        assert mocked.call_count == len(power_dens_list)
-
-    assert solution
+        solution = sim.simulate_power_dependence(power_dens_list, average=average)
+        assert (mocked.call_count == 2*len(power_dens_list)) or (mocked.call_count == len(power_dens_list))
+        assert solution
 
     solution.plot()
 
     with temp_config_filename('') as filename:
-        solution.save(filename)
-        sol_hdf5 = simulations.PowerDependenceSolution.load(filename)
-
-    with temp_config_filename('') as filename:
         solution.save_txt(filename)
 
-    assert sol_hdf5
-    assert sol_hdf5 == solution
-    sol_hdf5.plot()
+    with temp_config_filename('') as filename:
+        solution.save(filename)
+        solution_hdf5 = simulations.PowerDependenceSolution.load(filename)
 
-def test_sim_power_dep2(setup_cte):
+    assert solution_hdf5
+    for sol, sol_hdf5 in zip(solution.solution_list, solution_hdf5.solution_list):
+        assert sol.y_sol.shape == sol_hdf5.y_sol.shape
+        assert np.allclose(sol.t_sol, sol_hdf5.t_sol)
+        assert np.allclose(sol.y_sol, sol_hdf5.y_sol)
+        assert sol.cte == sol_hdf5.cte
+        print(type(sol.index_S_i), type(sol_hdf5.index_S_i))
+        print(sol.index_S_i, sol_hdf5.index_S_i)
+        assert sol.index_S_i == sol_hdf5.index_S_i
+        assert sol.index_A_j == sol_hdf5.index_A_j
+
+        assert sol == sol_hdf5
+
+    assert solution_hdf5 == solution
+    solution_hdf5.plot()
+
+def test_sim_power_dep_empty_list(setup_cte):
     '''Power dep list is empty'''
     with temp_bin_filename() as temp_filename:
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
@@ -463,11 +494,11 @@ def test_sim_power_dep2(setup_cte):
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'Nothing to plot! The power_dependence list is emtpy!' in str(warning.message)
 
-def test_sim_power_dep3(setup_cte, mocker):
+def test_sim_power_dep_no_plot(setup_cte, mocker):
     '''A plot was requested, but no_plot is set'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
-        mocked = mocker.patch('simetuc.simulations.Simulations.simulate_steady_state')
+        mocked = mocker.patch('simetuc.simulations.Simulations.simulate_pulsed_steady_state')
         mocked.return_value = simulations.SteadyStateSolution(np.empty((1000,)),
                                                               np.empty((1000, 2*setup_cte['states']['energy_states'])),
                                                               [], [], setup_cte)
@@ -484,7 +515,7 @@ def test_sim_power_dep3(setup_cte, mocker):
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
 
-def test_sim_power_dep4(setup_cte, mocker):
+def test_sim_power_dep_correct_power_dens(setup_cte, mocker):
     '''Check that the solutions have the right power_dens'''
     setup_cte['no_plot'] = True
     with temp_bin_filename() as temp_filename:
@@ -496,12 +527,13 @@ def test_sim_power_dep4(setup_cte, mocker):
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         power_dens_list = np.logspace(1, 3, 3)
         solution = sim.simulate_power_dependence(power_dens_list)
-        assert mocked.call_count == len(power_dens_list)
+        assert mocked.call_count == 2*len(power_dens_list)
 
     for num, pow_dens in enumerate(power_dens_list):
         assert solution[num].power_dens == pow_dens
 
 def test_sim_power_dep_ESA():
+    '''Make sure the simulated solution for a simple problem is equal to the theoretical one.'''
     test_filename = os.path.join(test_folder_path, 'data_0S_1A.hdf5')
 
     cte = {'version': 1,
@@ -510,8 +542,8 @@ def test_sim_power_dep_ESA():
                      'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=1e1)},
                      'branching_S': {}, 'branching_A': {}},
            'excitations': {
-                  'ESA': [Excitation(IonType.A, 0, 1, True, 0, 1e-3, 1e6, 5e-9),
-                             Excitation(IonType.A, 1, 2, True, 0, 1e-3, 1e6, 5e-9)]},
+                  'ESA': [Excitation(IonType.A, 0, 1, True, 0, 1e-3, 1e6, t_pulse=None),
+                             Excitation(IonType.A, 1, 2, True, 0, 1e-3, 1e6, t_pulse=None)]},
            'energy_transfer': {},
            'lattice': {'A_conc': 0.3,
                        'N_uc': 20,
@@ -602,6 +634,7 @@ def test_sim_conc_dep_dyn(setup_cte, mocker):
 
     assert solution
     solution.plot()
+    solution.log_errors()
     with temp_config_filename('') as filename:
         solution.save(filename)
         sol_hdf5 = simulations.ConcentrationDependenceSolution.load(filename)

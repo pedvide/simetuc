@@ -63,9 +63,6 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
 
     sim_color = colors[0]
     exp_color = colors[1]
-    if not isinstance(exp_color, str):  # dim experiental color
-        exp_color = list(exp_color)
-        exp_color[3] /= 2
     exp_size = 2  # marker size
     exp_marker = '.'
 
@@ -103,7 +100,7 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
                 above = sim_data > atol
                 change_indices = np.where(np.roll(above, 1) != above)[0]
                 # make sure change_indices[-1] happens when the population is going BELOW atol
-                if change_indices.size > 1 and sim_data[change_indices[-1]] < atol:
+                if change_indices.size > 1 and sim_data[change_indices[-1]] < atol:  # pragma: no cover
                     # last time it changes
                     max_index = change_indices[-1]
                     # show simData until it falls below atol
@@ -128,7 +125,7 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
             axes.legend(curr_handles+[(sim_handle, exp_handle)],
                         curr_labels+[state_label], markerscale=5)#, loc="best", fontsize='small')
 
-            curr_handles, curr_labels = axes.get_legend_handles_labels()
+#            curr_handles, curr_labels = axes.get_legend_handles_labels()
 #            print(num, curr_handles)
         axes.set_xlabel('t (ms)')
 
@@ -140,7 +137,7 @@ def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
                           state_label: str = None, atol: float = A_TOL) -> None:
     ''' Plots a state's simulated data against time t_sol'''
 
-    if sim_data_array is None:
+    if sim_data_array is None:  # pragma: no cover
         return
     if (np.isnan(sim_data_array)).any() or not np.any(sim_data_array):
         return
@@ -201,7 +198,7 @@ def plot_power_dependence(sim_data_arr: np.ndarray, power_dens_arr: np.ndarray,
 
     for num, (state_label, ax) in enumerate(zip(state_labels, list_axes)):  # for each state
         sim_data = sim_data_arr[:, num]
-        if not np.any(sim_data):
+        if not np.any(sim_data):  # pragma: no cover
             continue
 
         ax.loglog(power_dens_arr, sim_data, '.-r', mfc='k', ms=10, label=state_label)

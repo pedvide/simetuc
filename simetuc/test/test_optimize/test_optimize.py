@@ -85,6 +85,8 @@ def setup_cte():
           'spacegroup': 'P-6'},
          'no_console': False,
          'no_plot': False,
+         'concentration_dependence': [(0.0, 0.1), (0.0, 0.175), (0.0, 0.3), (0.0, 0.5)],
+         'concentration_dependence_N_uc': [30, 20, 20, 10],
          'optimization': {'method': 'leastsq',
                           'processes': [EneryTransferProcess([Transition(IonType.A, 5, 3), Transition(IonType.A, 0, 2)],
                                                              mult=6, strength=2893199540.0, name='CR50'),
@@ -121,26 +123,27 @@ def idfn_proc(param):
 @pytest.mark.parametrize('method', ['COBYLA', 'L-BFGS-B', 'TNC',
                                     'SLSQP', 'brute_force', 'leastsq'],
                                     ids=idfn_param)
+@pytest.mark.parametrize('function', ['optimize_dynamics', 'optimize_concentrations'])
 @pytest.mark.parametrize('average', [True, False], ids=idfn_avg)
 @pytest.mark.parametrize('processes', [[CR50, B_43],
                                        [CR50],
                                        [B_43]], ids=idfn_proc)
 @pytest.mark.parametrize('excitations', [[], ['Vis_473'],  ['Vis_473', 'NIR_980']],
                          ids=['default_exc', 'one_exc', 'two_exc'])
-def test_optim(setup_cte, mocker, method, average, processes, excitations):
+def test_optim(setup_cte, mocker, method, function, average, processes, excitations):
     '''Test that the optimization works'''
     # mock the simulation by returning an error that goes to 0
     init_param = np.array([proc.value for proc in processes])
-    def mocked_optim_fun(params, sim, average):
+    def mocked_optim_fun(function, params, sim):
         return 2 + (np.array([val for val in params.valuesdict().values()]) - 1.1*init_param)**2
     mocker.patch('simetuc.optimize.optim_fun', new=mocked_optim_fun)
 
     setup_cte['optimization']['method'] = method
     setup_cte['optimization']['processes'] = processes
     setup_cte['optimization']['excitations'] = excitations
+    fun = getattr(optimize, function)
     with temp_bin_filename() as temp_filename:
-        best_x, min_f, res = optimize.optimize_dynamics(setup_cte, average=average,
-                                                        full_path=temp_filename)
+        best_x, min_f, res = fun(setup_cte, average=average, full_path=temp_filename)
 
     assert len(best_x) == len(processes)
     if method in 'brute_force':
@@ -152,7 +155,7 @@ def test_optim_no_dict_params(setup_cte, mocker):
     '''Test that the optimization works with an empty optimization dict'''
     # mock the simulation by returning an error that goes to 0
     init_param = np.array([proc.value for proc in setup_cte.energy_transfer.values() if proc.value != 0])
-    def mocked_optim_fun(params, sim, average):
+    def mocked_optim_fun(function, params, sim):
         return 2 + (np.array([val for val in params.valuesdict().values()]) - 1.1*init_param)**2
     mocker.patch('simetuc.optimize.optim_fun', new=mocked_optim_fun)
 
@@ -170,7 +173,7 @@ def test_optim_wrong_method(setup_cte, mocker):
     '''Test that the optimization works without the optimization params being present in cte'''
     # mock the simulation by returning an error that goes to 0
     init_param = np.array([proc.value for proc in setup_cte['optimization']['processes']])
-    def mocked_optim_fun(params, sim, average):
+    def mocked_optim_fun(function, params, sim):
         return 2 + (np.array([val for val in params.valuesdict().values()]) - 1.1*init_param)**2
     mocker.patch('simetuc.optimize.optim_fun', new=mocked_optim_fun)
 
@@ -186,11 +189,12 @@ def test_optim_wrong_method(setup_cte, mocker):
 @pytest.mark.parametrize('excitations', [[], ['Vis_473'],  ['Vis_473', 'NIR_980']],
                          ids=['default_exc', 'one_exc', 'two_exc'])
 def test_optim_fun(setup_cte, mocker, excitations):
-    '''Test optim_fun_factory'''
+    '''Test optim_fun'''
     mocked_dyn = mocker.patch('simetuc.simulations.Simulations.simulate_dynamics')
     class mocked_dyn_res:
         errors = np.ones((setup_cte.states['activator_states'] +
                           setup_cte.states['sensitizer_states'],), dtype=np.float64)
+        average = False
     mocked_dyn.return_value = mocked_dyn_res
 
     sim = simulations.Simulations(setup_cte)
@@ -206,7 +210,10 @@ def test_optim_fun(setup_cte, mocker, excitations):
         min_val = 1 if isinstance(process, EneryTransferProcess) else 0
         params.add(process.name, value=process.value, min=min_val, max=max_val)
 
-    optimize.optim_fun(params, sim, average=False)
+    optimize.optim_fun_dynamics(params, sim, average=False)
+
+    sim.cte['concentration_dependence'] = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
+    optimize.optim_fun_dynamics_conc(params, sim)
 
     assert mocked_dyn.called
 

@@ -69,8 +69,10 @@ def parse_args(args: Any) -> argparse.Namespace:
                        help=('simulate concentration dependence of' +
                              ' the steady state (default) or dynamics (d)'),
                        action='store')
-    group.add_argument('-o', '--optimize', help='optimize the energy transfer parameters',
-                       action='store_true')
+    group.add_argument('-o', '--optimize',
+                       help='optimize the energy transfer parameters [of the concentration]',
+                       metavar='conc', nargs='?', const='single',
+                       action='store')
 
     # save data
     group = parser.add_mutually_exclusive_group(required=False)
@@ -192,15 +194,18 @@ def main(ext_args: List[str] = None) -> None:
         logger.info('Simulating concentration dependence...')
         sim = simulations.Simulations(cte)
         conc_list = cte.concentration_dependence
-        dynamics = True if args.conc_dependence == 'd' else False
+        dynamics = True if args.conc_dependence.strip() == 'd' else False
         solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics,
                                                              average=args.average)
         print('')
 
     elif args.optimize:  # optimize
         logger.info('Optimizing parameters...')
-
-        optimize.optimize_dynamics(cte, average=args.average)
+        optim_conc = True if args.optimize.strip() == 'conc' else False
+        if optim_conc is False:
+            optimize.optimize_dynamics(cte, average=args.average)
+        else:
+            optimize.optimize_concentrations(cte, average=args.average)
 
     # save results to disk
     if solution is not None:

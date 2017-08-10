@@ -49,7 +49,7 @@ def test_cli_verbose_quiet(mocker, no_logging):
     commandline.main(ext_args)
     assert mocked_generate.call_count == 2
 
-option_list = ['-l', '-d', '-s', '-p', '-c', '-o']
+option_list = ['-l', '-d', '-s', '-p', '-c', '-c d', '-o', '-o conc']
 @pytest.mark.parametrize('option', option_list, ids=option_list)
 def test_cli_main_options(option, mocker, no_logging):
     '''Test that the main options work'''
@@ -57,16 +57,22 @@ def test_cli_main_options(option, mocker, no_logging):
     mocked_lattice = mocker.patch('simetuc.lattice.generate')
     mocked_opt = mocker.patch('simetuc.optimize.optimize_dynamics')
     mocked_opt.return_value = (np.array([1.0]), 0.0)
+    mocked_opt_conc = mocker.patch('simetuc.optimize.optimize_concentrations')
+    mocked_opt_conc.return_value = (np.array([1.0]), 0.0)
 
     ext_args = [config_file, '--no-plot', option]
     commandline.main(ext_args)
 
-    if option is ['-d', '-s', '-p', '-c']:
+    if option in ['-d', '-s', '-p', '-c', '-c d']:
         assert mocked_sim.call_count == 1
-    elif option == ['-o']:
+    elif option == '-o':
         assert mocked_opt.call_count == 1
-    elif option == ['-l']:
+    elif option == '-o conc':
+        assert mocked_opt_conc.call_count == 1
+    elif option == '-l':
         assert mocked_lattice.call_count == 1
+    else:
+        assert False
 
 def test_cli_conc_dep_dyn(mocker, no_logging):
     '''Test that theconcentration dependence of the dynamics works
@@ -98,7 +104,9 @@ def test_cli_save_txt(mocker, no_logging):
     commandline.main(ext_args)
     assert mocked_sim.call_count == 1
 
-def test_cli_optim_method(mocker, no_logging):
+option_list = ['processes: [CR50]\nmethod: SLSQP', '']
+@pytest.mark.parametrize('option', option_list, ids=['method=SLSQP', 'no_processes'])
+def test_cli_optim_options(mocker, no_logging, option):
     '''Test that the optimization works with the optimization method'''
 
     mocked_opt = mocker.patch('simetuc.optimize.optimize_dynamics')
@@ -107,24 +115,7 @@ def test_cli_optim_method(mocker, no_logging):
     # add optim method to config file
     with open(config_file, 'rt') as file:
         config_content = file.read()
-    data = config_content.replace('processes: [CR50]', '''processes: [CR50]
-    method: SLSQP''')
-
-    with temp_config_filename(data) as new_config_file:
-        ext_args = [new_config_file, '--no-plot', '-o']
-        commandline.main(ext_args)
-        assert mocked_opt.call_count == 1
-
-def test_cli_optim_procs(mocker, no_logging):
-    '''Test that the optimization works without a user-given optimization processes list'''
-
-    mocked_opt = mocker.patch('simetuc.optimize.optimize_dynamics')
-    mocked_opt.return_value = (np.array([1.0]), 0.0)
-
-    # remove optim method from config file
-    with open(config_file, 'rt') as file:
-        config_content = file.read()
-    data = config_content.replace('processes: [CR50]', '')
+    data = config_content.replace('processes: [CR50]', option)
 
     with temp_config_filename(data) as new_config_file:
         ext_args = [new_config_file, '--no-plot', '-o']

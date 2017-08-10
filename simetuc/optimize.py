@@ -7,7 +7,8 @@ Created on Tue Oct 11 15:58:58 2016
 
 import logging
 import datetime
-from typing import Tuple
+from typing import Tuple, Callable
+import functools
 
 import numpy as np
 # pylint: disable=E1101
@@ -20,9 +21,10 @@ import simetuc.settings as settings
 from simetuc.util import disable_loggers, disable_console_handler, EneryTransferProcess
 
 
-def optim_fun(params: Parameters, sim: simulations.Simulations,
-              average: bool = False) -> np.array:
-    '''Update parameter values, simulate dynamics and return total error'''
+def optim_fun(function: Callable, params: Parameters, sim: simulations.Simulations) -> np.array:
+    '''Update parameter values, simulate dynamics and return total error.
+    function should be something like sim.simulate_dynamics or sim.simulate_concentration_dependence
+    with no parameters, and it must return an object with an errors attribute.'''
     # update optimization parameter values
     for num, new_value in enumerate(params.valuesdict().values()):
         sim.cte.optimization['processes'][num].value = new_value
@@ -30,7 +32,7 @@ def optim_fun(params: Parameters, sim: simulations.Simulations,
     # if the user didn't select several excitations to optimize, use the active one
     # otherwise, go through all requested exitations and calculate errors
     if not sim.cte.optimization.get('excitations', False):
-        dynamics_sol = sim.simulate_dynamics(average=average)
+        dynamics_sol = function()
         return dynamics_sol.errors
     else:
         # first switch off all excitations
@@ -44,37 +46,30 @@ def optim_fun(params: Parameters, sim: simulations.Simulations,
         for exc_label in sim.cte.optimization['excitations']:
             # switch on one excitation, solve and switch off again
             sim.cte.excitations[exc_label][0].active = True
-            dynamics_sol = sim.simulate_dynamics(average=average)
+            dynamics_sol = function()
             sim.cte.excitations[exc_label][0].active = False
             total_errors += dynamics_sol.errors**2
         return np.sqrt(total_errors)
 
+def optim_fun_dynamics(params: Parameters, sim: simulations.Simulations,
+                       average: bool = False) -> np.array:
+    '''Update parameter values, simulate dynamics and return error vector'''
+    function = functools.partial(sim.simulate_dynamics, average=average)
+    return optim_fun(function, params, sim)  # type: ignore
 
-def optimize_dynamics(cte: settings.Settings, average: bool = False,
-                      full_path: str = None) -> Tuple[np.array, float, minimizer.MinimizerResult]:
-    ''' Minimize the error between experimental data and simulation for the settings in cte
-        average = True -> optimize average rate equations instead of microscopic ones
-    '''
+def optim_fun_dynamics_conc(params: Parameters, sim: simulations.Simulations,
+                            average: bool = False) -> np.array:
+    '''Update parameter values, simulate dynamics for the concentrations and return error vector'''
+    function = functools.partial(sim.simulate_concentration_dependence,
+                                 sim.cte.concentration_dependence,
+                                 sim.cte.concentration_dependence_N_uc,
+                                 dynamics=True)
+    return optim_fun(function, params, sim)  # type: ignore
+
+
+def setup_optim(cte: settings.Settings) -> Tuple[str, Parameters, dict]:
+    '''Returns the method, process_list and options for the optimization'''
     logger = logging.getLogger(__name__)
-
-    def callback_fun(params: Parameters, iter_num: int, resid: np.array,
-                     sim: simulations.Simulations, average: bool = False) -> None:
-        ''' This function is called after every minimization step
-            It prints the current parameters and error from the cache
-        '''
-        optim_progbar.update(1)
-        if not cte['no_console']:
-            val_list = ', '.join('{:.3e}'.format(par.value) for par in params.values())
-            error =  np.sqrt((resid*resid).sum())
-            msg = '{},\t\t{:.4e},\t[{}]'.format(iter_num, error, val_list)
-            tqdm.tqdm.write(msg)
-            logger.info(msg)
-
-    start_time = datetime.datetime.now()
-
-    cte['no_plot'] = True
-    sim = simulations.Simulations(cte)
-
     # multiply the values by these bounds to get the minimum and maximum allowed values
     max_factor = cte.optimization['options'].get('max_factor', 1e5)
     min_factor = cte.optimization['options'].get('min_factor', 1e-5)
@@ -93,8 +88,9 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
     for process in process_list:
         value = process.value
         max_val = max_factor*value if isinstance(process, EneryTransferProcess) else 1
-        # don't let ET processes go to zero.
         min_val = min_factor*value if isinstance(process, EneryTransferProcess) else 0
+        if value == 0:
+            max_val = 1e11
         params.add(process.name, value=value, min=min_val, max=max_val)
     logger.info('Optimization parameters: ' + ', '.join(proc.name for proc in process_list) + '.')
 
@@ -114,22 +110,57 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
     if 'brute' in method:
         options_dict['Ns'] = cte.optimization['options'].get('N_points', 10)
 
+    return method, params, options_dict
+
+
+def optimize(function: Callable, cte: settings.Settings, average: bool = False,
+             material_text: str = '',
+             full_path: str = None) -> Tuple[np.array, float, minimizer.MinimizerResult]:
+    ''' Minimize the error between experimental data and simulation for the settings in cte
+        average = True -> optimize average rate equations instead of microscopic ones.
+        function returns the error vector and accepts: parameters, sim, and average.
+    '''
+    logger = logging.getLogger(__name__)
+
+    def callback_fun(params: Parameters, iter_num: int, resid: np.array,
+                     sim: simulations.Simulations, average: bool = False) -> None:
+        ''' This function is called after every minimization step
+            It prints the current parameters and error from the cache
+        '''
+        optim_progbar.update(1)
+        if not cte['no_console']:
+            val_list = ', '.join('{:.3e}'.format(par.value) for par in params.values())
+            error =  np.sqrt((resid*resid).sum())
+            msg = '{},\t\t{:.4e},\t[{}]'.format(iter_num, error, val_list)
+            tqdm.tqdm.write(msg)
+            logger.info(msg)
+
+    start_time = datetime.datetime.now()
+
+    logger.info('Decay curves optimization of ' + material_text)
+
+    cte['no_plot'] = True
+    sim = simulations.Simulations(cte, full_path=full_path)
+
+    method, parameters, options_dict = setup_optim(cte)
+
     optim_progbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
-    param_names = ', '.join(proc.name for proc in process_list)
+    param_names = ', '.join(name for name in parameters.keys())
     tqdm.tqdm.write('Iter num\tRMSD\t\tParameters ({})'.format(param_names))
-    minner = Minimizer(optim_fun, params, fcn_args=(sim, average),
-                       iter_cb=callback_fun)
+    minimizer = Minimizer(function, parameters, fcn_args=(sim, average),
+                          iter_cb=callback_fun)
     # minimize logging only warnings or worse to console.
     with disable_loggers(['simetuc.simulations', 'simetuc.precalculate', 'simetuc.lattice']):
         with disable_console_handler(__name__):
-            result = minner.minimize(method=method, **options_dict)
+            result = minimizer.minimize(method=method, **options_dict)
 
     optim_progbar.update(1)
     optim_progbar.close()
 
+    # fit results
     report_fit(result.params)
     logger.info(fit_report(result))
-#    logger.info(result.message)
+
     best_x = np.array([par.value for par in result.params.values()])
     if 'brute' in method:
         min_f = np.sqrt(result.candidates[0].score)
@@ -144,25 +175,54 @@ def optimize_dynamics(cte: settings.Settings, average: bool = False,
     logger.info('Minimum reached! Total time: %s.', formatted_time)
     logger.info('Optimized RMS error: %.3e.', min_f)
     logger.info('Parameters name and value:')
-    for proc, best_val in zip(process_list, best_x.T):
-        logger.info('%s: %.3e.', proc.name, best_val)
+    for name, best_val in zip(parameters.keys(), best_x.T):
+        logger.info('%s: %.3e.', name, best_val)
 
     return best_x, min_f, result
 
+def optimize_dynamics(cte: settings.Settings,
+                      average: bool = False,
+                      full_path: str = None) -> Tuple[np.array, float, minimizer.MinimizerResult]:
+    material = '{}: {}% {}, {}% {}.'.format(cte.lattice['name'],
+                                            cte.lattice['S_conc'], cte.states['sensitizer_ion_label'],
+                                            cte.lattice['A_conc'], cte.states['activator_ion_label'])
+    return optimize(optim_fun_dynamics, cte, average=average, material_text=material,
+                    full_path=full_path)
 
-#if __name__ == "__main__":
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.INFO,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#
-#    logger.debug('Called from cmd.')
-#
-#    import simetuc.settings as settings
-#    cte = settings.load('config_file.cfg')
-#
-##    cte.optimization['excitations'] = []
-#
-##    cte['no_console'] = False
-##    cte['no_plot'] = True
-#
+def optimize_concentrations(cte: settings.Settings,
+                            average: bool = False,
+                            full_path: str = None) -> Tuple[np.array, float, minimizer.MinimizerResult]:
+    materials = ['{}% {}, {}% {}.'.format(S_conc, cte.states['sensitizer_ion_label'],
+                                          A_conc, cte.states['activator_ion_label'])
+                for (S_conc, A_conc) in cte.concentration_dependence]
+    materials_text = '{}: '.format(cte.lattice['name']) + '; '.join(materials)
+    return optimize(optim_fun_dynamics_conc, cte, average=average, material_text=materials_text,
+                    full_path=full_path)
+
+if __name__ == "__main__":
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+
+    logger.debug('Called from cmd.')
+
+    import simetuc.settings as settings
+    cte = settings.load('config_file.cfg')
+
+#    cte.optimization['excitations'] = []
+
+#    cte['no_console'] = False
+#    cte['no_plot'] = True
+
 #    best_x, min_f, res = optimize_dynamics(cte, average=False)
+
+
+    best_x, min_f, res = optimize_concentrations(cte)
+
+#    # confidence intervals VERY SLOW
+#    from lmfit import conf_interval, printfuncs
+#    with disable_loggers(['simetuc.simulations', 'simetuc.precalculate', 'simetuc.lattice']):
+#        with disable_console_handler(__name__):
+#            ci = conf_interval(minimizer, res, sigmas=[1])
+##    printfuncs.report_ci(ci, ndigits=2)
+#    print(printfuncs.ci_report(ci, ndigits=1))
