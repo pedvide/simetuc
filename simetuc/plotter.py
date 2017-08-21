@@ -131,8 +131,6 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
 
 
 
-
-
 def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
                           state_label: str = None, atol: float = A_TOL) -> None:
     ''' Plots a state's simulated data against time t_sol'''
@@ -222,6 +220,8 @@ def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray
     num_rows = 3
     num_cols = int(np.ceil(num_plots/3))
 
+    fig = plt.figure()
+
     heatmap = False
     if len(conc_arr.shape) == 2:
         heatmap = True
@@ -231,10 +231,10 @@ def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray
         if not np.any(sim_data):
             continue
 
-        ax = plt.subplot(num_rows, num_cols, num+1)
+        ax = fig.add_subplot(num_rows, num_cols, num+1)
 
         if not heatmap:
-            plt.plot(conc_arr, sim_data, '.-r', mfc='k', ms=10, label=state_label)
+            ax.plot(conc_arr, sim_data, '.-r', mfc='k', ms=10, label=state_label)
             plt.axis('tight')
             margin_factor = np.array([0.9, 1.1])
             plt.ylim(*np.array(plt.ylim())*margin_factor)  # add some white space on top
@@ -263,8 +263,8 @@ def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray
 #                zi = interp_f(xi, yi)
 
             plt.imshow(zi, vmin=z.min(), vmax=z.max(), origin='lower',
-                       extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto')
-            plt.scatter(x, y, c=z)
+                      extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto')
+            ax.scatter(x, y, c=z)
             plt.xlabel('S concentration (%)')
             plt.ylabel('A concentration (%)')
             cb = plt.colorbar()

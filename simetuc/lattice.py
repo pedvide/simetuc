@@ -22,7 +22,7 @@ from ase.spacegroup import crystal
 from simetuc.util import ConfigError, log_exceptions_warnings
 import simetuc.plotter as plotter
 import simetuc.settings as settings
-from simetuc.settings import SettingsValueError
+from simetuc.settings import SettingsValueError, SettingsExtraValueWarning
 import simetuc.settings_config as configs
 
 
@@ -30,7 +30,7 @@ class LatticeError(Exception):
     '''The generated lattice is not valid'''
     pass
 
-@log_exceptions_warnings
+@log_exceptions_warnings(ignore_warns=SettingsExtraValueWarning)
 def _check_lattice_settings(cte: settings.Settings) -> None:
     '''Checks that the settings for the lattice are correct.'''
     cte_lattice = cte.lattice

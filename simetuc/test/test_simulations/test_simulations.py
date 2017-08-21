@@ -606,7 +606,7 @@ def test_sim_conc_dep_steady(setup_cte, mocker):
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
         solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
-        assert mocked.call_count == len(conc_list)
+        assert mocked.call_count == 2*len(conc_list)
 
     assert solution
     solution.plot()
@@ -671,7 +671,7 @@ def test_sim_conc_dep_only_A(setup_cte, mocker):
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         conc_list = [(0.0, 0.1), (0.0, 0.2), (0.0, 0.3)]
         solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
-        assert mocked.call_count == len(conc_list)
+        assert mocked.call_count == 2*len(conc_list)
 
     assert solution
     solution.plot()
@@ -687,7 +687,7 @@ def test_sim_conc_dep_only_S(setup_cte, mocker):
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         conc_list = [(0.01, 0.3), (0.1, 0.3), (0.3, 0.3)]
         solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
-        assert mocked.call_count == len(conc_list)
+        assert mocked.call_count == 2*len(conc_list)
 
     assert solution
     solution.plot()
@@ -719,7 +719,7 @@ def test_sim_conc_dep_no_plot(setup_cte, mocker):
         sim = simulations.Simulations(setup_cte, full_path=temp_filename)
         conc_list = [(0.01, 0.3), (0.1, 0.3)]
         solution = sim.simulate_concentration_dependence(conc_list, dynamics=False)
-        assert mocked.call_count == len(conc_list)
+        assert mocked.call_count == 2*len(conc_list)
 
     with pytest.warns(plotter.PlotWarning) as warnings:
         solution.plot()

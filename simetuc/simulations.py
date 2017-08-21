@@ -10,7 +10,7 @@ import csv
 import logging
 import warnings
 import os
-from typing import List, Tuple, Iterator, Sequence, cast
+from typing import List, Tuple, Iterator, Sequence, cast, Callable
 import copy
 
 import h5py
@@ -632,6 +632,9 @@ class SolutionList(Sequence[Solution]):
         self.dynamics = False
         self.average = False
 
+        # total time for the simulation of all solutions
+        self.time = 0.0
+
     def __bool__(self) -> bool:
         '''Instance is True if its list is not emtpy.'''
         return len(self.solution_list) != 0
@@ -837,10 +840,78 @@ class ConcentrationDependenceSolution(SolutionList):
             total_error = 0
         return total_error
 
+    def _plot_dynamics(self) -> None:
+        '''Plot the dynamics as function of the concentration'''
+        title = '{}: {}, {}. P={} W/cm²'.format(self[0].cte.lattice['name'],
+                                        self[0].cte.states['sensitizer_ion_label'],
+                                        self[0].cte.states['activator_ion_label'],
+                                        exp_to_10(self[0].power_dens))
+
+        # plot all decay curves together
+        import matplotlib.pyplot as plt
+        color_map = plt.get_cmap('Paired')
+        color_list = [(color_map(num), color_map(num+1)) for num in range(0, 2*len(self), 2)]
+        # plot all concentrations in the same figure
+        single_figure = plotter.new_figure()
+        for color, sol in zip(color_list, self):
+            sol = cast(DynamicsSolution, sol)  # no runtime effect, only for mypy
+
+            # ignore the ground states
+            index_GS_S = 0
+            index_GS_A = sol.cte.states['sensitizer_states']
+
+            list_t_sim = [data[:, 0] if data is not None else sol.t_sol
+                          for data in sol.list_exp_data]
+            list_t_sim = list_t_sim[index_GS_S+1:index_GS_A-1] + list_t_sim[index_GS_A+1:]
+
+            list_data = (sol.list_binned_data[index_GS_S+1:index_GS_A-1] +
+                        sol.list_binned_data[index_GS_A+1:])
+            list_exp_data = (sol.list_exp_data[index_GS_S+1:index_GS_A-1] +
+                             sol.list_exp_data[index_GS_A+1:])
+            list_labels = (sol.state_labels[index_GS_S+1:index_GS_A-1] +
+                           sol.state_labels[index_GS_A+1:])
+
+            plotter.plot_avg_decay_data(list_t_sim, list_data,
+                                        list_exp_data=list_exp_data,
+                                        state_labels=list_labels,
+                                        concentration=sol.concentration,
+                                        colors=color,
+                                        fig=single_figure, title=title)
+
+    def _plot_steady(self) -> None:
+        '''Plot the stady state (emission intensity) as function of the concentration'''
+        sim_data_arr = np.array([np.array(sol.steady_state_populations)
+                                     for sol in self])
+
+        S_states = self[0].cte.states['sensitizer_states']
+        A_states = self[0].cte.states['activator_states']
+        conc_factor_arr = np.array([([float(sol.concentration.S_conc)]*S_states +
+                                     [float(sol.concentration.A_conc)]*A_states)
+                                    for sol in self])
+
+        # multiply the average state populations by the concentration
+        # TODO: is this correct?
+#            sim_data_arr *= conc_factor_arr
+
+        # if all elements of S_conc_l are equal use A_conc to plot and viceversa
+        S_conc_l = [float(sol.concentration.S_conc) for sol in self]
+        A_conc_l = [float(sol.concentration.A_conc) for sol in self]
+        if S_conc_l.count(S_conc_l[0]) == len(S_conc_l):
+            conc_arr = np.array(A_conc_l)
+        elif A_conc_l.count(A_conc_l[0]) == len(A_conc_l):
+            conc_arr = np.array(S_conc_l)
+        else:
+            # do a 2D heatmap otherwise
+            conc_arr = np.array(list(zip(S_conc_l, A_conc_l)))
+
+        # plot
+        state_labels = self[0].state_labels
+        plotter.plot_concentration_dependence(sim_data_arr, conc_arr, state_labels)
+
+
     @log_exceptions_warnings
     def plot(self) -> None:
-        '''Plot the concentration dependence of the emission for all states.
-        '''
+        '''Plot the concentration dependence of the emission for all states.'''
         if len(self) == 0:  # nothing to plot
             logger = logging.getLogger(__name__)
             msg = 'Nothing to plot! The concentration_dependence list is emtpy!'
@@ -855,70 +926,10 @@ class ConcentrationDependenceSolution(SolutionList):
             warnings.warn(msg, plotter.PlotWarning)
             return
 
-        title = '{}: {}, {}. P={} W/cm²'.format(self[0].cte.lattice['name'],
-                                        self[0].cte.states['sensitizer_ion_label'],
-                                        self[0].cte.states['activator_ion_label'],
-                                        exp_to_10(self[0].power_dens))
-
         if self.dynamics is True:
-            # plot all decay curves together
-            import matplotlib.pyplot as plt
-            color_map = plt.get_cmap('Paired')
-            color_list = [(color_map(num), color_map(num+1)) for num in range(0, 2*len(self), 2)]
-            # plot all concentrations in the same figure
-            single_figure = plotter.new_figure()
-            for color, sol in zip(color_list, self):
-                sol = cast(DynamicsSolution, sol)  # no runtime effect, only for mypy
-
-                # ignore the ground states
-                index_GS_S = 0
-                index_GS_A = sol.cte.states['sensitizer_states']
-
-                list_t_sim = [data[:, 0] if data is not None else sol.t_sol
-                              for data in sol.list_exp_data]
-                list_t_sim = list_t_sim[index_GS_S+1:index_GS_A-1] + list_t_sim[index_GS_A+1:]
-
-                list_data = (sol.list_binned_data[index_GS_S+1:index_GS_A-1] +
-                            sol.list_binned_data[index_GS_A+1:])
-                list_exp_data = (sol.list_exp_data[index_GS_S+1:index_GS_A-1] +
-                                 sol.list_exp_data[index_GS_A+1:])
-                list_labels = (sol.state_labels[index_GS_S+1:index_GS_A-1] +
-                               sol.state_labels[index_GS_A+1:])
-
-                plotter.plot_avg_decay_data(list_t_sim, list_data,
-                                            list_exp_data=list_exp_data,
-                                            state_labels=list_labels,
-                                            concentration=sol.concentration,
-                                            colors=color,
-                                            fig=single_figure, title=title)
+            self._plot_dynamics()
         else:
-            sim_data_arr = np.array([np.array(sol.steady_state_populations)
-                                     for sol in self])
-
-            S_states = self[0].cte.states['sensitizer_states']
-            A_states = self[0].cte.states['activator_states']
-            conc_factor_arr = np.array([([float(sol.concentration.S_conc)]*S_states +
-                                         [float(sol.concentration.A_conc)]*A_states)
-                                        for sol in self])
-
-            # multiply the average state populations by the concentration
-            # TODO: is this correct?
-            sim_data_arr *= conc_factor_arr
-
-            # if all elements of S_conc_l are equal use A_conc to plot and viceversa
-            S_conc_l = [float(sol.concentration.S_conc) for sol in self]
-            A_conc_l = [float(sol.concentration.A_conc) for sol in self]
-            if S_conc_l.count(S_conc_l[0]) == len(S_conc_l):
-                conc_arr = np.array(A_conc_l)
-            elif A_conc_l.count(A_conc_l[0]) == len(A_conc_l):
-                conc_arr = np.array(S_conc_l)
-            else:
-                # do a 2D heatmap otherwise
-                conc_arr = np.array(list(zip(S_conc_l, A_conc_l)))
-
-            # plot
-            state_labels = self[0].state_labels
-            plotter.plot_concentration_dependence(sim_data_arr, conc_arr, state_labels)
+            self._plot_steady()
 
 
 class Simulations():
@@ -1054,7 +1065,18 @@ class Simulations():
         return self.simulate_dynamics(average=True)
 
     def simulate_steady_state(self, average: bool = False) -> SteadyStateSolution:
-        ''' Simulates the steady state of the problem
+        '''Check if active excitation(s) is pulsed, use simulate_pulsed_steady_state if so and
+        simulate_steady_state if not.'''
+        logger = logging.getLogger(__name__)
+        for excitation in self.cte.excitations.keys():
+            for exc in self.cte.excitations[excitation]:
+                if exc.active and exc.t_pulse is not None:
+                    logger.info('A pulsed excitation source is active.')
+                    return self.simulate_pulsed_steady_state(average=average)
+        return self.simulate_CW_steady_state(average=average)
+
+    def simulate_CW_steady_state(self, average: bool = False) -> SteadyStateSolution:
+        ''' Simulates the steady state of the problem for a CW source
             Returns a SteadyStateSolution instance
             average=True solves an average rate equation problem instead of the microscopic one.
         '''
@@ -1163,16 +1185,6 @@ class Simulations():
         num_power_steps = len(power_dens_list)
         solutions = []  # type: List[Solution]
 
-        # chekc if active excitation(s) is pulsed, use simulate_pulsed_steady_state if so and
-        # simulate_steady_state if not.
-        steady_state_function = self.simulate_steady_state
-        for excitation in self.cte.excitations.keys():
-            for exc in self.cte.excitations[excitation]:
-                if exc.active and exc.t_pulse is not None:
-                    steady_state_function = self.simulate_pulsed_steady_state
-                    logger.info('A pulsed excitation source is active.')
-                    break
-
         for power_dens in tqdm(power_dens_list, unit='points',
                                total=num_power_steps, disable=self.cte['no_console'],
                                desc='Total progress'):
@@ -1183,7 +1195,7 @@ class Simulations():
             # calculate steady state populations
             with disable_loggers([__name__+'.steady_state', __name__+'.dynamics',
                                   'simetuc.precalculate', 'simetuc.lattice']):
-                steady_sol = steady_state_function(average=average)
+                steady_sol = self.simulate_steady_state(average=average)
             solutions.append(steady_sol)
 
         total_time = time.time()-start_time
@@ -1192,6 +1204,7 @@ class Simulations():
 
         power_dep_solution = PowerDependenceSolution()
         power_dep_solution.add_solutions(solutions)
+        power_dep_solution.time = total_time
 
         return power_dep_solution
 
@@ -1227,7 +1240,7 @@ class Simulations():
 
         for concs, N_uc in zip(tqdm(concentration_list, unit='points',
                           total=num_conc_steps, disable=self.cte['no_console'],
-                          desc='Total progress'), N_uc_list):
+                          desc='Concentrations progress'), N_uc_list):
             # update concentrations and N_uc
             self.cte.lattice['N_uc'] = N_uc
             self.cte.lattice['S_conc'] = concs[0]
@@ -1236,11 +1249,11 @@ class Simulations():
             # simulate
             if dynamics:
                 with disable_loggers([__name__+'.dynamics', 'simetuc.precalculate',
-                                       'simetuc.lattice']):
+                                      'simetuc.lattice']):
                     sol = self.simulate_dynamics(average=average)  # type: Solution
             else:
-                with disable_loggers([__name__+'.steady_state', 'simetuc.precalculate',
-                                       'simetuc.lattice']):
+                with disable_loggers([__name__+'.steady_state', __name__+'.dynamics'
+                                      'simetuc.precalculate', 'simetuc.lattice']):
                     sol = self.simulate_steady_state(average=average)  # pylint: disable=R0204
             solutions.append(sol)
 
@@ -1250,32 +1263,33 @@ class Simulations():
 
         conc_dep_solution = ConcentrationDependenceSolution(dynamics=dynamics)
         conc_dep_solution.add_solutions(solutions)
+        conc_dep_solution.time = total_time
 
         return conc_dep_solution
 
 
-#if __name__ == "__main__":
-#    from simetuc.util import disable_console_handler
-#
-#    logger = logging.getLogger()
-#    logging.basicConfig(level=logging.INFO,
-#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#    logger.info('Called from cmd.')
-#
-#    cte = settings.load('config_file.cfg')
-#
-#    cte['no_console'] = False
-#    cte['no_plot'] = False
-#
-#    sim = Simulations(cte)
-#
-#    with disable_console_handler('simetuc.precalculate'):
-#        pass
+if __name__ == "__main__":
+    from simetuc.util import disable_console_handler
+
+    logger = logging.getLogger()
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+    logger.info('Called from cmd.')
+
+    cte = settings.load('config_file.cfg')
+
+    cte['no_console'] = False
+    cte['no_plot'] = False
+
+    sim = Simulations(cte)
+
+    with disable_console_handler('simetuc.precalculate'):
+        pass
 
 #        solution = sim.simulate_dynamics()
 #        solution.log_errors()
 #        solution.plot()
-#
+
 #    solution.save()
 #    sol = DynamicsSolution.load('results/bNaYF4/dynamics_20uc_0.0S_0.3A.hdf5')
 #    assert solution == sol
@@ -1306,8 +1320,8 @@ class Simulations():
 #        solution = sim.simulate_power_dependence(cte.power_dependence, average=True)
 #        solution.plot()
 
-#        conc_list = [(0.0, 0.1), (0.0, 0.3), (0, 0.5)]#, (0, 1.0)]
-#        N_uc_list = [70, 50, 40]#, 30]
-#        solution = sim.simulate_concentration_dependence(conc_list, N_uc_list, dynamics=True)
-#        solution.log_errors()
-#        solution.plot()
+        conc_list = [(0.0, 0.1), (0.0, 0.3), (0, 0.5), (0, 1.0), (0, 2.0), (0, 3.0), (0, 4.0), (0, 5.0)]
+        N_uc_list = [75, 45, 40, 30, 25, 25, 20, 18]
+        solution = sim.simulate_concentration_dependence(conc_list, N_uc_list, dynamics=False)
+        solution.log_errors()
+        solution.plot()

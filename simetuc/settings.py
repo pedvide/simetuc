@@ -17,7 +17,7 @@ from typing import Dict, List, Tuple, Any, Set
 
 import numpy as np
 
-from settings_parser import Settings, SettingsValueError
+from settings_parser import Settings, SettingsValueError, SettingsExtraValueWarning
 
 from simetuc.util import LabelError, log_exceptions_warnings, temp_config_filename
 from simetuc.util import Transition, Excitation, DecayTransition, IonType, EneryTransferProcess

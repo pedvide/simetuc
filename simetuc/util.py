@@ -17,7 +17,7 @@ from functools import wraps
 import numpy as np
 
 from enum import Enum
-from typing import Generator, Sequence, Callable, Any, Tuple, Dict, List
+from typing import Generator, Sequence, Callable, Any, Tuple, Dict, List, Union
 
 
 # http://stackoverflow.com/a/11892712
@@ -289,32 +289,39 @@ class EneryTransferProcess():
         self.strength = val
 
 
-def log_exceptions_warnings(function: Callable) -> Callable:
+def log_exceptions_warnings(ignore_warns: Union[Callable, Warning, List[Warning]] = None) -> Callable:
     '''Decorator to log exceptions and warnings'''
-    @wraps(function)
-    def wrapper(*args: Tuple, **kwargs: Dict) -> Any:
-        try:
-            with warnings.catch_warnings(record=True) as warn_list:
-                # capture all warnings
-                warnings.simplefilter('always')
-                ret = function(*args, **kwargs)
-        except Exception as exc:
-            logger = logging.getLogger(function.__module__)
-            logger.error(str(exc))
-            raise
-        for warn in warn_list:
-            logger = logging.getLogger(function.__module__)
-            log_msg = (warn.category.__name__ + ': "' + str(warn.message) +
-                       '" in ' + os.path.basename(warn.filename) +
-                       ', line: ' + str(warn.lineno) + '.')
-            logger.warning(log_msg)
-            warn_msg = str(warn.message) + '.'
-            # re-raise warnings
-            # stacklevel=2 makes the warning refer to log_exceptions_warnings‘s caller,
-            # rather than to the source of log_exceptions_warnings() itself
-            warnings.warn(warn_msg, warn.category, stacklevel=2)
-        return ret
-    return wrapper
+    if not isinstance(ignore_warns, List): ignore_warns = [ignore_warns]  # type: ignore
+    def decorator(function: Callable) -> Callable:
+        @wraps(function)
+        def wrapper(*args: Tuple, **kwargs: Dict) -> Any:
+            try:
+                with warnings.catch_warnings(record=True) as warn_list:
+                    # capture all warnings
+                    warnings.simplefilter('always')
+                    ret = function(*args, **kwargs)
+            except Exception as exc:
+                logger = logging.getLogger(function.__module__)
+                logger.error(str(exc))
+                raise
+            for warn in warn_list:
+                if warn.category in ignore_warns: continue  # type: ignore
+                logger = logging.getLogger(function.__module__)
+                log_msg = (warn.category.__name__ + ': "' + str(warn.message) +
+                           '" in ' + os.path.basename(warn.filename) +
+                           ', line: ' + str(warn.lineno) + '.')
+                logger.warning(log_msg)
+                warn_msg = str(warn.message) + '.'
+                # re-raise warnings
+                # stacklevel=2 makes the warning refer to log_exceptions_warnings‘s caller,
+                # rather than to the source of log_exceptions_warnings() itself
+                warnings.warn(warn_msg, warn.category, stacklevel=2)
+            return ret
+        return wrapper
+    if callable(ignore_warns[0]) and not hasattr(ignore_warns[0], 'with_traceback'): # decorator called without parenthesis
+        return decorator(ignore_warns[0]) # return 'wrapper'
+    else: # decorator called with parenthesis
+        return decorator
 
 class Blacklist(logging.Filter):
     def __init__(self, level: int, *blacklist: str) -> None:

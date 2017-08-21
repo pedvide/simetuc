@@ -106,10 +106,10 @@ def _solve_ode(t_arr: np.array,
     # catch numpy warnings and log them
     # DVODE (the internal routine used by the integrator 'vode') will throw a warning
     # if it needs too many steps to solve the ode.
-    with warnings.catch_warnings(), np.errstate(all='raise'), tqdm(total=N_steps, unit='step',
-                                                                   smoothing=0.1,
-                                                                   disable=cmd_bar_disable,
-                                                                   desc='ODE progress') as pbar_cmd:
+    with warnings.catch_warnings(),\
+         np.errstate(invalid='raise', divide='raise', over='raise', under='ignore'),\
+         tqdm(total=N_steps, unit='step', smoothing=0.1,
+              disable=cmd_bar_disable, desc='ODE progress') as pbar_cmd:
         # transform warnings into exceptions that we can catch
         warnings.filterwarnings('error')
         while ode_obj.successful() and step < N_steps:
@@ -118,7 +118,7 @@ def _solve_ode(t_arr: np.array,
                 y_arr[step, :] = ode_obj.integrate(t_arr[step])
                 step += 1
                 pbar_cmd.update(1)
-            except UserWarning as err:  # pragma: no cover
+            except (UserWarning, FloatingPointError) as err:  # pragma: no cover
                 logger.warning(str(err))
                 logger.warning('Most likely the ode solver is taking too many steps.')
                 logger.warning('Either change your settings or increase "nsteps".')
