@@ -25,6 +25,25 @@ import simetuc.settings_config as configs
 
 
 @log_exceptions_warnings
+def _parse_lattice(parsed_settings: Settings) -> Dict:
+    '''Add cell_par, and right values for d_max, d_max_coop and N_uc if radius is given.'''
+    lattice = parsed_settings.lattice.copy()
+    lattice['cell_par'] = []
+    for key in ['a', 'b', 'c', 'alpha', 'beta', 'gamma']:
+        lattice['cell_par'].append(lattice[key])
+
+    lattice['d_max'] = lattice.get('d_max', np.inf)
+    lattice['d_max_coop'] = lattice.get('d_max_coop', np.inf)
+
+    radius = lattice.get('radius', None)
+    if radius:
+        # use enough unit cells for the radius
+        min_param = min(lattice['cell_par'][0:3])
+        lattice['N_uc'] = int(np.ceil(lattice['radius']/min_param))
+
+    return lattice
+
+@log_exceptions_warnings
 def _parse_excitations(dict_states: Dict, dict_excitations: Dict) -> Dict:
     '''Parses the excitation section
         Returns the parsed excitations dict'''
@@ -395,6 +414,8 @@ def load_file(filename: str) -> None:
     with open(filename, 'rt') as file:
         settings['config_file'] = file.read()
 
+    # LATTICE
+    settings.lattice = _parse_lattice(settings)
     # NUMBER OF STATES
     settings.states['sensitizer_states'] = len(settings.states['sensitizer_states_labels'])
     settings.states['activator_states'] = len(settings.states['activator_states_labels'])

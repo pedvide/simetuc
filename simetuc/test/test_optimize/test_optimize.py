@@ -6,6 +6,7 @@ Created on Fri Nov 18 17:22:18 2016
 """
 import pytest
 import numpy as np
+import warnings
 
 from lmfit import Parameters
 
@@ -143,7 +144,8 @@ def test_optim(setup_cte, mocker, method, function, average, processes, excitati
     setup_cte['optimization']['processes'] = processes
     setup_cte['optimization']['excitations'] = excitations
     fun = getattr(optimize, function)
-    with temp_bin_filename() as temp_filename:
+    with warnings.catch_warnings(), temp_bin_filename() as temp_filename:
+        warnings.filterwarnings("ignore", message="divide by zero encountered in double_scalars")
         best_x, min_f, res = fun(setup_cte, average=average, full_path=temp_filename)
 
     assert len(best_x) == len(processes)

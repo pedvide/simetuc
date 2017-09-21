@@ -118,7 +118,9 @@ def test_log_exceptions_warnings_warning(caplog):
     @log_exceptions_warnings
     def raise_warning(arg1, arg2=1):
         warnings.warn(str(arg1) + str(arg2))
-    raise_warning('asd', arg2=6)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="asd6")
+        raise_warning('asd', arg2=6)
     assert len(caplog.records) == 1
     assert caplog.records[0].levelname == 'WARNING'
     assert 'UserWarning: "asd6" in test_util.py' in caplog.text

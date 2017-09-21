@@ -10,7 +10,7 @@ import csv
 import logging
 import warnings
 import os
-from typing import List, Tuple, Iterator, Sequence, cast, Callable
+from typing import List, Tuple, Iterator, Sequence, cast
 import copy
 
 import h5py
@@ -415,16 +415,15 @@ class DynamicsSolution(Solution):
         data = data.clip(min=0)
         return data
 
-    #@profile
     @staticmethod
-    def _correct_background(exp_data: np.array, sim_data: np.array,
-                            offset_points: int = 50) -> np.array:
+    def _get_background(exp_data: np.array, sim_data: np.array,
+                        offset_points: int = 50) -> np.array:
         '''Add the experimental background to the simulated data.
            Returns the same simulated data if there's no exp_data
             expData is already normalized when loaded.
         '''
         if not np.any(exp_data):  # if there's no experimental data, don't do anything
-            return sim_data
+            return 0
         if not np.any(sim_data):  # pragma: no cover
             return None
 
@@ -437,12 +436,20 @@ class DynamicsSolution(Solution):
         else:
             offset = 0
 
-        if np.isnan(offset):  # pragma: no cover
-            sim_data_ofs = sim_data
-        else:  # offset-correct simulated data
-            sim_data_ofs = sim_data+offset
+        if np.isnan(offset) or offset <= 0:  # pragma: no cover
+            offset = 0
+        return offset
 
-        return sim_data_ofs
+    #@profile
+    @staticmethod
+    def _correct_background(exp_data: np.array, sim_data: np.array,
+                            offset_points: int = 50) -> np.array:
+        '''Add the experimental background to the simulated data.
+           Returns the same simulated data if there's no exp_data
+            expData is already normalized when loaded.
+        '''
+        offset = DynamicsSolution._get_background(exp_data, sim_data, offset_points)
+        return sim_data+offset
 
     #@profile
     @staticmethod
@@ -458,8 +465,11 @@ class DynamicsSolution(Solution):
         if t_interp is None:
             t_interp = exp_data[:, 0]
 
+        offset = DynamicsSolution._get_background(exp_data, sim_data, 50)
+
         # create function to interpolate
-        iterp_sim_func = interpolate.interp1d(t_sol, sim_data, fill_value='extrapolate')
+        iterp_sim_func = interpolate.interp1d(t_sol, sim_data,
+                                              bounds_error=False, fill_value=offset)
         # interpolate them to the experimental data times (or the requested times)
         iterp_sim_data = iterp_sim_func(t_interp)
 
@@ -548,6 +558,20 @@ class DynamicsSolution(Solution):
                                     state_labels=list_labels,
                                     list_exp_data=list_exp_data,
                                     colors=self.cte['colors'], title=title)
+
+    def calculate_steady_state(self) -> SteadyStateSolution:
+        '''Returns the steady state solution found by integrating the area under the
+            decay curves.'''
+        t_sol = self.t_sol
+        y_steady = np.array([integrate.cumtrapz(y_state, x=t_sol, initial=0)
+                             for y_state in self.y_sol.T]).T
+
+        # store solution and settings
+        steady_sol = SteadyStateSolution(self.t_sol, y_steady,
+                                         self.index_S_i, self.index_A_j,
+                                         self.cte, average=self.average)
+        steady_sol.time = self.time
+        return steady_sol
 
     def log_errors(self) -> None:
         '''Log errors'''
@@ -883,15 +907,14 @@ class ConcentrationDependenceSolution(SolutionList):
         sim_data_arr = np.array([np.array(sol.steady_state_populations)
                                      for sol in self])
 
-        S_states = self[0].cte.states['sensitizer_states']
-        A_states = self[0].cte.states['activator_states']
-        conc_factor_arr = np.array([([float(sol.concentration.S_conc)]*S_states +
-                                     [float(sol.concentration.A_conc)]*A_states)
-                                    for sol in self])
-
-        # multiply the average state populations by the concentration
-        # TODO: is this correct?
-#            sim_data_arr *= conc_factor_arr
+#        S_states = self[0].cte.states['sensitizer_states']
+#        A_states = self[0].cte.states['activator_states']
+#        conc_factor_arr = np.array([([int(sol.cte.ions['sensitizers'])]*S_states +
+#                                     [int(sol.cte.ions['activators'])]*A_states)
+#                                    for sol in self])
+#        # multiply the average state populations by the concentration
+#        # TODO: is this correct?
+##            sim_data_arr *= conc_factor_arr
 
         # if all elements of S_conc_l are equal use A_conc to plot and viceversa
         S_conc_l = [float(sol.concentration.S_conc) for sol in self]
@@ -979,6 +1002,9 @@ class Simulations():
             raise ValueError(msg)
         return tf_p
 
+    def _get_t_simulation(self) -> float:
+        return (15*np.max(precalculate.get_lifetimes(self.cte))).round(8)  # total simulation time
+
 #    @profile
     def simulate_dynamics(self, average: bool = False) -> DynamicsSolution:
         ''' Simulates the absorption, decay and energy transfer processes contained in cte
@@ -1006,7 +1032,7 @@ class Simulations():
 
         # initial and final times for excitation and relaxation
         t0 = 0
-        tf = (10*np.max(precalculate.get_lifetimes(self.cte))).round(8)  # total simulation time
+        tf = self._get_t_simulation()  # total simulation time
         t0_p = t0
         tf_p = self._get_t_pulse()
         N_steps_pulse = 2
@@ -1101,7 +1127,7 @@ class Simulations():
 
         # initial and final times for excitation and relaxation
         t0 = 0
-        tf = (10*np.max(precalculate.get_lifetimes(self.cte))).round(8)  # total simulation time
+        tf = self._get_t_simulation()  # total simulation time
         t0_p = t0
         tf_p = tf
         N_steps_pulse = self.cte.simulation_params['N_steps']
@@ -1148,19 +1174,8 @@ class Simulations():
     def simulate_pulsed_steady_state(self, average: bool = False) -> SteadyStateSolution:
         '''If the excitation source is pulsed, simulate the dynamics and integrate the area
         under the curves.'''
-
         dyn_sol = self.simulate_dynamics(average=average)
-
-        t_sol = dyn_sol.t_sol
-        y_steady = np.array([integrate.cumtrapz(y_state, x=t_sol, initial=0)
-                             for y_state in dyn_sol.y_sol.T]).T
-
-        # store solution and settings
-        steady_sol = SteadyStateSolution(dyn_sol.t_sol, y_steady,
-                                         dyn_sol.index_S_i, dyn_sol.index_A_j,
-                                         dyn_sol.cte, average=average)
-        steady_sol.time = dyn_sol.time
-        return steady_sol
+        return dyn_sol.calculate_steady_state()
 
     def simulate_avg_pulsed_steady_state(self) -> SteadyStateSolution:
         '''Simulates the steady state of a pulsed average rate equations system,
@@ -1246,15 +1261,13 @@ class Simulations():
             self.cte.lattice['S_conc'] = concs[0]
             self.cte.lattice['A_conc'] = concs[1]
 
-            # simulate
-            if dynamics:
-                with disable_loggers([__name__+'.dynamics', 'simetuc.precalculate',
-                                      'simetuc.lattice']):
+            with disable_loggers([__name__+'.dynamics', __name__+'.steady_state',
+                                  'simetuc.precalculate', 'simetuc.lattice']):
+                # simulate
+                if dynamics:
                     sol = self.simulate_dynamics(average=average)  # type: Solution
-            else:
-                with disable_loggers([__name__+'.steady_state', __name__+'.dynamics'
-                                      'simetuc.precalculate', 'simetuc.lattice']):
-                    sol = self.simulate_steady_state(average=average)  # pylint: disable=R0204
+                else:
+                    sol = self.simulate_steady_state(average=average)
             solutions.append(sol)
 
         total_time = time.time()-start_time
@@ -1286,9 +1299,11 @@ if __name__ == "__main__":
     with disable_console_handler('simetuc.precalculate'):
         pass
 
-#        solution = sim.simulate_dynamics()
-#        solution.log_errors()
-#        solution.plot()
+        solution = sim.simulate_dynamics()
+        solution.log_errors()
+        solution.plot()
+
+#        solution.plot(state=7)
 
 #    solution.save()
 #    sol = DynamicsSolution.load('results/bNaYF4/dynamics_20uc_0.0S_0.3A.hdf5')
@@ -1296,7 +1311,6 @@ if __name__ == "__main__":
 #    sol.log_errors()
 #    sol.plot()
 #
-#    solution.plot(state=7)
 #
 #    solution_avg = sim.simulate_avg_dynamics()
 #    solution_avg.log_errors()
@@ -1315,13 +1329,18 @@ if __name__ == "__main__":
 #    solution_avg = sim.simulate_avg_steady_state()
 #    solution_avg.log_populations()
 #    solution_avg.plot()
-#
-#
+
+
 #        solution = sim.simulate_power_dependence(cte.power_dependence, average=True)
 #        solution.plot()
 
-        conc_list = [(0.0, 0.1), (0.0, 0.3), (0, 0.5), (0, 1.0), (0, 2.0), (0, 3.0), (0, 4.0), (0, 5.0)]
-        N_uc_list = [75, 45, 40, 30, 25, 25, 20, 18]
-        solution = sim.simulate_concentration_dependence(conc_list, N_uc_list, dynamics=False)
-        solution.log_errors()
-        solution.plot()
+#        conc_list = [(0.0, 0.1), (0.0, 0.3), (0, 0.5), (0, 1.0)] #, (0, 2.0), (0, 3.0), (0, 4.0), (0, 5.0)]
+#        N_uc_list = [75, 45, 40, 30]#, 25, 25, 20, 18]
+#        solution = sim.simulate_concentration_dependence(conc_list, N_uc_list, dynamics=True)
+#        solution.log_errors()
+#        solution.plot()
+#
+#        steady_solution = ConcentrationDependenceSolution(dynamics=False)
+#        steady_solution.add_solutions([sol.calculate_steady_state() for sol in solution])
+#        steady_solution.plot()
+

@@ -33,30 +33,16 @@ class LatticeError(Exception):
 @log_exceptions_warnings(ignore_warns=SettingsExtraValueWarning)
 def _check_lattice_settings(cte: settings.Settings) -> None:
     '''Checks that the settings for the lattice are correct.'''
-    cte_lattice = cte.lattice
 
     # parse the settings to catch any errors due to wrong magnitude of a setting
     try:
         # validate lattice settings
         settings_lattice = configs.settings['lattice']
         settings_lattice.validate(cte.lattice)
+        cte.lattice = settings._parse_lattice(cte)
+        cte_lattice = cte.lattice
     except (SettingsValueError, ConfigError) as err:
         raise LatticeError('Wrong lattice settings.') from err
-
-    # modify some values
-    # this should go to lattice.py
-    cte_lattice['cell_par'] = []
-    for key in ['a', 'b', 'c', 'alpha', 'beta', 'gamma']:
-        cte_lattice['cell_par'].append(cte_lattice[key])
-
-    cte_lattice['d_max'] = cte_lattice.get('d_max', np.inf)
-    cte_lattice['d_max_coop'] = cte_lattice.get('d_max_coop', np.inf)
-
-    radius = cte.lattice.get('radius', None)
-    if radius:
-        # use enough unit cells for the radius
-        min_param = min(cte_lattice['cell_par'][0:3])
-        cte_lattice['N_uc'] = int(np.ceil(cte_lattice['radius']/min_param))
 
     # sites pos and occs are always lists of lists and lists, respectively
     sites_pos = cte_lattice['sites_pos']

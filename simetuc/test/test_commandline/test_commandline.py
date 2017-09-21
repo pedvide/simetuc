@@ -104,7 +104,7 @@ def test_cli_save_txt(mocker, no_logging):
     commandline.main(ext_args)
     assert mocked_sim.call_count == 1
 
-option_list = ['processes: [CR50]\nmethod: SLSQP', '']
+option_list = ['processes: [CR50]\n    method: SLSQP', '']
 @pytest.mark.parametrize('option', option_list, ids=['method=SLSQP', 'no_processes'])
 def test_cli_optim_options(mocker, no_logging, option):
     '''Test that the optimization works with the optimization method'''

@@ -32,6 +32,7 @@ def setup_cte():
                          'beta': 90.0,
                          'c': 3.5297,
                          'gamma': 120.0,
+                         'cell_par': [5.9738, 5.9738, 3.5297, 90.0, 90.0, 120.0],
                          'd_max': 100.0,
                          'd_max_coop': 25.0,
                          'name': 'bNaYF4',
@@ -396,6 +397,8 @@ lattice:
 def test_lattice_dmax():
     data = data_lattice_full + '''    d_max: 100.0
     d_max_coop: 25.0'''
+
+    data = data.replace('version: 1', '')
 
     confs = Settings({'lattice': settings.configs.settings['lattice']})
     with temp_config_filename(data) as filename:
