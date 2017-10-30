@@ -23,6 +23,7 @@ prompt (cmd.exe for Windows, shell for Linux and Mac):
     conda config --add channels conda-forge
     conda config --add channels pedvide
     conda install simetuc
+    pip install settings_parser
 
 (The first two commands add packages repositories with up-to-date
 versions of all needed packages.)
@@ -120,9 +121,6 @@ TODO
 -  [ ] Add pressure dependence option: Change the distances of the
    lattice and simulate dynamics or steady-state.
 -  [ ] Read experimental data in more formats.
--  [x] Add cooperative sensitization (work in progress).
--  [ ] Include pulse frequency for steady state simulations using a non
-   cw laser
 
 Bugs/Requests
 -------------
@@ -150,7 +148,7 @@ Acknowledgments
 ---------------
 
 The financial support of the EU FP7 ITN LUMINET (Grant agreement No.
-316906) is gratefully acknowledged.
+316906) and the SNSF (grant number: P2BEP2_172238) are gratefully acknowledged.
 
 This work was started at the University of Cantabria under Prof. Rafael
 Valiente, continued at the University of Bern under PD Dr. Karl Krämer

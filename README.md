@@ -21,6 +21,7 @@ After installing Anaconda execute the following commands at the command prompt (
     conda config --add channels conda-forge
     conda config --add channels pedvide
     conda install simetuc
+    pip install settings_parser
 (The first two commands add packages repositories with up-to-date versions of all needed packages.)
 
 or
@@ -85,8 +86,6 @@ See the [manual](docs/manual/simetuc_user_manual.pdf).
 
  - [ ] Add pressure dependence option: Change the distances of the lattice and simulate dynamics or steady-state.
  - [ ] Read experimental data in more formats.
- - [x] Add cooperative sensitization (work in progress).
- - [ ] Include pulse frequency for steady state simulations using a non cw laser
 
 ## Bugs/Requests
 
@@ -103,7 +102,7 @@ If you use this software in a scientific publication, please cite the appropriat
 
 ## Acknowledgments
 
-The financial support of the EU FP7 ITN LUMINET (Grant agreement No. 316906) is gratefully acknowledged.
+The financial support of the EU FP7 ITN LUMINET (Grant agreement No. 316906) and the SNSF (grant number: P2BEP2_172238) are gratefully acknowledged.
 
 This work was started at the University of Cantabria under Prof. Rafael Valiente, continued at the University of Bern under PD Dr. Karl Krämer and then at the Utrecht University under Prof. Andries Meijerink.
 

@@ -412,6 +412,11 @@ conda config --add channels pedvide
 conda install simetuc
 \end_layout
 
+\begin_layout Plain Layout
+
+pip install settings_parser
+\end_layout
+
 \end_inset
 
 
@@ -2300,6 +2305,15 @@ SLSQP
 \family default
  minimizes the error using a method similar to Newton-Raphson, which iteratively
  tries to find the parameter values that make the gradient zero.
+\begin_inset Newline newline
+\end_inset
+
+
+\family typewriter
+COBYLA
+\family default
+ does not calculate the gradient, so it may be faster when the number of
+ parameters is large.
 \end_layout
 
 \begin_layout Standard
@@ -2478,14 +2492,22 @@ Concentration dependence
 \end_layout
 
 \begin_layout Standard
-This section is mandatory only if a concentration dependence simulation
- is performed.
- It consists of a list of two lists; the first list gives the sensitizer
- concentrations at which the simulation will take place, the second gives
- the same for the activators.
+This section is mandatory only for concentration dependence simulations
+ or for an optimization of all concentrations at the same time (see Section
+ 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Optimizing-the-ET-params"
+
+\end_inset
+
+).
 \end_layout
 
-\begin_layout Standard
+\begin_layout Description
+concentrations is a list of two lists; the first list gives the sensitizer
+ concentrations at which the simulation will take place, the second gives
+ the same for the activators.
 \begin_inset listings
 inline false
 status open
@@ -2497,15 +2519,8 @@ concentration_dependence: [[0, 0.5], [0.1, 0.2, 0.3, 0.4, 0.5]]
 
 \end_inset
 
-
-\end_layout
-
-\begin_layout Standard
 The concentration of either ion can also be fixed, so only the other ion
  changes:
-\end_layout
-
-\begin_layout Standard
 \begin_inset listings
 inline false
 status open
@@ -2520,21 +2535,48 @@ concentration_dependence: [[0], [0.1, 0.2, 0.3, 0.4, 0.5]]
 
 \end_layout
 
-\begin_layout Standard
-Note that everything else will remain constant; therefore, if the number
- of unit cells is not high enough, at lower concentrations the quality of
- the simulation may be low.
- If the concentration is too high then the simulation may take a long time;
- in this case it is recommended to split the simulation in two, with a higher
- number of unit cells for the lower concentrations and vice versa.
- See also Section 
+\begin_layout Description
+N_uc_list is a list of numbers of unit cells (see Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "sec:Simulating-the-concentration-dep"
+reference "subsec:Lattice"
 
 \end_inset
 
-.
+).
+ The different concentrations require different 
+\family typewriter
+N_uc
+\family default
+ to keep the number of simulated ions at a reasonable number.
+ Using the same N_uc for 0.1% and 10% concentrations either wastes time for
+ the 0.1% sample or simulates it with very few ions.
+ This list should be as long as the total number of concentrations, which
+ is given by the product of the length of S and A concentrations (
+\begin_inset Formula $2\times5=10$
+\end_inset
+
+ for the first example, 
+\begin_inset Formula $1\times5=5$
+\end_inset
+
+ for the second).
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+N_uc_list: [75, 45, 45, 30]
+\end_layout
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Section
@@ -3210,7 +3252,7 @@ reference "fig:Dynamics-simulation"
 \begin_inset Float figure
 wide false
 sideways false
-status collapsed
+status open
 
 \begin_layout Plain Layout
 \align center
@@ -3736,12 +3778,12 @@ brute_force
  method, update the configuration file with its results, and then run the
  optimization again with the 
 \family typewriter
-SLSQP
+leastsq
 \family default
  method, see Section 
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "subsec:Optimization-Method"
+reference "subsec:Optimization-Processes"
 
 \end_inset
 
@@ -3749,10 +3791,35 @@ reference "subsec:Optimization-Method"
 \end_layout
 
 \begin_layout Standard
+If there is data for different concentrations, it is possible to optimize
+ the parameters by calculating the error for all concentrations:
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+simetuc config_file.txt -o conc
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+This will simulate all concentrations, combine their errors and minimize
+ it.
+\end_layout
+
+\begin_layout Standard
 \begin_inset Float figure
 wide false
 sideways false
-status open
+status collapsed
 
 \begin_layout Plain Layout
 \align center
@@ -4797,13 +4864,14 @@ Acknowledgments
 
 \begin_layout Standard
 The financial support of the EU FP7 ITN LUMINET (Grant agreement No.
- 316906) is gratefully acknowledged.
+ 316906) and the SNSF (grant number: P2BEP2_172238) are gratefully acknowledged.
 \end_layout
 
 \begin_layout Standard
 This work was started at the University of Cantabria under Prof.
- Rafael Valiente and continued at the University of Bern under PD Dr.
- Karl Krämer.
+ Rafael Valiente, continued at the University of Bern under PD Dr.
+ Karl Krämer and then at the Utrecht University under Prof.
+ Andries Meijerink.
 \end_layout
 
 \begin_layout Chapter
