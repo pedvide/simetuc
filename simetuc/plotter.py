@@ -87,7 +87,7 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
         # no exp data: either a GS or simply no exp data available
         if exp_data is 0 or exp_data is None:
             # nonposy='clip': clip non positive values to a very small positive number
-            axes.semilogy(t_sim*1000, sim_data, color=sim_color, label=state_label, nonposy='clip')
+            axes.semilogy(t_sim*1000, sim_data, color=sim_color, label=state_label)
             axes.set_yscale('log', nonposy='clip')
             axes.axis('tight')
             axes.set_xlim(left=t_sim[0]*1000.0)
@@ -146,8 +146,8 @@ def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
     ax = fig.add_subplot(1,1,1)
 
     # nonposy='clip': clip non positive values to a very small positive number
-    ax.semilogy(t_sol*1000, sim_data_array, 'k', nonposy='clip')
-    ax.semilogy(t_sol*1000, avg_sim, 'r', nonposy='clip', linewidth=5)
+    ax.semilogy(t_sol*1000, sim_data_array, 'k')
+    ax.semilogy(t_sol*1000, avg_sim, 'r', linewidth=5)
     plt.yscale('log', nonposy='clip')
     plt.axis('tight')
     plt.xlim(xmin=0.0)
@@ -234,7 +234,7 @@ def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray
         ax = fig.add_subplot(num_rows, num_cols, num+1)
 
         if not heatmap:
-            ax.plot(conc_arr, sim_data, '.-r', mfc='k', ms=10, label=state_label)
+            ax.semilogy(conc_arr, sim_data, '.-r', mfc='k', ms=10, label=state_label)
             plt.axis('tight')
             margin_factor = np.array([0.9, 1.1])
             plt.ylim(*np.array(plt.ylim())*margin_factor)  # add some white space on top
@@ -243,9 +243,9 @@ def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray
             plt.legend(loc="best")
             plt.xlabel('Concentration (%)')
             # change axis format to scientifc notation
-            xfmt = plt.ScalarFormatter(useMathText=True)
-            xfmt.set_powerlimits((-1, 1))
-            ax.yaxis.set_major_formatter(xfmt)
+#            xfmt = plt.ScalarFormatter(useMathText=True)
+#            xfmt.set_powerlimits((-1, 1))
+#            ax.yaxis.set_major_formatter(xfmt)
         else:
             x, y = conc_arr[:, 0], conc_arr[:, 1]
             z = sim_data
