@@ -145,7 +145,7 @@ class Solution():
         state_labels = sensitizer_labels + activator_labels
         return state_labels
 
-    @property
+    @cached_property
     def errors(self) -> np.array:
         '''List of root-square-deviation between experiment and simulation
             for each state in the solution
@@ -169,7 +169,7 @@ class Solution():
         for excitation in self.cte.excitations.keys():  # pragma: no branch
             if self.cte.excitations[excitation][0].active:
                 return self.cte.excitations[excitation][0].power_dens
-        raise AttributeError('This Solution has no power_dens attribute!') # pragma: no cover
+        raise AttributeError('This Solution has no power_dens attribute!')  # pragma: no cover
 
     @cached_property
     def concentration(self) -> Conc:
@@ -302,7 +302,15 @@ class SteadyStateSolution(Solution):
 
     def _calculate_final_populations(self) -> List[float]:
         '''Calculate the final population for all states after a steady state simulation'''
-        return [curve[-1] for curve in self.list_avg_data]
+        S_states = self.cte.states['sensitizer_states']
+        S_conc = self.cte.lattice['S_conc']
+        A_states = self.cte.states['activator_states']
+        A_conc = self.cte.lattice['A_conc']
+        conc_factor_arr = np.array([S_conc]*S_states + [A_conc]*A_states)
+        # multiply the average state populations by the concentration (number of ions)
+        sim_data_arr = np.array([curve[-1] for curve in self.list_avg_data])*conc_factor_arr
+
+        return sim_data_arr
 
     @cached_property
     def steady_state_populations(self) -> List[float]:
@@ -425,7 +433,7 @@ class DynamicsSolution(Solution):
         if not np.any(exp_data):  # if there's no experimental data, don't do anything
             return 0
         if not np.any(sim_data):  # pragma: no cover
-            return None
+            return 0
 
         # eliminate zeros before calculating background
         count_data = exp_data[:,1]
@@ -436,7 +444,7 @@ class DynamicsSolution(Solution):
         else:
             offset = 0
 
-        if np.isnan(offset) or offset <= 0:  # pragma: no cover
+        if np.isnan(offset) or offset <= 0 or not offset:  # pragma: no cover
             offset = 0
         return offset
 
@@ -486,7 +494,7 @@ class DynamicsSolution(Solution):
             return None
 
         exp_time = exp_data[:, 0]
-        bin_time = np.linspace(exp_time[0], exp_time[-1], 10*len(exp_time))
+        bin_time = np.linspace(exp_time[0], exp_time[-1], len(exp_time))
         bin_sums, _, _ = stats.binned_statistic(bin_time, sim_data,
                                                 statistic='sum', bins=len(exp_time))
 #        print(bin_sums, bin_edges, binnumber)
@@ -500,13 +508,26 @@ class DynamicsSolution(Solution):
         list_sim_data = self.list_interp_data
 
         # calculate the relative mean square deviation
-        # error = 1/mean(y)*sqrt(sum( (y-yexp)^2 )/N )
-        rmdevs = [(sim-exp[:, 1]*np.max(sim))**2
-                  if (exp is not None) and (sim is not None) else 0
-                  for (sim, exp) in zip(list_sim_data, self.list_exp_data)]
+        # we divide by the mean(ysim) so that errors from different states
+        # with very different populations can be compared
+        # otherwise the highest populated states (usually not UC states)
+        # would dominate the total error
+
+        # rel error = 1/mean(ysim)*sqrt(1/N*sum([(ysim-yexp)/ysim]^2))
+#        rel_rmdevs = [((sim-exp[:, 1]*np.max(sim))/sim)**2
+#                      if exp is not None else None
+#                      for sim, exp in zip(list_sim_data, self.list_exp_data)]
+#        errors = [1/np.mean(sim)*np.sqrt(1/len(sim)*np.sum(rel_rmdev))
+#                  if rel_rmdev is not None else 0
+#                  for rel_rmdev, sim in zip(rel_rmdevs, list_sim_data)]
+
+        # abs error = 1/mean(ysim)*sqrt(1/N*sum( (ysim-yexp)^2 ))
+        rmdevs = [((sim-exp[:, 1]*np.max(sim)))**2
+                      if (exp is not None) and (sim is not None) else None
+                      for sim, exp in zip(list_sim_data, self.list_exp_data)]
         errors = [1/np.mean(sim)*np.sqrt(1/len(sim)*np.sum(rmdev))
-                  if rmdev is not 0 else 0
-                  for (rmdev, sim) in zip(rmdevs, list_sim_data)]
+                  if rmdev is not None else 0
+                  for rmdev, sim in zip(rmdevs, list_sim_data)]
         errors = np.array(errors)
 
         return errors
@@ -625,7 +646,7 @@ class DynamicsSolution(Solution):
         def bin_time(expdata: np.array) -> np.array:
             '''Return a vector with the same expdata time but with 10x the number of points.'''
             if expdata is not None:
-                return np.linspace(expdata[0, 0], expdata[-1, 0], 10*len(expdata[:, 0]))
+                return np.linspace(expdata[0, 0], expdata[-1, 0], len(expdata[:, 0]))
 
         list_interp_data = [DynamicsSolution._interpolate_sim_data(expData, simData, self.t_sol,
                                                                    bin_time(expData))
@@ -634,7 +655,7 @@ class DynamicsSolution(Solution):
 
         list_binned_data = [DynamicsSolution._bin_sim_data(exp_data, sim_data)
                             for exp_data, sim_data in zip(self.list_exp_data, list_interp_data)]
-        return list_binned_data
+        return self.list_interp_data
 
     @cached_property
     def list_exp_data(self) -> List[np.array]:
@@ -849,7 +870,7 @@ class ConcentrationDependenceSolution(SolutionList):
         '''List of root-square-deviation between experiment and simulation
             for each state in the solution
         '''
-        error_list = np.array([sol.errors**2 for sol in self.solution_list])
+        error_list = np.array([sol.errors**2 for sol in self])
         if np.any(error_list):
             return np.sum(error_list, axis=0)
         else:
@@ -904,8 +925,7 @@ class ConcentrationDependenceSolution(SolutionList):
 
     def _plot_steady(self) -> None:
         '''Plot the stady state (emission intensity) as function of the concentration'''
-        sim_data_arr = np.array([np.array(sol.steady_state_populations)
-                                     for sol in self])
+        sim_data_arr = np.array([np.array(sol.steady_state_populations) for sol in self])
 
 #        S_states = self[0].cte.states['sensitizer_states']
 #        A_states = self[0].cte.states['activator_states']
