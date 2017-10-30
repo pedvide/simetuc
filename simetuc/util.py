@@ -17,7 +17,7 @@ from functools import wraps
 import numpy as np
 
 from enum import Enum
-from typing import Generator, Sequence, Callable, Any, Tuple, Dict, List, Union
+from typing import Generator, Sequence, Callable, Any, Tuple, Dict, List, Union, Optional
 
 
 # http://stackoverflow.com/a/11892712
@@ -53,7 +53,7 @@ class cached_property():
     accessed many times. Sort of like memoization.
     http://stackoverflow.com/a/6429334
     '''
-    def __init__(self, method: Callable, name: str = None) -> None:
+    def __init__(self, method: Callable, name: Optional[str] = None) -> None:
         '''Record the unbound-method and the name'''
         self.method = method
         self.name = name or method.__name__
@@ -109,7 +109,7 @@ class Transition():
         return '{}({}: {}->{})'.format(self.__class__.__name__, self.repr_ion,
                                        self.repr_state_i, self.repr_state_f)
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: object) -> Union[bool, Any]:
         '''Two Transitions are equal if all their attributes are equal.'''
         if not isinstance(other, Transition):
             return NotImplemented
@@ -130,7 +130,7 @@ class Transition():
 class DecayTransition(Transition):
     '''Decay or branching ratio transition.'''
     def __init__(self, ion: IonType, state_i: int, state_f: int,
-                 decay_rate: float = None, branching_ratio: float = None,
+                 decay_rate: Optional[float] = None, branching_ratio: Optional[float] = None,
                  label_ion: str = '', label_i: str = '', label_f: str = '') -> None:
         super(DecayTransition, self).__init__(ion, state_i, state_f, label_ion, label_i, label_f)
         self.decay_rate = decay_rate
@@ -153,7 +153,7 @@ class DecayTransition(Transition):
             info = ''
         return base_repr.replace(')', '') + '{})'.format(info)
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: object) -> Union[bool, Any]:
         '''Comparing DecayTransitions checks all attributes.
             Comparing to a Transition only checks the common attributes.'''
         # comparing DecayTransitions checks all attributes
@@ -181,12 +181,15 @@ class DecayTransition(Transition):
         return hash((self.ion, self.state_i, self.state_f))
 
     @property
-    def value(self) -> float:
+    def value(self) -> Optional[float]:
         '''Returns the value associated with this DecayTransition'''
         if self.decay_rate is not None:
             return self.decay_rate  # pragma: no cover
-        else:
+        elif self.branching_ratio is not None:
             return self.branching_ratio
+        else:
+            return None
+
 
     @value.setter
     def value(self, value: float) -> None:
@@ -201,7 +204,7 @@ class Excitation():
     '''Excitation transition, with all the parameters.'''
     def __init__(self, ion: IonType, state_i: int, state_f: int,
                  active: bool, degeneracy: float, pump_rate: float,
-                 power_dens: float, t_pulse: float = None,
+                 power_dens: float, t_pulse: Optional[float] = None,
                  label_ion: str = '', label_i: str = '', label_f: str = '') -> None:
         self.transition = Transition(ion, state_i, state_f, label_ion, label_i, label_f)
         self.active = active
@@ -215,7 +218,7 @@ class Excitation():
         active = 'active' if self.active else 'inactive'
         return base_repr.replace(')', '') + ', {})'.format(active)
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: object) -> Union[bool, Any]:
         '''Two settings are equal if all their attributes are equal.'''
         if not isinstance(other, Excitation):
             return NotImplemented
@@ -232,7 +235,7 @@ class Excitation():
 class EneryTransferProcess():
     '''Information about an energy transfer process'''
     def __init__(self, transitions: Sequence[Transition],
-                 mult: int, strength: float, strength_avg: float = None,
+                 mult: int, strength: float, strength_avg: Optional[float] = None,
                  name: str = '') -> None:
         self.transitions = tuple(transitions)
         self.mult = int(mult)
@@ -254,7 +257,7 @@ class EneryTransferProcess():
         return 'ETProcess({}->{}, n={:d}, C={:.2g})'.format(init_states, final_states,
                                                           self.mult, self.strength)
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: object) -> Union[bool, Any]:
         '''Two ET processes are equal if all their attributes are equal.'''
         if not isinstance(other, EneryTransferProcess):
             return NotImplemented
@@ -289,7 +292,8 @@ class EneryTransferProcess():
         self.strength = val
 
 
-def log_exceptions_warnings(ignore_warns: Union[Callable, Warning, List[Warning]] = None) -> Callable:
+def log_exceptions_warnings(ignore_warns: Union[Callable, Warning,
+                                                List[Warning], None] = None) -> Callable:
     '''Decorator to log exceptions and warnings'''
     if not isinstance(ignore_warns, List): ignore_warns = [ignore_warns]  # type: ignore
     def decorator(function: Callable) -> Callable:

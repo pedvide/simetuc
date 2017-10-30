@@ -21,6 +21,8 @@ from scipy.integrate import ode
 # nice progress bar
 from tqdm import tqdm
 
+### TODO: USE scipy.integrate.solve_ivp
+
 
 def _rate_eq(t: np.array, y: np.array, decay_matrix: np.array,
              UC_matrix: np.array, N_indices: np.array,

@@ -5,7 +5,6 @@ Created on Sun Oct 16 11:53:51 2016
 @author: Villanueva
 """
 
-# TODO: INCLUDE PULSE FREQUENCY IN STEADY STATE FOR NON CW-LASER EXCITATION
 # notTODO: INCLUDE .CIF FILE GENERATION OF LATTICE -> doesn't work with multiple sites...
 # TODO: cooperative sensitization: in progress: SSA works for up and downconversion
 
@@ -17,7 +16,7 @@ import argparse
 import pprint
 import os
 from pkg_resources import resource_string
-from typing import Any, Union, List
+from typing import Any, Union, List, Optional
 
 #import numpy as np
 import matplotlib.pyplot as plt
@@ -127,7 +126,7 @@ def _setup_logging(console_level: int) -> None:
     logger.debug(pprint.pformat(log_settings))
 
 
-def main(ext_args: List[str] = None) -> None:
+def main(ext_args: Optional[List[str]] = None) -> None:
     '''Main entry point for the command line interface'''
     if ext_args is None:  # pragma: no cover
         args = parse_args(sys.argv[1:])  # skip the program name
@@ -164,7 +163,9 @@ def main(ext_args: List[str] = None) -> None:
     cte['no_plot'] = no_plot
 
     # solution of the simulation
-    solution = None  # type: Union[simulations.Solution, simulations.SolutionList]
+    solution = None  # type: Union[simulations.Solution, simulations.SolutionList, None]
+#    solution = simulations.Solution([], [], [], [], cte)
+#    solution : Union[simulations.Solution, simulations.SolutionList]
 
     # choose what to do
     if args.lattice:  # create lattice
