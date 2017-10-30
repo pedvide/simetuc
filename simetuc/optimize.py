@@ -32,8 +32,8 @@ def optim_fun(function: Callable, params: Parameters, sim: simulations.Simulatio
     # if the user didn't select several excitations to optimize, use the active one
     # otherwise, go through all requested exitations and calculate errors
     if not sim.cte.optimization.get('excitations', False):
-        dynamics_sol = function()
-        return dynamics_sol.errors
+        solution = function()
+        return solution.errors
     else:
         # first switch off all excitations
         for exc_lst in sim.cte.excitations.values():
@@ -46,16 +46,16 @@ def optim_fun(function: Callable, params: Parameters, sim: simulations.Simulatio
         for exc_label in sim.cte.optimization['excitations']:
             # switch on one excitation, solve and switch off again
             sim.cte.excitations[exc_label][0].active = True
-            dynamics_sol = function()
+            solution = function()
             sim.cte.excitations[exc_label][0].active = False
-            total_errors += dynamics_sol.errors**2
+            total_errors += solution.errors**2
         return np.sqrt(total_errors)
 
 def optim_fun_dynamics(params: Parameters, sim: simulations.Simulations,
                        average: bool = False) -> np.array:
     '''Update parameter values, simulate dynamics and return error vector'''
     function = functools.partial(sim.simulate_dynamics, average=average)
-    return optim_fun(function, params, sim)  # type: ignore
+    return optim_fun(function, params, sim)
 
 def optim_fun_dynamics_conc(params: Parameters, sim: simulations.Simulations,
                             average: bool = False) -> np.array:
@@ -64,7 +64,7 @@ def optim_fun_dynamics_conc(params: Parameters, sim: simulations.Simulations,
                                  sim.cte.concentration_dependence['concentrations'],
                                  sim.cte.concentration_dependence['N_uc_list'],
                                  dynamics=True)
-    return optim_fun(function, params, sim)  # type: ignore
+    return optim_fun(function, params, sim)
 
 
 def setup_optim(cte: settings.Settings) -> Tuple[str, Parameters, dict]:
@@ -131,7 +131,9 @@ def optimize(function: Callable, cte: settings.Settings, average: bool = False,
         if not cte['no_console']:
             val_list = ', '.join('{:.3e}'.format(par.value) for par in params.values())
             error =  np.sqrt((resid*resid).sum())
-            msg = '{},\t\t{:.4e},\t[{}]'.format(iter_num, error, val_list)
+            msg = '{}, \t\t{}, \t{:.4e},\t[{}]'.format(iter_num,
+                                                       datetime.datetime.now().strftime('%H:%M:%S'),
+                                                       error, val_list)
             tqdm.tqdm.write(msg)
             logger.info(msg)
 
@@ -146,7 +148,7 @@ def optimize(function: Callable, cte: settings.Settings, average: bool = False,
 
     optim_progbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
     param_names = ', '.join(name for name in parameters.keys())
-    tqdm.tqdm.write('Iter num\tRMSD\t\tParameters ({})'.format(param_names))
+    tqdm.tqdm.write('Iter num\tTime\t\tRMSD\t\tParameters ({})'.format(param_names))
     minimizer = Minimizer(function, parameters, fcn_args=(sim, average),
                           iter_cb=callback_fun)
     # minimize logging only warnings or worse to console.
@@ -202,7 +204,9 @@ def optimize_concentrations(cte: settings.Settings,
 if __name__ == "__main__":
     logger = logging.getLogger()
     logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                        handlers=[logging.FileHandler("logs/optim.log"),
+                                  logging.StreamHandler()])
 
     logger.debug('Called from cmd.')
 
@@ -218,7 +222,7 @@ if __name__ == "__main__":
 
 
     best_x, min_f, res = optimize_concentrations(cte)
-
+#
 #    # confidence intervals VERY SLOW
 #    from lmfit import conf_interval, printfuncs
 #    with disable_loggers(['simetuc.simulations', 'simetuc.precalculate', 'simetuc.lattice']):
