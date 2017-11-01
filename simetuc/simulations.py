@@ -186,10 +186,15 @@ class Solution():
                 exp_to_10(self.power_dens))
         index_GS_S = 0
         index_GS_A = self.cte.states['sensitizer_states']
-        list_data = (self.list_avg_data[index_GS_S+1:index_GS_A-1] +
-                     self.list_avg_data[index_GS_A+1:])
-        list_labels = (self.state_labels[index_GS_S+1:index_GS_A-1] +
-                       self.state_labels[index_GS_A+1:])
+        # exclude the ground states from the plot
+        list_data = [elem for num, elem in enumerate(self.list_avg_data)
+                     if num not in {index_GS_S, index_GS_A}]
+        list_labels = [elem for num, elem in enumerate(self.state_labels)
+                       if num not in {index_GS_S, index_GS_A}]
+#        list_data = (self.list_avg_data[index_GS_S+1:index_GS_A-1] +
+#                     self.list_avg_data[index_GS_A+1:])
+#        list_labels = (self.state_labels[index_GS_S+1:index_GS_A-1] +
+#                       self.state_labels[index_GS_A+1:])
         plotter.plot_avg_decay_data(self.t_sol, list_data,
                                     state_labels=list_labels, colors=self.cte['colors'],
                                     title=title)
@@ -566,16 +571,18 @@ class DynamicsSolution(Solution):
         index_GS_A = self.cte.states['sensitizer_states']
 
         list_t_sim = [data[:, 0] if data is not None else self.t_sol for data in self.list_exp_data]
-        list_t_sim = list_t_sim[index_GS_S+1:index_GS_A-1] + list_t_sim[index_GS_A+1:]
+        list_t_sim = [elem for num, elem in enumerate(list_t_sim)
+                       if num not in {index_GS_S, index_GS_A}]
 
-        list_data = (self.list_binned_data[index_GS_S+1:index_GS_A-1] +
-                     self.list_binned_data[index_GS_A+1:])
-        list_exp_data = (self.list_exp_data[index_GS_S+1:index_GS_A-1] +
-                         self.list_exp_data[index_GS_A+1:])
-        list_labels = (self.state_labels[index_GS_S+1:index_GS_A-1] +
-                       self.state_labels[index_GS_A+1:])
+        # exclude the ground states from the plot
+        list_sim_data = [elem for num, elem in enumerate(self.list_binned_data)
+                     if num not in {index_GS_S, index_GS_A}]
+        list_exp_data = [elem for num, elem in enumerate(self.list_exp_data)
+                       if num not in {index_GS_S, index_GS_A}]
+        list_labels = [elem for num, elem in enumerate(self.state_labels)
+                       if num not in {index_GS_S, index_GS_A}]
 
-        plotter.plot_avg_decay_data(list_t_sim, list_data,
+        plotter.plot_avg_decay_data(list_t_sim, list_sim_data,
                                     state_labels=list_labels,
                                     list_exp_data=list_exp_data,
                                     colors=self.cte['colors'], title=title)
@@ -655,7 +662,7 @@ class DynamicsSolution(Solution):
 
         list_binned_data = [DynamicsSolution._bin_sim_data(exp_data, sim_data)
                             for exp_data, sim_data in zip(self.list_exp_data, list_interp_data)]
-        return self.list_interp_data
+        return list_binned_data
 
     @cached_property
     def list_exp_data(self) -> List[np.array]:
@@ -1274,7 +1281,7 @@ class Simulations():
         solutions = []  # type: List[Solution]
 
         for concs, N_uc in zip(tqdm(concentration_list, unit='points',
-                          total=num_conc_steps, disable=self.cte['no_console'],
+                          total=num_conc_steps, disable=False,
                           desc='Concentrations progress'), N_uc_list):
             # update concentrations and N_uc
             self.cte.lattice['N_uc'] = N_uc
@@ -1309,7 +1316,7 @@ if __name__ == "__main__":
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
     logger.info('Called from cmd.')
 
-    cte = settings.load('config_file.cfg')
+    cte = settings.load('config_file_Yb_Tm.cfg')
 
     cte['no_console'] = False
     cte['no_plot'] = False
@@ -1355,7 +1362,7 @@ if __name__ == "__main__":
 #        solution.plot()
 
 #        conc_list = [(0.0, 0.1), (0.0, 0.3), (0, 0.5), (0, 1.0)] #, (0, 2.0), (0, 3.0), (0, 4.0), (0, 5.0)]
-#        N_uc_list = [75, 45, 40, 30]#, 25, 25, 20, 18]
+#        N_uc_list = [75, 45, 45, 30]#, 25, 25, 20, 18]
 #        solution = sim.simulate_concentration_dependence(conc_list, N_uc_list, dynamics=True)
 #        solution.log_errors()
 #        solution.plot()

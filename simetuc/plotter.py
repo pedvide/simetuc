@@ -80,10 +80,16 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
     for sim_data, t_sim, exp_data, state_label, axes\
         in zip(list_sim_data, list_t_sim, list_exp_data, state_labels, list_axes):
 
+        # set the title to invisible, so when editing the matplotlib window the user
+        # can see which plot corresponds to which state
+        axes.set_title(state_label.replace('_', ' '), visible=False)
+
         if sim_data is None or np.isnan(sim_data).any() or not np.any(sim_data > 0):
+            # plot label so user knows what state has no data
+            axes.plot(t_sim*1000, np.zeros_like(t_sim), color=sim_color, label=state_label)
+            axes.legend(loc="best", fontsize='small')
             continue
 
-        axes.set_title(state_label.replace('_', ' '), visible=False)
         # no exp data: either a GS or simply no exp data available
         if exp_data is 0 or exp_data is None:
             # nonposy='clip': clip non positive values to a very small positive number
