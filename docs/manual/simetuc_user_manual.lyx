@@ -320,6 +320,7 @@ Simulate the concentration dependence of the dynamics or the steady state.
 \end_deeper
 \begin_layout Itemize
 All results are plotted and saved in the .hdf5 format.
+ A summary of the results is saved as a text file.
 \end_layout
 
 \begin_layout Itemize
@@ -2889,6 +2890,8 @@ All simulations produce some results that are stored in the subfolder
 results/latticeName
 \family default
  with the hdf5 format.
+ A summary of the results is also saved as a text file, it includes the
+ configuration file that produced it.
 \end_layout
 
 \begin_layout Section
