@@ -248,7 +248,7 @@ class Solution():
             # serialize cte
             file.attrs['cte'] = yaml.dump(self.cte.settings)
 
-    def save_txt(self, full_path: str = None, mode: str = 'wt') -> None:
+    def save_txt(self, full_path: str = None, mode: str = 'wt', cmd : str = '') -> None:
         '''Save the settings, the time and the average populations to disk as a textfile'''
         logger = logging.getLogger(__name__)
         if full_path is None:  # pragma: no cover
@@ -258,6 +258,8 @@ class Solution():
         with open(full_path, mode) as csvfile:
             csvfile.write('Settings:\n')
             csvfile.write(self.cte['config_file'])
+            csvfile.write('\n\nCommand used to generate data:\n')
+            csvfile.write(cmd)
             csvfile.write('\n\n\nData:\n')
         # print t_sol and avg sim data
         header = ('time (s)      ' +
@@ -779,12 +781,14 @@ class SolutionList(Sequence[Solution]):
         sol_list.add_solutions(solutions)
         return sol_list
 
-    def save_txt(self, full_path: str = None, mode: str = 'w') -> None:
+    def save_txt(self, full_path: str = None, mode: str = 'w', cmd : str = '') -> None:
         '''Save the settings, the time and the average populations to disk as a textfile'''
         if full_path is None:  # pragma: no cover
-            full_path = save_file_full_name(self[0].cte.lattice, 'solutionlist') + '.txt'
+            full_path = save_file_full_name(self[0].cte.lattice, self._prefix) + '.txt'
         with open(full_path, mode+'t') as csvfile:
             csvfile.write('Solution list:\n')
+            csvfile.write('\n\nCommand used to generate data:\n')
+            csvfile.write(cmd)
         for sol in self:
             sol.save_txt(full_path, 'at')
 
@@ -835,7 +839,7 @@ class PowerDependenceSolution(SolutionList):
 
         plotter.plot_power_dependence(sim_data_arr, power_dens_arr, state_labels)
 
-    def save_txt(self, full_path: str = None, mode: str = 'w') -> None:
+    def save_txt(self, full_path: str = None, mode: str = 'w', cmd : str = '') -> None:
         '''Save the settings, the power and the population intensities to disk as a textfile'''
         logger = logging.getLogger(__name__)
 
@@ -846,6 +850,8 @@ class PowerDependenceSolution(SolutionList):
         with open(full_path, mode+'t') as csvfile:
             csvfile.write('Settings:\n')
             csvfile.write(self[0].cte['config_file'])
+            csvfile.write('\n\nCommand used to generate data:\n')
+            csvfile.write(cmd)
             csvfile.write('\n\n\nPower dependence data:\n')
 
         sim_data_arr = np.array([np.array(sol.steady_state_populations) for sol in self])

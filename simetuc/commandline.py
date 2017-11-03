@@ -210,7 +210,7 @@ def main(ext_args: Optional[List[str]] = None) -> None:
     if solution is not None and not args.no_save:
         logger.info('Saving results to file.')
         solution.save()  # always save
-        solution.save_txt()
+        solution.save_txt(cmd=' '.join(sys.argv))
 
     logger.info('Program finished!')
 
