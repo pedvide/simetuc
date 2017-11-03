@@ -725,7 +725,7 @@ class SolutionList(Sequence[Solution]):
     def add_solutions(self, sol_list: List[Solution]) -> None:
         '''Add a list of solutions.'''
         if sol_list:
-            self.solution_list = list(sol_list)
+            self.solution_list.extend(list(sol_list))
             self.average = self.solution_list[0].average
 
     def save(self, full_path: str = None) -> None:
@@ -829,12 +829,37 @@ class PowerDependenceSolution(SolutionList):
             warnings.warn(msg, plotter.PlotWarning)
             return
 
-        sim_data_arr = np.array([np.array(sol.steady_state_populations)
-                                 for sol in self])
+        sim_data_arr = np.array([np.array(sol.steady_state_populations) for sol in self])
         power_dens_arr = np.array([sol.power_dens for sol in self])
         state_labels = self[0].state_labels
 
         plotter.plot_power_dependence(sim_data_arr, power_dens_arr, state_labels)
+
+    def save_txt(self, full_path: str = None, mode: str = 'w') -> None:
+        '''Save the settings, the power and the population intensities to disk as a textfile'''
+        logger = logging.getLogger(__name__)
+
+        if full_path is None:  # pragma: no cover
+            full_path = save_file_full_name(self[0].cte.lattice, 'power_dependence') + '.txt'
+        logger.info('Saving solution as text to {}.'.format(full_path))
+
+        with open(full_path, mode+'t') as csvfile:
+            csvfile.write('Settings:\n')
+            csvfile.write(self[0].cte['config_file'])
+            csvfile.write('\n\n\nPower dependence data:\n')
+
+        sim_data_arr = np.array([np.array(sol.steady_state_populations) for sol in self])
+        power_dens_arr = np.array([sol.power_dens for sol in self]).reshape((len(self),1))
+
+        # print t_sol and avg sim data
+        header = ('Power density (W/cm2)      ' +
+                  '         '.join(self[0].cte.states['sensitizer_states_labels']) +
+                  '         ' +
+                  '         '.join(self[0].cte.states['activator_states_labels']))
+        with open(full_path, 'ab') as csvfile:
+            np.savetxt(csvfile, np.hstack([power_dens_arr, sim_data_arr]),
+                       fmt='%1.4e', delimiter=', ', newline='\r\n', header=header)
+
 
 
 class ConcentrationDependenceSolution(SolutionList):
@@ -1250,12 +1275,12 @@ class Simulations():
 
         return power_dep_solution
 
-    def simulate_concentration_dependence(self, concentration_list: List[Tuple[float, float]],
+    def simulate_concentration_dependence(self, concentrations: List[Tuple[float, float]],
                                           N_uc_list: List[int] = None,
                                           dynamics: bool = False, average: bool = False
                                          ) -> ConcentrationDependenceSolution:
         ''' Simulates the concentration dependence of the emission
-            concentration_list must be a list of tuples
+            concentrations must be a list of tuples
             If dynamics is True, the dynamics is simulated instead of the steady state
             Returns a ConcentrationDependenceSolution instance
             average=True solves an average rate equation problem instead of the microscopic one.
@@ -1267,20 +1292,20 @@ class Simulations():
         start_time = time.time()
 
         # make sure it's a list of tuple of two floats
-        concentration_list = [(float(a), float(b)) for a, b in list(concentration_list)]
+        concentrations = [(float(a), float(b)) for a, b in list(concentrations)]
 
         if N_uc_list is None:
-            N_uc_list = [self.cte.lattice['N_uc']]*len(concentration_list)
+            N_uc_list = [self.cte.lattice['N_uc']]*len(concentrations)
 
         # if the user list for the N_uc is smaller than the concentrations,
         # use the last N_uc for all other concentrations
-        if len(N_uc_list) < len(concentration_list):
-            N_uc_list.extend([N_uc_list[-1]]*(len(concentration_list) - len(N_uc_list)))
+        if len(N_uc_list) < len(concentrations):
+            N_uc_list.extend([N_uc_list[-1]]*(len(concentrations) - len(N_uc_list)))
 
-        num_conc_steps = len(concentration_list)
+        num_conc_steps = len(concentrations)
         solutions = []  # type: List[Solution]
 
-        for concs, N_uc in zip(tqdm(concentration_list, unit='points',
+        for concs, N_uc in zip(tqdm(concentrations, unit='points',
                           total=num_conc_steps, disable=False,
                           desc='Concentrations progress'), N_uc_list):
             # update concentrations and N_uc

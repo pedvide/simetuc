@@ -77,8 +77,6 @@ def parse_args(args: Any) -> argparse.Namespace:
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument('--no-save', help='don\'t save results',
                        action="store_true")
-    group.add_argument('--save-txt', help='save some results in text format',
-                       action="store_true")
 
     # add plot subcommand
 #    subparsers = parser.add_subparsers(dest="plot")
@@ -209,11 +207,10 @@ def main(ext_args: Optional[List[str]] = None) -> None:
             optimize.optimize_concentrations(cte, average=args.average)
 
     # save results to disk
-    if solution is not None:
+    if solution is not None and not args.no_save:
         logger.info('Saving results to file.')
         solution.save()  # always save
-        if args.save_txt:
-            solution.save_txt()
+        solution.save_txt()
 
     logger.info('Program finished!')
 
