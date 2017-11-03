@@ -80,7 +80,7 @@ def _solve_ode(t_arr: np.array,
                fun: Callable, fargs: Tuple,
                jfun: Callable, jargs: Tuple,
                initial_population: np.array,
-               rtol: float = 1e-3, atol: float = 1e-15, nsteps: int = 500,
+               rtol: float = 1e-3, atol: float = 1e-15, nsteps: int = 1000,
                method: str = 'bdf', quiet: bool = True) -> np.array:
     ''' Solve the ode for the times t_arr using rhs fun and jac jfun
         with their arguments as tuples.
@@ -136,7 +136,7 @@ def solve_pulse(t_pulse: np.array, initial_pop: np.array,
                 UC_matrix: csr_matrix, N_indices: np.array, jac_indices: np.array,
                 coop_ET_matrix: csr_matrix,
                 coop_N_indices: np.array, coop_jac_indices: np.array,
-                nsteps: int = 100, rtol: float = 1e-3, atol: float = 1e-15,
+                nsteps: int = 1000, rtol: float = 1e-3, atol: float = 1e-15,
                 quiet: bool = False, method: str = 'adams') -> np.array:
     '''Solve the response to an excitation pulse.'''
     return _solve_ode(t_pulse, _rate_eq_pulse,
