@@ -20,8 +20,8 @@ After installing Anaconda execute the following commands at the command prompt (
 
     conda config --add channels conda-forge
     conda config --add channels pedvide
-    pip install settings_parser
     conda install simetuc
+    pip install settings_parser
 (The first two commands add packages repositories with up-to-date versions of all needed packages.)
 
 or

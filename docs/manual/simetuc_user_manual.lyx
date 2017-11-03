@@ -409,12 +409,12 @@ conda config --add channels pedvide
 
 \begin_layout Plain Layout
 
-pip install settings_parser
+conda install simetuc
 \end_layout
 
 \begin_layout Plain Layout
 
-conda install simetuc
+pip install settings_parser
 \end_layout
 
 \end_inset
