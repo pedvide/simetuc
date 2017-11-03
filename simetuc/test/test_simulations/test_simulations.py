@@ -81,6 +81,7 @@ def setup_cte():
                        'sites_occ': [1.0, 0.5],
                        'sites_pos': [(0.0, 0.0, 0.0), (2/3, 1/3, 0.5)],
                        'spacegroup': 'P-6'},
+           'ions': {'activators': 57, 'sensitizers': 196, 'total': 253},
            'no_console': False,
            'no_plot': False,
            'optimization': {'method': 'SLSQP', 'processes': ['CR50', 'ETU53']},
@@ -480,6 +481,16 @@ def test_sim_power_dep(setup_cte, mocker, average, excitation_name):
     assert solution_hdf5 == solution
     solution_hdf5.plot()
 
+def test_sim_power_dep_save_txt(setup_cte, mocker):
+    '''Test that the power dep solution is saved as text correctly'''
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        power_dens_list = np.logspace(1, 2, 3)
+        solution = sim.simulate_power_dependence(power_dens_list, average=True)
+
+    with temp_config_filename('') as filename:
+        solution.save_txt(filename)
+
 def test_sim_power_dep_empty_list(setup_cte):
     '''Power dep list is empty'''
     with temp_bin_filename() as temp_filename:
@@ -642,6 +653,16 @@ def test_sim_conc_dep_dyn(setup_cte, mocker):
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
+
+def test_sim_conc_dep_save_txt(setup_cte, mocker):
+    '''Test that the conc dep solution is saved as text correctly'''
+    with temp_bin_filename() as temp_filename:
+        conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
+        sim = simulations.Simulations(setup_cte, full_path=temp_filename)
+        solution = sim.simulate_concentration_dependence(conc_list, dynamics=False, average=True)
+
+    with temp_config_filename('') as filename:
+        solution.save_txt(filename)
 
 def test_sim_conc_dep_list(setup_cte, mocker):
     '''Test that the concentration dependence works'''

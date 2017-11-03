@@ -75,7 +75,7 @@ def test_cli_main_options(option, mocker, no_logging):
         assert False
 
 def test_cli_conc_dep_dyn(mocker, no_logging):
-    '''Test that theconcentration dependence of the dynamics works
+    '''Test that the concentration dependence of the dynamics works
         it can't be tested above because of the value d
     '''
     mocked_sim = mocker.patch('simetuc.simulations.Simulations')
@@ -90,19 +90,14 @@ def test_cli_plot_dyn(mocker, no_logging):
     commandline.main(ext_args)
     assert mocked_sim.call_count == 1
 
-def test_cli_save(mocker, no_logging):
-    '''Test that the save works'''
+def test_cli_no_save(mocker, no_logging):
+    '''Test that the --no-save works'''
     mocked_sim = mocker.patch('simetuc.simulations.Simulations')
-    ext_args = [config_file, '--no-plot', '--save', '-d']
+    mocked_save = mocker.patch('simetuc.simulations.DynamicsSolution.save')
+    ext_args = [config_file, '--no-plot', '--no-save', '-d']
     commandline.main(ext_args)
     assert mocked_sim.call_count == 1
-
-def test_cli_save_txt(mocker, no_logging):
-    '''Test that the save works'''
-    mocked_sim = mocker.patch('simetuc.simulations.Simulations')
-    ext_args = [config_file, '--no-plot', '--save-txt', '-d']
-    commandline.main(ext_args)
-    assert mocked_sim.call_count == 1
+    assert mocked_save.call_count == 0
 
 option_list = ['processes: [CR50]\n    method: SLSQP', '']
 @pytest.mark.parametrize('option', option_list, ids=['method=SLSQP', 'no_processes'])
