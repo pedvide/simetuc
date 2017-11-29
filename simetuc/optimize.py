@@ -7,7 +7,7 @@ Created on Tue Oct 11 15:58:58 2016
 
 import logging
 import datetime
-from typing import Tuple, Callable
+from typing import Tuple, Callable, List
 import functools
 
 import numpy as np
@@ -15,10 +15,65 @@ import numpy as np
 # pylint: disable=W0613
 import tqdm
 from lmfit import Minimizer, minimizer, Parameters, fit_report, report_fit
+from lmfit.minimizer import MinimizerResult
 
 import simetuc.simulations as simulations
 import simetuc.settings as settings
 from simetuc.util import disable_loggers, disable_console_handler, EneryTransferProcess
+from simetuc.util import save_file_full_name
+
+class OptimSolution():
+    def __init__(self, result: MinimizerResult, cte: settings.Settings, optim_progress: List[str],
+                 total_time: float) -> None:
+        self.result = result
+        self.cte = cte
+        self.optim_progress = optim_progress
+        self.time = total_time
+
+        # total time
+        hours, remainder = divmod(total_time, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        self.formatted_time = '{:.0f}h {:02.0f}m {:02.0f}s'.format(hours, minutes, seconds)
+
+        self.best_params = np.array([par.value for par in result.params.values()])
+        self.method = cte.get('optimization', {}).get('method', 'leastsq').lower().replace('-', '')
+        if 'brute' in self.method:
+            self.min_f = np.sqrt(result.candidates[0].score)
+        else:
+            self.min_f = np.sqrt((result.residual**2).sum())
+
+    def plot(self) -> None:  # pragma: no cover
+        pass
+
+    def save(self) -> None:  # pragma: no cover
+        pass
+
+    def save_txt(self, full_path: str = None, mode: str = 'wt', cmd : str = '') -> None:
+        '''Save the optimization settings to disk as a textfile'''
+        logger = logging.getLogger(__name__)
+        if full_path is None:  # pragma: no cover
+            full_path = save_file_full_name(self.cte.lattice, 'optimization') + '.txt'
+        logger.info('Saving solution as text to {}.'.format(full_path))
+        # print cte
+        with open(full_path, mode) as csvfile:
+            csvfile.write('Settings:\n')
+            csvfile.write(self.cte['config_file'])
+            csvfile.write('\n\nCommand used to generate data:\n')
+            csvfile.write(cmd)
+            csvfile.write('\n\n\nOptimization progress:\n')
+            csvfile.write(self.optim_progress[0] + '\r\n')
+            for update in self.optim_progress[1:]:
+                csvfile.write(update + '\r\n')
+
+            csvfile.write('\nOptimization statistics:\n')
+            csvfile.write(fit_report(self.result) + '\r\n')
+            csvfile.write('\r\n')
+
+            csvfile.write(f'Total time: {self.formatted_time}.' + '\r\n')
+            csvfile.write(f'Optimized RMS error: {self.min_f:.3e}.' + '\r\n')
+            csvfile.write('Parameters name and value:' + '\r\n')
+            for name, best_val in zip(self.result.params.keys(), self.best_params.T):
+                csvfile.write(f'{name}: {best_val:.3e}.' + '\r\n')
 
 
 def optim_fun(function: Callable, params: Parameters, sim: simulations.Simulations) -> np.array:
@@ -62,7 +117,7 @@ def optim_fun_dynamics(params: Parameters, sim: simulations.Simulations,
     return optim_fun(function, params, sim)
 
 def optim_fun_dynamics_conc(params: Parameters, sim: simulations.Simulations,
-                            average: bool = False) -> np.array:
+                            average: bool = False, N_samples: int = None) -> np.array:
     '''Update parameter values, simulate dynamics for the concentrations and return error vector'''
     if N_samples is None:
         function = functools.partial(sim.simulate_concentration_dependence,
@@ -125,13 +180,15 @@ def setup_optim(cte: settings.Settings) -> Tuple[str, Parameters, dict]:
 
 
 def optimize(function: Callable, cte: settings.Settings, average: bool = False,
-             material_text: str = '',
-             full_path: str = None) -> Tuple[np.array, float, minimizer.MinimizerResult]:
+             material_text: str = '', N_samples: int = None,
+             full_path: str = None) -> OptimSolution:
     ''' Minimize the error between experimental data and simulation for the settings in cte
         average = True -> optimize average rate equations instead of microscopic ones.
         function returns the error vector and accepts: parameters, sim, and average.
     '''
     logger = logging.getLogger(__name__)
+
+    optim_progress = []  # type: List[str]
 
     def callback_fun(params: Parameters, iter_num: int, resid: np.array,
                      sim: simulations.Simulations,
@@ -148,6 +205,7 @@ def optimize(function: Callable, cte: settings.Settings, average: bool = False,
                                                        error, val_list)
             tqdm.tqdm.write(msg)
             logger.info(msg)
+            optim_progress.append(msg)
 
     start_time = datetime.datetime.now()
 
@@ -160,8 +218,10 @@ def optimize(function: Callable, cte: settings.Settings, average: bool = False,
 
     optim_progbar = tqdm.tqdm(desc='Optimizing', unit='points', disable=cte['no_console'])
     param_names = ', '.join(name for name in parameters.keys())
-    tqdm.tqdm.write('Iter num\tTime\t\tRMSD\t\tParameters ({})'.format(param_names))
-    minimizer = Minimizer(function, parameters, fcn_args=(sim, average),
+    header = 'Iter num\tTime\t\tRMSD\t\tParameters ({})'.format(param_names)
+    optim_progress.append(header)
+    tqdm.tqdm.write(header)
+    minimizer = Minimizer(function, parameters, fcn_args=(sim, average, N_samples),
                           iter_cb=callback_fun)
     # minimize logging only warnings or worse to console.
     with disable_loggers(['simetuc.simulations', 'simetuc.precalculate', 'simetuc.lattice']):
@@ -192,20 +252,22 @@ def optimize(function: Callable, cte: settings.Settings, average: bool = False,
     for name, best_val in zip(parameters.keys(), best_x.T):
         logger.info('%s: %.3e.', name, best_val)
 
-    return best_x, min_f, result
+    optim_solution = OptimSolution(result, cte, optim_progress, total_time.total_seconds())
+
+    return optim_solution
 
 def optimize_dynamics(cte: settings.Settings,
-                      average: bool = False,
-                      full_path: str = None) -> Tuple[np.array, float, minimizer.MinimizerResult]:
+                      average: bool = False, full_path: str = None,
+                      N_samples: int = None) -> OptimSolution:
     material = '{}: {}% {}, {}% {}.'.format(cte.lattice['name'],
                                             cte.lattice['S_conc'], cte.states['sensitizer_ion_label'],
                                             cte.lattice['A_conc'], cte.states['activator_ion_label'])
     return optimize(optim_fun_dynamics, cte, average=average, material_text=material,
-                    full_path=full_path)
+                    N_samples=N_samples, full_path=full_path)
 
 def optimize_concentrations(cte: settings.Settings,
-                            average: bool = False,
-                            full_path: str = None) -> Tuple[np.array, float, minimizer.MinimizerResult]:
+                            average: bool = False, full_path: str = None,
+                            N_samples: int = None) -> OptimSolution:
     materials = ['{}% {}, {}% {}.'.format(S_conc, cte.states['sensitizer_ion_label'],
                                           A_conc, cte.states['activator_ion_label'])
                 for (S_conc, A_conc) in cte.concentration_dependence['concentrations']]
@@ -213,27 +275,27 @@ def optimize_concentrations(cte: settings.Settings,
     return optimize(optim_fun_dynamics_conc, cte, average=average, material_text=materials_text,
                     N_samples=N_samples, full_path=full_path)
 
-if __name__ == "__main__":
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-                        handlers=[logging.FileHandler("logs/optim.log"),
-                                  logging.StreamHandler()])
-
-    logger.debug('Called from cmd.')
-
-    import simetuc.settings as settings
-    cte = settings.load('config_file.cfg')
+#if __name__ == "__main__":
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+#                        handlers=[logging.FileHandler("logs/optim.log"),
+#                                  logging.StreamHandler()])
+#
+#    logger.debug('Called from cmd.')
+#
+#    import simetuc.settings as settings
+#    cte = settings.load('config_file.cfg')
 
 #    cte.optimization['excitations'] = []
 
 #    cte['no_console'] = False
 #    cte['no_plot'] = True
 
-#    best_x, min_f, res = optimize_dynamics(cte, average=False)
+#    optim_solution = optimize_dynamics(cte, average=False, N_samples=10)
 
 
-    best_x, min_f, res = optimize_concentrations(cte)
+#    optim_solution = optimize_concentrations(cte)
 #
 #    # confidence intervals VERY SLOW
 #    from lmfit import conf_interval, printfuncs

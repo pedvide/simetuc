@@ -13,7 +13,7 @@ from lmfit import Parameters
 import simetuc.optimize as optimize
 import simetuc.simulations as simulations
 from simetuc.util import Excitation, IonType, DecayTransition, EneryTransferProcess, Transition
-from simetuc.util import temp_bin_filename
+from simetuc.util import temp_bin_filename, temp_config_filename
 
 @pytest.fixture(scope='function')
 def setup_cte():
@@ -105,7 +105,137 @@ def setup_cte():
           'sensitizer_ion_label': 'Yb',
           'sensitizer_states': 2,
           'sensitizer_states_labels': ['GS', 'ES']}})
+    cte['config_file'] = '''
+version: 1
+lattice:
+    name: bNaYF4
+    N_uc: 20
 
+    # concentration
+    S_conc: 0.0
+    A_conc: 0.3
+
+    # unit cell
+    # distances in Angstrom
+    a: 5.9738
+    b: 5.9738
+    c: 3.5297
+    # angles in degree
+    alpha: 90
+    beta: 90
+    gamma: 120
+
+    # the number is also ok for the spacegroup
+    spacegroup: P-6
+
+    # info about sites.
+    # If there's only one site, use:
+    # sites_pos: [0, 0, 0]
+    # sites_occ: 1
+    sites_pos: [[0, 0, 0], [2/3, 1/3, 1/2]]
+    sites_occ: [1, 1/2]
+
+    # optional
+    # maximum distance of interaction for normal ET and for cooperative
+    # if not present, both default to infinite
+    d_max: 100.0
+    # it's strongly advised to keep this number low,
+    # the number of coop interactions is very large (~num_atoms^3)
+    d_max_coop: 50
+
+states:
+    sensitizer_ion_label: Yb
+    sensitizer_states_labels: [GS, ES]
+    activator_ion_label: Tm
+    activator_states_labels: [3H6, 3F4, 3H5, 3H4, 3F3, 1G4, 1D2, 1I6, 3P0]
+
+excitations:
+    Vis_473:
+        active: True
+        power_dens: 1e6
+        t_pulse: 5e-9
+        process: Tm(3H6) -> Tm(1G4)
+        degeneracy: 13/9
+        pump_rate: 9.3e-3
+    NIR_1470:
+        active: False
+        power_dens: 1e6
+        t_pulse: 1e-8
+        process: Tm(1G4) -> Tm(1D2)
+        degeneracy: 9/5
+        pump_rate: 2e-4
+    NIR_980:
+        active: False
+        power_dens: 1e7
+        t_pulse: 1e-8
+        process: Yb(GS)->Yb(ES)
+        degeneracy: 4/3
+        pump_rate: 4.4e-3
+    NIR_800:
+        active: False
+        power_dens: 1e2
+        t_pulse: 1e-8
+        process: [Tm(3H6)->Tm(3H4), Tm(3H5)->Tm(1G4)] # list
+        degeneracy: [13/9, 11/9] # list
+        pump_rate: [4.4e-3, 4e-3] # list
+
+sensitizer_decay:
+    ES: 2.5e-3
+
+activator_decay:
+    3F4: 12e-3
+    3H5: 25e-6
+    3H4: 2e-3
+    3F3: 2e-6
+    1G4: 775e-6
+    1D2: 67.5e-6
+    1I6: 101.8e-6
+    3P0: 8e-6
+
+activator_branching_ratios:
+    3H5->3F4: 0.4
+    3H4->3F4: 0.3
+    3H4->3H5: 0.1
+    3F3->3H4: 0.999
+    1G4->3F4: 0.15
+    1G4->3H5: 0.16
+    1G4->3H4: 0.04
+    1G4->3F3: 0.001
+    1D2->3F4: 0.43
+    1I6->3F4: 0.6
+    1I6->3H4: 0.16
+    1I6->1G4: 0.14
+    3P0->1I6: 0.99
+
+energy_transfer:
+    CR50:
+        process: Tm(1G4) + Tm(3H6) -> Tm(3H4) + Tm(3H5)
+        multipolarity: 6
+        strength: 9e9
+        strength_avg: 8e3
+    ETU53:
+        process:  Tm(1G4) + Tm(3H4) -> Tm(1D2) + Tm(3F4)
+        multipolarity: 6
+        strength: 5e+07
+        strength_avg: 4e2
+
+    BackET:
+        process:  Tm(3H4) + Yb(GS) -> Tm(3H6) + Yb(ES)
+        multipolarity: 6
+        strength: 0 #4.50220614e+3
+    EM:
+        process:  Yb(ES) + Yb(GS) -> Yb(GS) + Yb(ES)
+        multipolarity: 6
+        strength: 0 #4.50220614e+10
+    ETU1:
+        process:  Yb(ES) + Tm(3H6) -> Yb(GS) + Tm(3H5)
+        multipolarity: 6
+        strength: 0 #1e2
+
+optimization:
+    processes: [CR50, ETU53]
+    method: SLSQP
+'''
     cte['no_console'] = False
     cte['no_plot'] = True
     return cte
@@ -146,7 +276,10 @@ def test_optim(setup_cte, mocker, method, function, average, processes, excitati
     fun = getattr(optimize, function)
     with warnings.catch_warnings(), temp_bin_filename() as temp_filename:
         warnings.filterwarnings("ignore", message="divide by zero encountered in double_scalars")
-        best_x, min_f, res = fun(setup_cte, average=average, full_path=temp_filename)
+        optim_solution = fun(setup_cte, average=average, full_path=temp_filename)
+        best_x = optim_solution.best_params
+        min_f = optim_solution.min_f
+        res = optim_solution.result
 
     assert len(best_x) == len(processes)
     if method in 'brute_force':
@@ -166,7 +299,10 @@ def test_optim_no_dict_params(setup_cte, mocker):
     setup_cte['optimization']['processes'] = [proc for proc in setup_cte.energy_transfer.values() if proc.value != 0]
     setup_cte['optimization']['options'] = {}
     with temp_bin_filename() as temp_filename:
-        best_x, min_f, res = optimize.optimize_dynamics(setup_cte, full_path=temp_filename)
+        optim_solution = optimize.optimize_dynamics(setup_cte, full_path=temp_filename)
+        best_x = optim_solution.best_params
+        min_f = optim_solution.min_f
+        res = optim_solution.result
 
     assert len(best_x) == len(init_param)
     assert min_f == np.sqrt((res.residual**2).sum())
@@ -220,3 +356,15 @@ def test_optim_fun(setup_cte, mocker, excitations):
 
     assert mocked_dyn.called
 
+def test_optim_save_txt(setup_cte, mocker):
+    '''Test that the optim solution is saved as text correctly'''
+    init_param = np.array([proc.value for proc in setup_cte['optimization']['processes']])
+    def mocked_optim_fun(function, params, sim):
+        return 2 + (np.array([val for val in params.valuesdict().values()]) - 1.1*init_param)**2
+    mocker.patch('simetuc.optimize.optim_fun', new=mocked_optim_fun)
+
+    with temp_bin_filename() as temp_filename:
+        solution = optimize.optimize_dynamics(setup_cte, full_path=temp_filename)
+
+    with temp_config_filename('') as filename:
+        solution.save_txt(filename)

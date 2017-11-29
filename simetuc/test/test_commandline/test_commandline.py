@@ -12,6 +12,7 @@ import numpy as np
 
 import simetuc.commandline as commandline
 from simetuc.util import temp_config_filename
+from simetuc.optimize import OptimSolution
 
 
 config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_standard_config.cfg')
@@ -56,9 +57,7 @@ def test_cli_main_options(option, mocker, no_logging):
     mocked_sim = mocker.patch('simetuc.simulations.Simulations')
     mocked_lattice = mocker.patch('simetuc.lattice.generate')
     mocked_opt = mocker.patch('simetuc.optimize.optimize_dynamics')
-    mocked_opt.return_value = (np.array([1.0]), 0.0)
     mocked_opt_conc = mocker.patch('simetuc.optimize.optimize_concentrations')
-    mocked_opt_conc.return_value = (np.array([1.0]), 0.0)
 
     ext_args = [config_file, '--no-plot', option]
     commandline.main(ext_args)
@@ -105,7 +104,6 @@ def test_cli_optim_options(mocker, no_logging, option):
     '''Test that the optimization works with the optimization method'''
 
     mocked_opt = mocker.patch('simetuc.optimize.optimize_dynamics')
-    mocked_opt.return_value = (np.array([1.0]), 0.0)
 
     # add optim method to config file
     with open(config_file, 'rt') as file:
