@@ -18,10 +18,16 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.integrate import ode
 
+#from scipy.integrate import solve_ivp
+
 # nice progress bar
 from tqdm import tqdm
 
 ### TODO: USE scipy.integrate.solve_ivp
+# seems to be slower than using ode
+# try this: https://ilovesymposia.com/2017/03/12/scipys-new-lowlevelcallable-is-a-game-changer/
+# https://ilovesymposia.com/2017/03/15/prettier-lowlevelcallables-with-numba-jit-and-decorators/
+# but wait until thisis fixed: https://github.com/numba/numba/issues/2578
 
 
 def _rate_eq(t: np.array, y: np.array, decay_matrix: np.array,
@@ -131,19 +137,57 @@ def _solve_ode(t_arr: np.array,
     return y_arr
 
 
+#def _solve_ode_ivp(t_arr: np.array,
+#                   fun: Callable, fargs: Tuple,
+#                   jfun: Callable, jargs: Tuple,
+#                   initial_population: np.array,
+#                   rtol: float = 1e-3, atol: float = 1e-15, nsteps: int = 1000,
+#                   method: str = 'bdf', quiet: bool = True) -> np.array:
+#    ''' Solve the ode for the times t_arr using rhs fun and jac jfun
+#        with their arguments as tuples.
+#    '''
+#    logger = logging.getLogger(__name__)
+#
+#    def ode_fun(t, y):
+#        return fun(t, y, *fargs)
+#    def ode_jfun(t, y):
+#        return jfun(t, y, *jargs)
+#
+#    with warnings.catch_warnings(),\
+#         np.errstate(invalid='raise', divide='raise', over='raise', under='ignore'):
+#         warnings.filterwarnings('error')
+#         try:
+#             sol = solve_ivp(fun=ode_fun, jac=ode_jfun,
+#                             t_span=(t_arr[0], t_arr[-1]), y0=initial_population,
+#                             t_eval=t_arr,  method='LSODA',
+#                             max_step=nsteps, rtol=rtol, atol=atol)
+#         except (UserWarning, FloatingPointError) as err:  # pragma: no cover
+#                logger.warning(str(err))
+#                logger.warning('Most likely the ode solver is taking too many steps.')
+#                logger.warning('Either change your settings or increase "nsteps".')
+#                logger.warning('The program will continue, but the accuracy of the ' +
+#                               'results cannot be guaranteed.')
+#    logger.debug('ODE Integration: ')
+#    logger.debug(f'success: {sol.success}')
+#    logger.debug(f'status: {sol.status}')
+#    logger.debug(f'message: {sol.message}')
+#
+#    return sol.y.T
+
+
 def solve_pulse(t_pulse: np.array, initial_pop: np.array,
-                total_abs_matrix: csr_matrix, decay_matrix: csr_matrix,
+                abs_matrix: csr_matrix, decay_matrix: csr_matrix,
                 UC_matrix: csr_matrix, N_indices: np.array, jac_indices: np.array,
                 coop_ET_matrix: csr_matrix,
                 coop_N_indices: np.array, coop_jac_indices: np.array,
                 nsteps: int = 1000, rtol: float = 1e-3, atol: float = 1e-15,
-                quiet: bool = False, method: str = 'adams') -> np.array:
+                quiet: bool = False, method: str = 'bdf') -> np.array:
     '''Solve the response to an excitation pulse.'''
     return _solve_ode(t_pulse, _rate_eq_pulse,
-                      (total_abs_matrix, decay_matrix, UC_matrix, N_indices,
+                      (abs_matrix, decay_matrix, UC_matrix, N_indices,
                        coop_ET_matrix, coop_N_indices),
                       _jac_rate_eq_pulse,
-                      (total_abs_matrix, decay_matrix, UC_matrix, jac_indices,
+                      (abs_matrix, decay_matrix, UC_matrix, jac_indices,
                        coop_ET_matrix, coop_jac_indices),
                       initial_pop, method=method,
                       rtol=rtol, atol=atol, nsteps=nsteps, quiet=quiet)
