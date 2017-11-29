@@ -1338,6 +1338,86 @@ class Simulations():
 
         return conc_dep_solution
 
+    def sample_simulation(self, simulation_fun: Callable, N_samples : int,
+                          *args: Any, **kwargs: Any) -> DynamicsSolution:
+        '''Repeats the simulation_fun N_samples times with different lattices.
+        *args, **kwargs are passed to simulation_fun.'''
+        logger = logging.getLogger(__name__ + '.sample_simulation')
+
+        if N_samples <= 1:
+            return simulation_fun(*args, **kwargs)
+
+        start_time = time.time()
+
+        old_no_plot = self.cte['no_plot']
+        self.cte['no_plot'] = True
+        #self.cte['no_console']  = True
+        errors = []
+        total_errors = []
+
+        self.cte['gen_lattice'] = True
+
+        num_states = self.cte.states['sensitizer_states'] + self.cte.states['activator_states']
+        y_sol = np.zeros((num_states, 1000))
+        with disable_loggers([__name__+'.dynamics', __name__+'.steady_state',
+                              __name__ + '.concentration_dependence',
+                              'simetuc.precalculate', 'simetuc.lattice']):
+            for i_sample in trange(N_samples, desc='Sampling'):
+                sol = simulation_fun(*args, **kwargs)
+                errors.append(sol.errors)
+                total_errors.append(sol.total_error)
+                if isinstance(sol, Solution):
+                    y_sol = y_sol + np.array(sol.list_avg_data_ofs)
+
+        if isinstance(sol, Solution):
+            avg_sol = sol
+            avg_sol.list_avg_data_ofs = y_sol/N_samples
+            avg_sol.cte.no_plot = False
+            avg_sol.total_error_lst = total_errors
+            avg_sol.total_error = np.mean(total_errors)
+            avg_sol.errors_lst = errors
+            avg_sol.errors = np.mean(errors, axis=0)
+        else:
+            for avg_sol in sol.solution_list:
+                avg_sol.cte.no_plot = False
+                avg_sol.total_error_lst = total_errors
+                avg_sol.total_error = np.mean(total_errors)
+                avg_sol.errors_lst = errors
+                avg_sol.errors = np.mean(errors, axis=0)
+            avg_sol = sol
+            avg_sol.total_error = np.mean([sol.total_error for sol in avg_sol])
+            avg_sol.errors = np.mean([sol.errors for sol in avg_sol], axis=0)
+
+        self.cte['no_plot'] = old_no_plot
+        self.cte['no_console']  = False
+
+        total_time = time.time()-start_time
+        formatted_time = time.strftime("%Mm %Ss", time.localtime(total_time))
+        logger.info('Sampling finished! Total time: %s.', formatted_time)
+
+        return avg_sol
+
+def histogram_errors():
+    import matplotlib.pyplot as plt
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    sim = Simulations(cte)
+    for N_uc in [20, 25]:
+        sim.cte.lattice['N_uc'] = N_uc
+#            avg_sol = sim.sample_simulation(sim.simulate_dynamics, 10)
+        avg_sol = sim.sample_simulation(sim.simulate_concentration_dependence, 2,
+                                        **cte.concentration_dependence, dynamics=True)
+        total_errors = avg_sol.total_error_lst
+        n, bins, patches = ax.hist(total_errors, bins='auto')
+        x = np.linspace(0, np.ceil(bins[-1]), 1000)
+        fit_vals = stats.lognorm.fit(total_errors)
+        pdf_fitted = stats.lognorm.pdf(x, *fit_vals)
+        print(f'N_uc: {N_uc}')
+        print(f'Mean: {np.mean(total_errors):.2f}, median: {np.median(total_errors):.2f}, '
+              f'max: {x[np.argmax(pdf_fitted)]:.2f}, std: {np.std(total_errors):.2f}.')
+        print('Shape: {:.2f}, location: {:.2f}, scale: {:.2f}.'.format(*fit_vals))
+        ax.plot(x, pdf_fitted*np.max(n)/np.max(pdf_fitted),'r-')
+        plt.pause(0.1)
 
 if __name__ == "__main__":
     from simetuc.util import disable_console_handler

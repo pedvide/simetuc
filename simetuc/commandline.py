@@ -37,7 +37,10 @@ Union  # pylint: disable=W0104
 def parse_args(args: Any) -> argparse.Namespace:
     '''Create a argparser and parse the args'''
     # parse arguments
-    parser = argparse.ArgumentParser(description=DESCRIPTION+' '+VERSION)
+    # increase help column width
+    fmt_class = lambda prog: argparse.HelpFormatter(prog, max_help_position=35)
+    parser = argparse.ArgumentParser(description=DESCRIPTION+' '+VERSION,
+                                     formatter_class=fmt_class)
     parser.add_argument('--version', action='version', version=DESCRIPTION+' '+VERSION)
     # verbose or quiet options
     group = parser.add_mutually_exclusive_group()
@@ -72,6 +75,10 @@ def parse_args(args: Any) -> argparse.Namespace:
                        help='optimize the energy transfer parameters [of the concentration]',
                        metavar='conc', nargs='?', const='single',
                        action='store')
+
+    # sampling
+    # average rate equations
+    parser.add_argument('-N', '--N_samples', help='number of samples', action="store", type=int, default=None)
 
     # save data
     group = parser.add_mutually_exclusive_group(required=False)
@@ -159,11 +166,10 @@ def main(ext_args: Optional[List[str]] = None) -> None:
     cte = settings.load(args.filename)
     cte['no_console'] = no_console
     cte['no_plot'] = no_plot
+    cte['N_samples'] = args.N_samples
 
     # solution of the simulation
-    solution = None  # type: Union[simulations.Solution, simulations.SolutionList, None]
-#    solution = simulations.Solution([], [], [], [], cte)
-#    solution : Union[simulations.Solution, simulations.SolutionList]
+    solution = None  # type: Union[simulations.Solution, simulations.SolutionList, optimize.OptimSolution, None]
 
     # choose what to do
     if args.lattice:  # create lattice
@@ -173,7 +179,11 @@ def main(ext_args: Optional[List[str]] = None) -> None:
     elif args.dynamics:  # simulate dynamics
         logger.info('Simulating dynamics...')
         sim = simulations.Simulations(cte)
-        solution = sim.simulate_dynamics(average=args.average)
+        if args.N_samples is not None:
+            solution = sim.sample_simulation(sim.simulate_dynamics, N_samples=args.N_samples,
+                                             average=args.average)
+        else:
+            solution = sim.simulate_dynamics(average=args.average)
         solution.log_errors()
 
     elif args.steady_state:  # simulate steady state
@@ -194,17 +204,26 @@ def main(ext_args: Optional[List[str]] = None) -> None:
         sim = simulations.Simulations(cte)
         conc_list = cte.concentration_dependence['concentrations']
         dynamics = True if args.conc_dependence.strip() == 'd' else False
-        solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics,
+
+        if args.N_samples is not None:
+            solution = sim.sample_simulation(sim.simulate_concentration_dependence,
+                                             N_samples=args.N_samples,
+                                             concentrations=conc_list, dynamics=dynamics,
+                                             average=args.average)
+        else:
+            solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics,
                                                              average=args.average)
-        print('')
+        solution.log_errors()
 
     elif args.optimize:  # optimize
         logger.info('Optimizing parameters...')
         optim_conc = True if args.optimize.strip() == 'conc' else False
         if optim_conc is False:
-            optimize.optimize_dynamics(cte, average=args.average)
+            solution = optimize.optimize_dynamics(cte, average=args.average,
+                                                  N_samples=args.N_samples)
         else:
-            optimize.optimize_concentrations(cte, average=args.average)
+            solution = optimize.optimize_concentrations(cte, average=args.average,
+                                                        N_samples=args.N_samples)
 
     # save results to disk
     if solution is not None and not args.no_save:

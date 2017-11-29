@@ -52,18 +52,29 @@ def optim_fun(function: Callable, params: Parameters, sim: simulations.Simulatio
         return np.sqrt(total_errors)
 
 def optim_fun_dynamics(params: Parameters, sim: simulations.Simulations,
-                       average: bool = False) -> np.array:
+                       average: bool = False, N_samples: int = None) -> np.array:
     '''Update parameter values, simulate dynamics and return error vector'''
-    function = functools.partial(sim.simulate_dynamics, average=average)
+    if N_samples is None:
+        function = functools.partial(sim.simulate_dynamics, average=average)
+    else:
+        function = functools.partial(sim.sample_simulation, sim.simulate_dynamics, N_samples=N_samples,
+                                     average=average)
     return optim_fun(function, params, sim)
 
 def optim_fun_dynamics_conc(params: Parameters, sim: simulations.Simulations,
                             average: bool = False) -> np.array:
     '''Update parameter values, simulate dynamics for the concentrations and return error vector'''
-    function = functools.partial(sim.simulate_concentration_dependence,
-                                 sim.cte.concentration_dependence['concentrations'],
-                                 sim.cte.concentration_dependence['N_uc_list'],
-                                 dynamics=True)
+    if N_samples is None:
+        function = functools.partial(sim.simulate_concentration_dependence,
+                                     sim.cte.concentration_dependence['concentrations'],
+                                     sim.cte.concentration_dependence['N_uc_list'],
+                                     dynamics=True)
+    else:
+        function = functools.partial(sim.sample_simulation, sim.simulate_concentration_dependence,
+                                     N_samples=N_samples,
+                                     concentrations=sim.cte.concentration_dependence['concentrations'],
+                                     N_uc_list=sim.cte.concentration_dependence['N_uc_list'],
+                                     dynamics=True, average=average)
     return optim_fun(function, params, sim)
 
 
@@ -123,7 +134,8 @@ def optimize(function: Callable, cte: settings.Settings, average: bool = False,
     logger = logging.getLogger(__name__)
 
     def callback_fun(params: Parameters, iter_num: int, resid: np.array,
-                     sim: simulations.Simulations, average: bool = False) -> None:
+                     sim: simulations.Simulations,
+                     average: bool = False, N_samples: int = None) -> None:
         ''' This function is called after every minimization step
             It prints the current parameters and error from the cache
         '''
@@ -199,7 +211,7 @@ def optimize_concentrations(cte: settings.Settings,
                 for (S_conc, A_conc) in cte.concentration_dependence['concentrations']]
     materials_text = '{}: '.format(cte.lattice['name']) + '; '.join(materials)
     return optimize(optim_fun_dynamics_conc, cte, average=average, material_text=materials_text,
-                    full_path=full_path)
+                    N_samples=N_samples, full_path=full_path)
 
 if __name__ == "__main__":
     logger = logging.getLogger()
