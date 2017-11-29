@@ -82,7 +82,7 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
 
         # set the title to invisible, so when editing the matplotlib window the user
         # can see which plot corresponds to which state
-        axes.set_title(state_label.replace('_', ' '), visible=False)
+        if state_label: axes.set_title(state_label.replace('_', ' '), visible=False)
 
         if sim_data is None or np.isnan(sim_data).any() or not np.any(sim_data > 0):
             # plot label so user knows what state has no data

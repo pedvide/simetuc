@@ -38,7 +38,9 @@ def _check_lattice_settings(cte: settings.Settings) -> None:
     try:
         # validate lattice settings
         settings_lattice = configs.settings['lattice']
-        settings_lattice.validate(cte.lattice)
+        clean_cte_lattice = cte.lattice
+        del clean_cte_lattice['cell_par']
+        settings_lattice.validate(clean_cte_lattice)
         cte.lattice = settings._parse_lattice(cte)
         cte_lattice = cte.lattice
     except (SettingsValueError, ConfigError) as err:
@@ -120,6 +122,8 @@ def _impurify_lattice(atoms: ase.Atoms, S_conc: float, A_conc: float) -> np.arra
                         dtype=np.uint32)  # preallocate 3x more
     num_doped_atoms = 0  # number of doped ions
 
+    np.random.seed()
+
     # for each atom in atoms (random numbers denoted by rand_num_x):
     # if rand_num_2 <= S_conc+A_conc then we'll populate it, otherwise eliminate
     # if rand_num_3 <= S_conc then that ion is a sensitizer, otherwise is an activator
@@ -146,7 +150,8 @@ def _impurify_lattice(atoms: ase.Atoms, S_conc: float, A_conc: float) -> np.arra
     return ion_type
 
 
-def _calculate_distances(atoms: ase.Atoms, min_im_conv: bool = True) -> np.array:
+def _calculate_distances(atoms: ase.Atoms, min_im_conv: bool = True,
+                         no_console: bool = False) -> np.array:
     '''Calculates the distances between each pair of ions
        By defaul it uses the minimum image convention
        It returns a square array 'dist_array' with the distances
@@ -159,7 +164,8 @@ def _calculate_distances(atoms: ase.Atoms, min_im_conv: bool = True) -> np.array
 
     num_atoms = len(atoms)
     dist_array = np.zeros((num_atoms, num_atoms), dtype=np.float64)
-    for i in tqdm(range(num_atoms), unit='atoms', total=num_atoms, desc='Calculating distances'):
+    for i in tqdm(range(num_atoms), unit='atoms', total=num_atoms, desc='Calculating distances',
+                  disable=no_console):
         dist_array[i, i:num_atoms] = atoms.get_distances(i, range(i, num_atoms), mic=min_im_conv)
 
     # get the distance along the c axis divided by two
@@ -384,7 +390,8 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
     logger.info('Calculating distances...')
     dist_time = time.time()
 
-    dist_array = _calculate_distances(atoms, min_im_conv=min_im_conv)
+    dist_array = _calculate_distances(atoms, min_im_conv=min_im_conv,
+                                      no_console=cte.no_console)
 
     elapsed_time = time.time()-dist_time
     formatted_time = time.strftime("%Mm %Ss", time.localtime(elapsed_time))
