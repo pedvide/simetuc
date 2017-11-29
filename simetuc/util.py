@@ -389,3 +389,13 @@ class ConfigError(SyntaxError):
 class ConfigWarning(UserWarning):
     '''Something in the configuration file is not correct'''
     pass
+
+
+def save_file_full_name(lattice: dict, prefix: str = None) -> str:  # pragma: no cover
+    '''Return the full name to save a file (without extention or prefix).'''
+    path = os.path.join('results', lattice['name'])
+    os.makedirs(path, exist_ok=True)
+    filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(lattice['N_uc']),
+                                                    float(lattice['S_conc']),
+                                                    float(lattice['A_conc']))
+    return os.path.join(path, filename)

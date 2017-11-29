@@ -10,7 +10,7 @@ import csv
 import logging
 import warnings
 import os
-from typing import List, Tuple, Iterator, Sequence, cast
+from typing import List, Tuple, Iterator, Sequence, cast, Callable, Any, Union
 import copy
 
 import h5py
@@ -24,26 +24,16 @@ from scipy import integrate
 from scipy import stats
 
 # nice progress bar
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 import simetuc.precalculate as precalculate
 import simetuc.odesolver as odesolver
 #import simetuc.odesolver_assimulo as odesolver  # warning: it's slower!
 import simetuc.plotter as plotter
-from simetuc.util import Conc
+from simetuc.util import Conc, save_file_full_name
 from simetuc.util import cached_property, log_exceptions_warnings, disable_loggers, exp_to_10
 import simetuc.settings as settings
 from simetuc.settings import Settings
-
-
-def save_file_full_name(lattice: dict, prefix: str = None) -> str:  # pragma: no cover
-    '''Return the full name to save a file (without extention or prefix).'''
-    path = os.path.join('results', lattice['name'])
-    os.makedirs(path, exist_ok=True)
-    filename = prefix + '_' + '{}uc_{}S_{}A'.format(int(lattice['N_uc']),
-                                                    float(lattice['S_conc']),
-                                                    float(lattice['A_conc']))
-    return os.path.join(path, filename)
 
 
 class Solution():
@@ -709,10 +699,8 @@ class SolutionList(Sequence[Solution]):
         '''Return the length of the solution_list.'''
         return len(self.solution_list)
 
-    def __getitem__(self, index: int) -> Solution:  # type: ignore
+    def __getitem__(self, index: Union[int, slice]) -> Solution:  # type: ignore
         '''Implements solution[number].'''
-        if 0 > index > len(self.solution_list):
-            raise IndexError
         return self.solution_list[index]
 
     def __repr__(self) -> str:
@@ -789,6 +777,7 @@ class SolutionList(Sequence[Solution]):
             csvfile.write('Solution list:\n')
             csvfile.write('\n\nCommand used to generate data:\n')
             csvfile.write(cmd)
+            csvfile.write('\n\n')
         for sol in self:
             sol.save_txt(full_path, 'at')
 
@@ -892,6 +881,30 @@ class ConcentrationDependenceSolution(SolutionList):
         return ('{}(num_solutions={}, concs={}, '.format(self.__class__.__name__,
                                                          len(self), concs) +
                 'power_dens={}, dynamics={})'.format(power, self.dynamics))
+
+    def save_txt(self, full_path: str = None, mode: str = 'w', cmd : str = '') -> None:
+        '''Save the settings, the time and the average populations to disk as a textfile'''
+        if full_path is None:  # pragma: no cover
+            full_path = save_file_full_name(self[0].cte.lattice, self._prefix) + '.txt'
+            full_path
+        with open(full_path, mode+'t') as csvfile:
+            csvfile.write('Concentration dependence solution:\n')
+            csvfile.write('\n\nCommand used to generate data:\n')
+            csvfile.write(cmd)
+            csvfile.write('\n\n')
+        header = ('time (s)      ' +
+                  '         '.join(self[0].cte.states['sensitizer_states_labels']) +
+                  '         ' +
+                  '         '.join(self[0].cte.states['activator_states_labels']))
+        for sol in self:
+            with open(full_path, mode='at') as csvfile:
+                csvfile.write('\r\n')
+                csvfile.write(f'Concentration: {sol.concentration.S_conc}% S,'
+                              f' {sol.concentration.A_conc}% A.\r\n')
+            with open(full_path, mode='ab') as csvfile:
+                np.savetxt(csvfile, np.transpose([sol.t_sol, *sol.list_avg_data]),
+                           fmt='%1.4e', delimiter=', ', newline='\r\n', header=header)
+
 
     def log_errors(self) -> None:
         '''Log errors'''
@@ -1078,12 +1091,16 @@ class Simulations():
         if average:
             setup_func = precalculate.setup_average_eqs
 
+        # regenerate the lattice even if it already exists?
+        gen_lattice = self.cte.get('gen_lattice', False)
+
         # get matrices of interaction, initial conditions, abs, decay, etc
         (cte_updated, initial_population, index_S_i, index_A_j,
          total_abs_matrix, decay_matrix,
          ET_matrix, N_indices, jac_indices,
          coop_ET_matrix, coop_N_indices,
-         coop_jac_indices) = setup_func(self.cte, full_path=self.full_path)
+         coop_jac_indices) = setup_func(self.cte, full_path=self.full_path,
+                                        gen_lattice=gen_lattice)
 
         # update cte
         self.cte = cte_updated
@@ -1248,7 +1265,7 @@ class Simulations():
             Returns a PowerDependenceSolution instance
             average=True solves an average rate equation problem instead of the microscopic one.
         '''
-        logger = logging.getLogger(__name__)
+        logger = logging.getLogger(__name__ + '.power_dependence')
         logger.info('Simulating power dependence curves...')
         start_time = time.time()
 
@@ -1291,7 +1308,7 @@ class Simulations():
             Returns a ConcentrationDependenceSolution instance
             average=True solves an average rate equation problem instead of the microscopic one.
         '''
-        logger = logging.getLogger(__name__)
+        logger = logging.getLogger(__name__ + '.concentration_dependence')
         logger.info('Simulating concentration dependence curves of ' +
                     '{}.'.format('dynamics' if dynamics is True else 'steady state'))
 
@@ -1427,19 +1444,20 @@ if __name__ == "__main__":
                         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
     logger.info('Called from cmd.')
 
-    cte = settings.load('config_file_Yb_Tm.cfg')
+    cte = settings.load('config_file.cfg')
 
     cte['no_console'] = False
     cte['no_plot'] = False
 
     sim = Simulations(cte)
 
+
     with disable_console_handler('simetuc.precalculate'):
         pass
 
-        solution = sim.simulate_dynamics()
-        solution.log_errors()
-        solution.plot()
+#        solution = sim.simulate_dynamics()
+#        solution.log_errors()
+#        solution.plot()
 
 #        solution.plot(state=7)
 
@@ -1469,14 +1487,17 @@ if __name__ == "__main__":
 #    solution_avg.plot()
 
 
-#        solution = sim.simulate_power_dependence(cte.power_dependence, average=True)
+#        solution = sim.simulate_power_dependence(cte.power_dependence, average=False)
 #        solution.plot()
 
 #        conc_list = [(0.0, 0.1), (0.0, 0.3), (0, 0.5), (0, 1.0)] #, (0, 2.0), (0, 3.0), (0, 4.0), (0, 5.0)]
 #        N_uc_list = [75, 45, 45, 30]#, 25, 25, 20, 18]
 #        solution = sim.simulate_concentration_dependence(conc_list, N_uc_list, dynamics=True)
-#        solution.log_errors()
-#        solution.plot()
+#        solution = sim.simulate_concentration_dependence(**cte.concentration_dependence, dynamics=True)
+        solution = sim.sample_simulation(sim.simulate_concentration_dependence, N_samples=20,
+                                         **cte.concentration_dependence, dynamics=True)
+        solution.log_errors()
+        solution.plot()
 #
 #        steady_solution = ConcentrationDependenceSolution(dynamics=False)
 #        steady_solution.add_solutions([sol.calculate_steady_state() for sol in solution])
