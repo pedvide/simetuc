@@ -38,7 +38,8 @@ def idfn_proc(param):
                                        [B_43]], ids=idfn_proc)
 @pytest.mark.parametrize('excitations', [[], ['Vis_473'],  ['Vis_473', 'NIR_980']],
                          ids=['default_exc', 'one_exc', 'two_exc'])
-def test_optim(setup_cte, mocker, method, function, average, processes, excitations):
+@pytest.mark.parametrize('N_samples', [None, 0, 1, 2])
+def test_optim(setup_cte, mocker, method, function, average, processes, excitations, N_samples):
     '''Test that the optimization works'''
     # mock the simulation by returning an error that goes to 0
     init_param = np.array([proc.value for proc in processes])
@@ -52,7 +53,7 @@ def test_optim(setup_cte, mocker, method, function, average, processes, excitati
     fun = getattr(optimize, function)
     with warnings.catch_warnings(), temp_bin_filename() as temp_filename:
         warnings.filterwarnings("ignore", message="divide by zero encountered in double_scalars")
-        optim_solution = fun(setup_cte, average=average, full_path=temp_filename)
+        optim_solution = fun(setup_cte, average=average, full_path=temp_filename, N_samples=N_samples)
         best_x = optim_solution.best_params
         min_f = optim_solution.min_f
         res = optim_solution.result

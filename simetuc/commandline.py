@@ -35,7 +35,7 @@ def parse_args(args: Any) -> argparse.Namespace:
     # parse arguments
     # increase help column width
     fmt_class = lambda prog: argparse.HelpFormatter(prog, max_help_position=35)
-    parser = argparse.ArgumentParser(description=DESCRIPTION+' '+VERSION,
+    parser = argparse.ArgumentParser(description=DESCRIPTION+' '+VERSION,  # type: ignore
                                      formatter_class=fmt_class)
     parser.add_argument('--version', action='version', version=DESCRIPTION+' '+VERSION)
     # verbose or quiet options
