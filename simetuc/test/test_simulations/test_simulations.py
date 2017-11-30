@@ -27,7 +27,7 @@ def test_sim(setup_cte_sim):
     assert sim.cte
     assert sim
 
-def test_sim_dyn1(setup_cte_sim):
+def test_sim_dyn(setup_cte_sim):
     '''Test that the dynamics work'''
     setup_cte_sim['lattice']['S_conc'] = 0
 
@@ -41,6 +41,7 @@ def test_sim_dyn1(setup_cte_sim):
     solution.plot()
     solution.plot(state=7)
     solution.plot(state=1)
+    plotter.plt.close('all')
 
 def test_sim_dyn_errors(setup_cte_sim):
     '''Test that the dynamics work'''
@@ -96,6 +97,7 @@ def test_sim_dyn_wrong_state_plot(setup_cte_sim):
 
     with pytest.raises(ValueError):
         solution.plot(state=10)
+    plotter.plt.close('all')
 
 def test_sim_average_dyn(setup_cte_sim):
     '''Test average dynamics.'''
@@ -152,6 +154,7 @@ def test_sim_dyn_save_hdf5(setup_cte_sim, mocker):
         assert sol_hdf5 == solution
         sol_hdf5.log_errors()
         sol_hdf5.plot()
+        plotter.plt.close('all')
 
 
 def test_sim_dyn_save_txt(setup_cte_sim):
@@ -197,6 +200,7 @@ def test_sim_steady1(setup_cte_sim):
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
+    plotter.plt.close('all')
 
 def test_sim_steady2(setup_cte_sim):
     '''Test average steady state'''
@@ -219,6 +223,8 @@ def test_sim_no_plot(setup_cte_sim):
     warning = warnings.pop(plotter.PlotWarning)
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
+
+    plotter.plt.close('all')
 
 @pytest.mark.parametrize('average', [True, False])
 @pytest.mark.parametrize('excitation_name', ['NIR_800', 'Vis_473'])
@@ -269,6 +275,8 @@ def test_sim_power_dep(setup_cte_sim, mocker, average, excitation_name):
     assert solution_hdf5 == solution
     solution_hdf5.plot()
 
+    plotter.plt.close('all')
+
 def test_sim_power_dep_save_txt(setup_cte_sim, mocker):
     '''Test that the power dep solution is saved as text correctly'''
     with temp_bin_filename() as temp_filename:
@@ -292,6 +300,7 @@ def test_sim_power_dep_empty_list(setup_cte_sim):
     warning = warnings.pop(plotter.PlotWarning)
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'Nothing to plot! The power_dependence list is emtpy!' in str(warning.message)
+    plotter.plt.close('all')
 
 def test_sim_power_dep_no_plot(setup_cte_sim, mocker):
     '''A plot was requested, but no_plot is set'''
@@ -313,6 +322,7 @@ def test_sim_power_dep_no_plot(setup_cte_sim, mocker):
     warning = warnings.pop(plotter.PlotWarning)
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
+    plotter.plt.close('all')
 
 def test_sim_power_dep_correct_power_dens(setup_cte_sim, mocker):
     '''Check that the solutions have the right power_dens'''
@@ -416,6 +426,7 @@ def test_sim_conc_dep_steady(setup_cte_sim, mocker):
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
+    plotter.plt.close('all')
 
 def test_sim_conc_dep_dyn(setup_cte_sim, mocker):
     '''Test that the concentration dependence works'''
@@ -441,6 +452,7 @@ def test_sim_conc_dep_dyn(setup_cte_sim, mocker):
     assert sol_hdf5
     assert sol_hdf5 == solution
     sol_hdf5.plot()
+    plotter.plt.close('all')
 
 def test_sim_conc_dep_save_txt(setup_cte_sim, mocker):
     '''Test that the conc dep solution is saved as text correctly'''
@@ -484,6 +496,7 @@ def test_sim_conc_dep_only_A(setup_cte_sim, mocker):
 
     assert solution
     solution.plot()
+    plotter.plt.close('all')
 
 def test_sim_conc_dep_only_S(setup_cte_sim, mocker):
     '''Conc list has only S changing'''
@@ -500,6 +513,7 @@ def test_sim_conc_dep_only_S(setup_cte_sim, mocker):
 
     assert solution
     solution.plot()
+    plotter.plt.close('all')
 
 def test_sim_conc_dep_empty_conc(setup_cte_sim):
     '''Conc list is empty'''
@@ -514,6 +528,7 @@ def test_sim_conc_dep_empty_conc(setup_cte_sim):
     warning = warnings.pop(plotter.PlotWarning)
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'Nothing to plot! The concentration_dependence list is emtpy!' in str(warning.message)
+    plotter.plt.close('all')
 
 
 def test_sim_conc_dep_no_plot(setup_cte_sim, mocker):
@@ -536,6 +551,7 @@ def test_sim_conc_dep_no_plot(setup_cte_sim, mocker):
     warning = warnings.pop(plotter.PlotWarning)
     assert issubclass(warning.category, plotter.PlotWarning)
     assert 'A plot was requested, but no_plot setting is set' in str(warning.message)
+    plotter.plt.close('all')
 
 
 def test_sim_conc_dep_no_file():
@@ -543,3 +559,40 @@ def test_sim_conc_dep_no_file():
     with pytest.raises(OSError):
         simulations.PowerDependenceSolution.load(os.path.join(test_folder_path, 'wrongFile.hdf5'))
 
+
+@pytest.mark.parametrize('N_samples', [1, 2, 10])
+def test_sim_sample_dynamics(setup_cte_sim, mocker, N_samples):
+    '''Test that sampling the dynamics works'''
+    setup_cte_sim['lattice']['S_conc'] = 0
+
+    mocked = mocker.patch('simetuc.odesolver._solve_ode')
+    # the num_states changes when the temp lattice is created,
+    # allocate 2x so that we're safe. Also make the num_points 1000.
+    mocked.return_value = np.random.random((1000, 2*setup_cte_sim.states['energy_states']))
+
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte_sim, full_path=temp_filename)
+        assert sim.cte == setup_cte_sim
+
+        solution = sim.sample_simulation(sim.simulate_dynamics, N_samples=N_samples)
+        assert solution
+        assert mocked.call_count == 2*N_samples
+
+@pytest.mark.parametrize('N_samples', [1, 2, 10])
+def test_sim_sample_conc_dynamics(setup_cte_sim, mocker, N_samples):
+    '''Test that sampling the dynamics works'''
+    setup_cte_sim['lattice']['S_conc'] = 0
+
+    mocked = mocker.patch('simetuc.odesolver._solve_ode')
+    # the num_states changes when the temp lattice is created,
+    # allocate 2x so that we're safe. Also make the num_points 1000.
+    mocked.return_value = np.random.random((1000, 2*setup_cte_sim.states['energy_states']))
+
+    with temp_bin_filename() as temp_filename:
+        sim = simulations.Simulations(setup_cte_sim, full_path=temp_filename)
+        assert sim.cte == setup_cte_sim
+        conc_list = [(0, 0.3), (0.1, 0.3), (0.1, 0)]
+        solution = sim.sample_simulation(sim.simulate_concentration_dependence, N_samples=N_samples,
+                                         concentrations=conc_list)
+        assert solution
+        assert mocked.call_count == 2*len(conc_list)*N_samples

@@ -238,10 +238,10 @@ class Solution():
             # serialize cte
             file.attrs['cte'] = yaml.dump(self.cte.settings)
 
-    def save_txt(self, full_path: str = None, mode: str = 'wt', cmd : str = '') -> None:
+    def save_txt(self, full_path: str = None, mode: str = 'wt', cmd : str = '') -> None:  # pragma: no cover
         '''Save the settings, the time and the average populations to disk as a textfile'''
         logger = logging.getLogger(__name__)
-        if full_path is None:  # pragma: no cover
+        if full_path is None:
             full_path = save_file_full_name(self.cte.lattice, self._prefix) + '.txt'
         logger.info('Saving solution as text to {}.'.format(full_path))
         # print cte
