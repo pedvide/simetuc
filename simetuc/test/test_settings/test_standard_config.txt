@@ -68,7 +68,7 @@ excitations:
         t_pulse: 1e-8 # pulse width, seconds
         process: [Tm(3H6)->Tm(3H4), Tm(3H5)->Tm(1G4)]
         degeneracy: [13/9, 11/9]
-        pump_rate: [4.4e-3, 4e-3] # cm2/J
+        pump_rate: [4.4e-3, 2e-3] # cm2/J
 
 sensitizer_decay:
 # lifetimes in s
@@ -120,15 +120,25 @@ energy_transfer:
     BackET:
         process:  Tm(3H4) + Yb(GS) -> Tm(3H6) + Yb(ES)
         multipolarity: 6
-        strength: 4.50220614e+3
+        strength: 4502.20614
     EM:
         process:  Yb(ES) + Yb(GS) -> Yb(GS) + Yb(ES)
         multipolarity: 6
         strength: 4.50220614e+10
+    coop1:
+        process:  Yb(ES) + Yb(ES) + Tm(3H6) -> Yb(GS) + Yb(GS) + Tm(1G4)
+        multipolarity: 6
+        strength: 1000
 
 optimization:
-    processes: [CR50]
+    processes: [CR50, 3H4->3F4]
     method: SLSQP
+    options:
+        tol: 1e-3
+        N_points: 30
+        min_factor: 1e-2
+        max_factor: 2
+    excitations: [Vis_473, NIR_980]
 
 simulation_params: # default values for certain parameters in the ODE solver
     rtol: 1e-3 # relative tolerance
@@ -136,7 +146,8 @@ simulation_params: # default values for certain parameters in the ODE solver
     N_steps_pulse: 2 # number of steps for the pulse (only for dynamics)
     N_steps: 1000 # number of steps for relaxation (also for steady state)
 
-power_dependence: [1e0, 1e7, 8]
+power_dependence: [1e1, 1e7, 7]
 
 concentration_dependence:
-    concentrations: [[0], [0.01, 0.1, 0.2, 0.3, 0.4, 0.5]]
+    concentrations: [[0], [0.1, 0.3, 0.5, 1.0]]
+    N_uc_list: [65, 40, 35, 25]

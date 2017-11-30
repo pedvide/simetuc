@@ -5,7 +5,6 @@ Created on Fri Oct 21 18:44:07 2016
 @author: Pedro
 """
 import os
-from collections import OrderedDict
 
 import pytest
 import numpy as np
@@ -14,100 +13,11 @@ import scipy.sparse as sparse
 
 import simetuc.precalculate as precalculate
 import simetuc.lattice as lattice # for the LatticeError exception
-from simetuc.util import temp_bin_filename, Excitation, IonType, DecayTransition, Transition, EneryTransferProcess
+from simetuc.util import temp_bin_filename
 
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
 
-@pytest.fixture(scope='function')
-def setup_cte():
-    '''Load the cte data structure'''
-
-    class Cte(dict):
-        __getattr__= dict.__getitem__
-        __setattr__= dict.__setitem__
-        __delattr__= dict.__delitem__
-
-
-    cte = Cte([('lattice', {'A_conc': 0.3,
-                         'N_uc': 20,
-                         'S_conc': 0.3,
-                         'a': 5.9738,
-                         'alpha': 90.0,
-                         'b': 5.9738,
-                         'beta': 90.0,
-                         'c': 3.5297,
-                         'gamma': 120.0,
-                         'd_max': 100.0,
-                         'd_max_coop': 25.0,
-                         'name': 'bNaYF4',
-                         'sites_occ': [1.0, 0.5],
-                         'sites_pos': [(0.0, 0.0, 0.0), (2/3, 1/3, 0.5)],
-                         'spacegroup': 'P-6'}),
-             ('states',
-              dict([('sensitizer_ion_label', 'Yb'),
-                           ('sensitizer_states_labels', ['GS', 'ES']),
-                           ('activator_ion_label', 'Tm'),
-                           ('activator_states_labels',
-                            ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2']),
-                           ('sensitizer_states', 2),
-                           ('activator_states', 7)])),
-             ('excitations', {
-                  'NIR_1470': [Excitation(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
-                 'NIR_800': [Excitation(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
-                             Excitation(IonType.A, 2, 5, False, 11/9, 0.002, 1e7, 1e-8)],
-                 'NIR_980': [Excitation(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
-                 'Vis_473': [Excitation(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]}
-             ),
-             ('optimization_params', ['CR50']),
-             ('decay',
-              {'branching_A': {DecayTransition(IonType.A, 1, 0, branching_ratio=1.0),
-                DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
-                DecayTransition(IonType.A, 3, 1, branching_ratio=0.3),
-                DecayTransition(IonType.A, 4, 3, branching_ratio=0.999),
-                DecayTransition(IonType.A, 5, 1, branching_ratio=0.15),
-                DecayTransition(IonType.A, 5, 2, branching_ratio=0.16),
-                DecayTransition(IonType.A, 5, 3, branching_ratio=0.04),
-                DecayTransition(IonType.A, 5, 4, branching_ratio=0.0),
-                DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)},
-               'branching_S': {DecayTransition(IonType.S, 1, 0, branching_ratio=1.0)},
-               'decay_A': {DecayTransition(IonType.A, 1, 0, decay_rate=83.33333333333333),
-                DecayTransition(IonType.A, 2, 0, decay_rate=40000.0),
-                DecayTransition(IonType.A, 3, 0, decay_rate=500.0),
-                DecayTransition(IonType.A, 4, 0, decay_rate=500000.0),
-                DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
-                DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)},
-               'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=400.0)}}),
-             ('energy_transfer', # OrderedDict so the explicit examples are correct
-              OrderedDict({
-              'CR50': EneryTransferProcess([Transition(IonType.A, 5, 3),
-                                            Transition(IonType.A, 0, 2)],
-                                           mult=6, strength=887920884.0),
-              'ETU53': EneryTransferProcess([Transition(IonType.A, 5, 6),
-                                             Transition(IonType.A, 3, 1)],
-                                            mult=6, strength=450220614.0),
-              'ETU55': EneryTransferProcess([Transition(IonType.A, 5, 6),
-                                             Transition(IonType.A, 5, 4)],
-                                            mult=6, strength=0.0),
-              'ETU1': EneryTransferProcess([Transition(IonType.S, 1, 0),
-                                            Transition(IonType.A, 0, 2)],
-                                           mult=6, strength=10000.0),
-              'BackET': EneryTransferProcess([Transition(IonType.A, 3, 0),
-                                              Transition(IonType.S, 0, 1)],
-                                             mult=6, strength=4502.20614),
-              'EM': EneryTransferProcess([Transition(IonType.S, 1, 0),
-                                          Transition(IonType.S, 0, 1)],
-                                         mult=6, strength=45022061400.0),
-              'coop1': EneryTransferProcess([Transition(IonType.S, 1, 0),
-                                             Transition(IonType.S, 1, 0),
-                                             Transition(IonType.A, 0, 5)],
-                                            mult=6, strength=1000.0)})
-
-              )])
-
-    cte['no_console'] = True
-    cte['no_plot'] = True
-    return cte
 
 # SIMPLE LATTICES WITH 1 OR 2 ACTIVATORS AND SENSITIZERS
 # THESE RESULTS HAVE BEEN CHECKED BY HAND

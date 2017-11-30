@@ -14,44 +14,6 @@ from simetuc.util import temp_bin_filename
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
 
-@pytest.fixture(scope='function')
-def setup_cte():
-    '''Load the cte data structure'''
-
-    class Cte(dict):
-        pass
-
-    cte = Cte([
-             ('lattice', {'A_conc': 0.3,
-                         'N_uc': 20,
-                         'S_conc': 0.3,
-                         'a': 5.9738,
-                         'alpha': 90.0,
-                         'b': 5.9738,
-                         'beta': 90.0,
-                         'c': 3.5297,
-                         'gamma': 120.0,
-                         'd_max': 100.0,
-                         'd_max_coop': 25.0,
-                         'name': 'bNaYF4',
-                         'sites_occ': [1.0, 0.5],
-                         'sites_pos': [(0.0, 0.0, 0.0), (2/3, 1/3, 0.5)],
-                         'spacegroup': 'P-6'}),
-             ('states',
-              dict([('sensitizer_ion_label', 'Yb'),
-                           ('sensitizer_states_labels', ['GS', 'ES']),
-                           ('activator_ion_label', 'Tm'),
-                           ('activator_states_labels',
-                            ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2']),
-                           ('sensitizer_states', 2),
-                           ('activator_states', 7)]))])
-
-    cte['no_console'] = True
-    cte['no_plot'] = True
-    cte.lattice = cte['lattice']
-    cte.states = cte['states']
-    return cte
-
 
 def idfn(params):
     '''Returns the name of the test according to the parameters'''

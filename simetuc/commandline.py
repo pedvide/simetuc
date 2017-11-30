@@ -30,10 +30,6 @@ import simetuc.optimize as optimize
 from simetuc import VERSION
 from simetuc import DESCRIPTION
 
-
-# Union used in a # type: comment, but pylint and flake8 don't see it
-Union  # pylint: disable=W0104
-
 def parse_args(args: Any) -> argparse.Namespace:
     '''Create a argparser and parse the args'''
     # parse arguments
@@ -169,7 +165,7 @@ def main(ext_args: Optional[List[str]] = None) -> None:
     cte['N_samples'] = args.N_samples
 
     # solution of the simulation
-    solution = None  # type: Union[simulations.Solution, simulations.SolutionList, optimize.OptimSolution, None]
+    solution: Union[simulations.Solution, simulations.SolutionList, optimize.OptimSolution, None] = None
 
     # choose what to do
     if args.lattice:  # create lattice
@@ -245,5 +241,5 @@ def main(ext_args: Optional[List[str]] = None) -> None:
 
 
 if __name__ == "__main__":
-#    ext_args = ['config_file.cfg', '-c d']
+    ext_args = ['config_file.cfg', '-c d']
     main()

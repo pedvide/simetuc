@@ -8,11 +8,8 @@ Created on Wed Nov 23 17:35:56 2016
 import pytest
 import os
 
-import numpy as np
-
 import simetuc.commandline as commandline
 from simetuc.util import temp_config_filename
-from simetuc.optimize import OptimSolution
 
 
 config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'test_standard_config.cfg')
@@ -114,3 +111,24 @@ def test_cli_optim_options(mocker, no_logging, option):
         ext_args = [new_config_file, '--no-plot', '-o']
         commandline.main(ext_args)
         assert mocked_opt.call_count == 1
+
+option_list = ['-d', '-c d', '-o', '-o conc']
+@pytest.mark.parametrize('option', option_list, ids=option_list)
+@pytest.mark.parametrize('N_samples', [0, 1, 2])
+def test_N_samples(option, N_samples, mocker, no_logging):
+    '''Test N_samples with all compatible options'''
+    mocked_sim = mocker.patch('simetuc.simulations.Simulations')
+    mocked_opt = mocker.patch('simetuc.optimize.optimize_dynamics')
+    mocked_opt_conc = mocker.patch('simetuc.optimize.optimize_concentrations')
+
+    ext_args = [config_file, '--no-plot', option, f'-N {N_samples}']
+    commandline.main(ext_args)
+
+    if option in ['-d', '-c d']:
+        assert mocked_sim.call_count == 1
+    elif option == '-o':
+        assert mocked_opt.call_count == 1
+    elif option == '-o conc':
+        assert mocked_opt_conc.call_count == 1
+    else:
+        assert False

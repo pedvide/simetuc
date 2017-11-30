@@ -14,97 +14,11 @@ import copy
 from settings_parser import Settings, SettingsFileError, SettingsValueError, SettingsExtraValueWarning
 
 import simetuc.settings as settings
-from simetuc.util import temp_config_filename, Excitation, LabelError
+from simetuc.util import temp_config_filename, LabelError
 from simetuc.util import DecayTransition, IonType, EneryTransferProcess, Transition
 
 test_folder_path = os.path.dirname(os.path.abspath(__file__))
 
-@pytest.fixture(scope='function')
-def setup_cte():
-
-    cte_good = dict([
-             ('lattice', {'A_conc': 0.3,
-                         'N_uc': 20,
-                         'S_conc': 0.3,
-                         'a': 5.9738,
-                         'alpha': 90.0,
-                         'b': 5.9738,
-                         'beta': 90.0,
-                         'c': 3.5297,
-                         'gamma': 120.0,
-                         'cell_par': [5.9738, 5.9738, 3.5297, 90.0, 90.0, 120.0],
-                         'd_max': 100.0,
-                         'd_max_coop': 25.0,
-                         'name': 'bNaYF4',
-                         'sites_occ': [1.0, 0.5],
-                         'sites_pos': [(0.0, 0.0, 0.0), (2/3, 1/3, 0.5)],
-                         'spacegroup': 'P-6'}),
-             ('states',
-              dict([('sensitizer_ion_label', 'Yb'),
-                           ('sensitizer_states_labels', ['GS', 'ES']),
-                           ('activator_ion_label', 'Tm'),
-                           ('activator_states_labels',
-                            ['3H6', '3F4', '3H5', '3H4', '3F3', '1G4', '1D2']),
-                           ('sensitizer_states', 2),
-                           ('activator_states', 7)])),
-             ('excitations', {
-                  'NIR_1470': [Excitation(IonType.A, 5, 6, False, 9/5, 2e-4, 1e7, 1e-8)],
-                  'NIR_800': [Excitation(IonType.A, 0, 3, False, 13/9, 0.0044, 1e7, 1e-8),
-                             Excitation(IonType.A, 2, 5, False, 11/9, 0.004, 1e7, 1e-8)],
-                  'NIR_980': [Excitation(IonType.S, 0, 1, False, 4/3, 0.0044, 1e7, 1e-8)],
-                  'Vis_473': [Excitation(IonType.A, 0, 5, True, 13/9, 0.00093, 1e6, 1e-8)]}
-             ),
-             ('optimization', {'method': 'SLSQP', 'processes': [EneryTransferProcess([Transition(IonType.A, 5, 3),
-                                                                                      Transition(IonType.A, 0, 2)],
-                                                                                      mult=6, strength=2893199540.0)],
-                               'options': {}}),
-             ('power_dependence', [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0]),
-             ('concentration_dependence', {'concentrations': [(0.0, 0.01), (0.0, 0.1), (0.0, 0.2), (0.0, 0.3), (0.0, 0.4), (0.0, 0.5)],
-                                           'N_uc_list': [20, 20, 20, 20, 20, 20]}),
-             ('simulation_params', {'N_steps': 1000,
-                                    'N_steps_pulse': 2,
-                                    'atol': 1e-15,
-                                    'rtol': 0.001}),
-             ('decay',
-              {'branching_A': {DecayTransition(IonType.A, 2, 1, branching_ratio=0.4),
-                                DecayTransition(IonType.A, 3, 1, branching_ratio=0.3),
-                                DecayTransition(IonType.A, 4, 3, branching_ratio=0.999),
-                                DecayTransition(IonType.A, 5, 1, branching_ratio=0.15),
-                                DecayTransition(IonType.A, 5, 2, branching_ratio=0.16),
-                                DecayTransition(IonType.A, 5, 3, branching_ratio=0.04),
-                                DecayTransition(IonType.A, 5, 4, branching_ratio=0.0),
-                                DecayTransition(IonType.A, 6, 1, branching_ratio=0.43)},
-               'branching_S': set(),
-               'decay_A': {DecayTransition(IonType.A, 1, 0, decay_rate=83.33333333333333),
-                            DecayTransition(IonType.A, 2, 0, decay_rate=40000.0),
-                            DecayTransition(IonType.A, 3, 0, decay_rate=500.0),
-                            DecayTransition(IonType.A, 4, 0, decay_rate=500000.0),
-                            DecayTransition(IonType.A, 5, 0, decay_rate=1315.7894736842104),
-                            DecayTransition(IonType.A, 6, 0, decay_rate=14814.814814814814)},
-               'decay_S': {DecayTransition(IonType.S, 1, 0, decay_rate=400.0)}}),
-             ('energy_transfer', {
-              'CR50': EneryTransferProcess([Transition(IonType.A, 5, 3),
-                                            Transition(IonType.A, 0, 2)],
-                                           mult=6, strength=2893199540.0),
-              'ETU53': EneryTransferProcess([Transition(IonType.A, 5, 6),
-                                             Transition(IonType.A, 3, 1)],
-                                            mult=6, strength=2.5e8),
-              'ETU55': EneryTransferProcess([Transition(IonType.A, 5, 6),
-                                             Transition(IonType.A, 5, 4)],
-                                            mult=6, strength=0.0),
-              'BackET': EneryTransferProcess([Transition(IonType.A, 3, 0),
-                                              Transition(IonType.S, 0, 1)],
-                                             mult=6, strength=4502.0),
-              'EM': EneryTransferProcess([Transition(IonType.S, 1, 0),
-                                          Transition(IonType.S, 0, 1)],
-                                         mult=6, strength=45022061400.0),
-              'ETU1': EneryTransferProcess([Transition(IonType.S, 1, 0),
-                                            Transition(IonType.A, 0, 2)],
-                                           mult=6, strength=10000.0)}
-             )])
-
-
-    return cte_good
 
 @pytest.fixture(scope='function')
 def setup_cte_full_S(setup_cte):
@@ -155,7 +69,7 @@ excitations:
 # the t_pulse value is only mandatory for the dynamics, it's ignored in the steady state
     Vis_473:
         active: True
-        power_dens: 1e6 # power density W/cm^2
+        power_dens: 1e7 # power density W/cm^2
         t_pulse: 1e-8 # pulse width, seconds
         process: Tm(3H6) -> Tm(1G4) # both ion labels are required
         degeneracy: 13/9
@@ -196,22 +110,24 @@ activator_branching_ratios:
     1D2->3F4: 0.43
 '''
 
-def test_standard_config(setup_cte):
+def test_standard_config(setup_cte_settings):
     ''''Test that the returned Settings instance for a know config file is correct.'''
     filename = os.path.join(test_folder_path, 'test_standard_config.txt')
     cte = settings.load(filename)
 
     with open(filename, 'rt') as file:
         config_file = file.read()
-    setup_cte['config_file'] = config_file
+    setup_cte_settings['config_file'] = config_file
 
-    assert cte.lattice == setup_cte['lattice']
-    assert cte.states == setup_cte['states']
-    assert cte.excitations == setup_cte['excitations']
-    assert cte.energy_transfer == setup_cte['energy_transfer']
-    assert cte.optimization == setup_cte['optimization']
-    assert cte.power_dependence == setup_cte['power_dependence']
-    assert cte.concentration_dependence == setup_cte['concentration_dependence']
+    assert cte.lattice == setup_cte_settings['lattice']
+    assert cte.states == setup_cte_settings['states']
+    assert cte.excitations == setup_cte_settings['excitations']
+    assert cte.decay == setup_cte_settings['decay']
+    assert cte.energy_transfer == setup_cte_settings['energy_transfer']
+    assert cte.optimization == setup_cte_settings['optimization']
+    assert cte.power_dependence == setup_cte_settings['power_dependence']
+    assert cte.concentration_dependence == setup_cte_settings['concentration_dependence']
+    assert cte == setup_cte_settings
 
 
 def test_non_existing_file():

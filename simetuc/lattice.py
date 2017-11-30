@@ -39,7 +39,8 @@ def _check_lattice_settings(cte: settings.Settings) -> None:
         # validate lattice settings
         settings_lattice = configs.settings['lattice']
         clean_cte_lattice = cte.lattice
-        del clean_cte_lattice['cell_par']
+        if 'cell_par' in clean_cte_lattice:
+            del clean_cte_lattice['cell_par']
         settings_lattice.validate(clean_cte_lattice)
         cte.lattice = settings._parse_lattice(cte)
         cte_lattice = cte.lattice
