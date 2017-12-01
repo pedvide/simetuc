@@ -478,7 +478,7 @@ def _create_coop_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET
         return processes_arr[0:num]
 
     # slowest function, use numba jit
-    @numba.jit(nopython=True, cache=True, nogil=True)
+    @numba.jit(nopython=True, cache=False, nogil=True)
     def get_i_k_ions(proc_i: np.array, proc_k: np.array,
                      index_S_i: np.array) -> Tuple[np.array, np.array]:  # pragma: no cover
         '''Get the ion number of states i and k.'''
@@ -493,7 +493,7 @@ def _create_coop_ET_matrices(index_S_i: List[int], index_A_j: List[int], dict_ET
 
         return (ion_i, ion_k)
 
-    @numba.jit(nopython=True, cache=True, nogil=True)
+    @numba.jit(nopython=True, cache=False, nogil=True)
     def calculate_coop_strength(processes_arr: np.array, mult: int) -> np.array:  # pragma: no cover
         '''Calculate the cooperative interaction strength for the processes.'''
         prod1 = (processes_arr['d_li']*processes_arr['d_lk'])**mult
@@ -641,7 +641,7 @@ def _calculate_coop_jac_matrices(coop_N_indices: np.array) -> np.array:
     # the column position is given by the other state not in the pair:
     #   for the product pair ik, the column is l.
 
-    @numba.jit(nopython=True, cache=True)
+    @numba.jit(nopython=True, cache=False)
     def get_col_values(num_interactions: int,
                        coop_N_indices: np.array) -> np.array:  # pragma: no cover
         '''Gets the column values for the cooperative jacobian.
@@ -657,7 +657,7 @@ def _calculate_coop_jac_matrices(coop_N_indices: np.array) -> np.array:
             num += 3
         return col_indices
 
-    @numba.jit(nopython=True, cache=True)
+    @numba.jit(nopython=True, cache=False)
     def get_y_values(num_interactions: int,
                      coop_N_indices: np.array) -> Tuple[np.array, np.array]:  # pragma: no cover
         '''Return two 1D arrays with the pairs of states that appear in a position of the
