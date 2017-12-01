@@ -123,7 +123,7 @@ def optim_fun_dynamics_conc(params: Parameters, sim: simulations.Simulations,
         function = functools.partial(sim.simulate_concentration_dependence,
                                      sim.cte.concentration_dependence['concentrations'],
                                      sim.cte.concentration_dependence['N_uc_list'],
-                                     dynamics=True)
+                                     dynamics=True, average=average)
     else:
         function = functools.partial(sim.sample_simulation, sim.simulate_concentration_dependence,  # type: ignore
                                      N_samples=N_samples,
