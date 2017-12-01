@@ -38,7 +38,7 @@ def idfn_proc(param):
                                        [B_43]], ids=idfn_proc)
 @pytest.mark.parametrize('excitations', [[], ['Vis_473'],  ['Vis_473', 'NIR_980']],
                          ids=['default_exc', 'one_exc', 'two_exc'])
-@pytest.mark.parametrize('N_samples', [None, 0, 1, 2])
+@pytest.mark.parametrize('N_samples', [None, 1, 2])
 def test_optim(setup_cte, mocker, method, function, average, processes, excitations, N_samples):
     '''Test that the optimization works'''
     # mock the simulation by returning an error that goes to 0
