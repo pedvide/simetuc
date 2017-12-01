@@ -11,12 +11,12 @@ Created on Sun Oct 16 11:53:51 2016
 import sys
 import logging
 import logging.config
-import argparse
+from docopt import docopt
 # nice debug printing of settings
 import pprint
 import os
 from pkg_resources import resource_string
-from typing import Any, Union, List, Optional
+from typing import Any, Union, List, Optional, Dict
 
 #import numpy as np
 import matplotlib.pyplot as plt
@@ -30,65 +30,43 @@ import simetuc.optimize as optimize
 from simetuc import VERSION
 from simetuc import DESCRIPTION
 
-def parse_args(args: Any) -> argparse.Namespace:
-    '''Create a argparser and parse the args'''
-    # parse arguments
-    # increase help column width
-    fmt_class = lambda prog: argparse.HelpFormatter(prog, max_help_position=35)
-    parser = argparse.ArgumentParser(description=DESCRIPTION+' '+VERSION,  # type: ignore
-                                     formatter_class=fmt_class)
-    parser.add_argument('--version', action='version', version=DESCRIPTION+' '+VERSION)
-    # verbose or quiet options
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("-v", "--verbose", help='show warnings and progress information',
-                       action="store_true")
-    group.add_argument("-q", "--quiet", help='show only errors', action="store_true")
-    # no plot
-    parser.add_argument("--no-plot", help='don\'t show plots', action="store_true")
+usage = f'''{DESCRIPTION}, version {VERSION}
 
-    # average rate equations
-    parser.add_argument("--average", help=('use average rate equations' +
-                                           ' instead of microscopic'), action="store_true")
-    # config file
-    parser.add_argument(metavar='configFilename', dest='filename', help='configuration filename')
+Usage:
+    simetuc (-h | --help)
+    simetuc --version
+    simetuc <config_filename> [options]
+    simetuc <config_filename> -l [options]
+    simetuc <config_filename> -d [options]
+    simetuc <config_filename> -s [options]
+    simetuc <config_filename> -p [options]
+    simetuc <config_filename> -c [-d | --dynamics] [options]
+    simetuc <config_filename> -o [-c | --concentration] [options]
 
-    # main options: load config file, lattice, simulate or optimize
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument('-l', '--lattice', help='generate and plot the lattice',
-                       action='store_true')
-    group.add_argument('-d', '--dynamics', help='simulate dynamics',
-                       action='store_true')
-    group.add_argument('-s', '--steady-state', help='simulate steady state',
-                       action='store_true')
-    group.add_argument('-p', '--power-dependence', help='simulate power dependence of steady state',
-                       action='store_true')
-    group.add_argument('-c', '--conc-dep', dest='conc_dependence',
-                       metavar='d', nargs='?', const='s',
-                       help=('simulate concentration dependence of' +
-                             ' the steady state (default) or dynamics (d)'),
-                       action='store')
-    group.add_argument('-o', '--optimize',
-                       help='optimize the energy transfer parameters [of the concentration]',
-                       metavar='conc', nargs='?', const='single',
-                       action='store')
+Arguments:
+    config_filename                   configuration filename
 
-    # sampling
-    # average rate equations
-    parser.add_argument('-N', '--N_samples', help='number of samples', action="store", type=int, default=None)
+Simulation types:
+    -l, --lattice                     generate the lattice
+    -d, --dynamics                    simulate dynamics
+    -s, --steady-state                simulate steady state
+    -p, --power-dependence            simulate power dependence of steady state
+    -c, --concentration-dependence    simulate concentration dependence of the steady state or dynamics (with -d)
+    -o, --optimize                    optimize the parameters of the dynamics for one or all concentrations (with -c)
 
-    # save data
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument('--no-save', help='don\'t save results',
-                       action="store_true")
+Options:
+    -v, --verbose                     show warnings and progress information
+    -q, --quiet                       show only errors
+    --no-plot                         don't show plots
+    --average                         use average rate equations instead of microscopic
+    --no-save                         don't save results
+    -N, --N-samples N_SAMPLES         number of samples
+'''
 
-    # add plot subcommand
-#    subparsers = parser.add_subparsers(dest="plot")
-#    foo_parser = subparsers.add_parser('foo')
-#    foo_parser.add_argument('-c', '--count')
-
-    parsed_args = parser.parse_args(args)
-    return parsed_args
-
+def parse_args(args: Any) -> Dict:
+    d = docopt(usage, argv=args, help=True, version=VERSION, options_first=False)
+    #print(d)
+    return d
 
 def _setup_logging(console_level: int) -> None:
     '''Load logging settings from file and apply them.'''
@@ -136,10 +114,10 @@ def main(ext_args: Optional[List[str]] = None) -> None:
 
     # choose console logger level
     no_console = True
-    if args.verbose:
+    if args['--verbose']:
         console_level = logging.INFO
         no_console = False
-    elif args.quiet:
+    elif args['--quiet']:
         console_level = logging.ERROR
         no_console = True
     else:
@@ -148,7 +126,7 @@ def main(ext_args: Optional[List[str]] = None) -> None:
 
     # show plots or not
     no_plot = False
-    if args.no_plot:
+    if args['--no-plot']:
         no_plot = True
 
     _setup_logging(console_level)
@@ -159,79 +137,77 @@ def main(ext_args: Optional[List[str]] = None) -> None:
 
     # load config file
     logger.info('Loading configuration...')
-    cte = settings.load(args.filename)
+    cte = settings.load(args['<config_filename>'])
     cte['no_console'] = no_console
     cte['no_plot'] = no_plot
-    cte['N_samples'] = args.N_samples
+    cte['N_samples'] = args['--N-samples']
 
     # solution of the simulation
     solution: Union[simulations.Solution, simulations.SolutionList, optimize.OptimSolution, None] = None
 
     # choose what to do
-    if args.lattice:  # create lattice
+    if args['--lattice']:  # create lattice
         logger.info('Creating and plotting lattice...')
         lattice.generate(cte)
 
-    elif args.dynamics:  # simulate dynamics
+    elif args['--dynamics'] and not args['--concentration-dependence']:  # simulate dynamics
         logger.info('Simulating dynamics...')
         sim = simulations.Simulations(cte)
-        if args.N_samples is not None:
-            solution = sim.sample_simulation(sim.simulate_dynamics, N_samples=args.N_samples,
-                                             average=args.average)
+        if args['--N-samples'] is not None:
+            solution = sim.sample_simulation(sim.simulate_dynamics, N_samples=args['--N-samples'],
+                                             average=args['--average'])
         else:
-            solution = sim.simulate_dynamics(average=args.average)
+            solution = sim.simulate_dynamics(average=args['--average'])
         solution.log_errors()
 
-    elif args.steady_state:  # simulate steady state
+    elif args['--steady-state']:  # simulate steady state
         logger.info('Simulating steady state...')
         sim = simulations.Simulations(cte)
-        solution = sim.simulate_steady_state(average=args.average)
+        solution = sim.simulate_steady_state(average=args['--average'])
         solution.log_populations()
 
-    elif args.power_dependence:  # simulate power dependence
+    elif args['--power-dependence']:  # simulate power dependence
         logger.info('Simulating power dependence...')
         sim = simulations.Simulations(cte)
         power_dens_list = cte.power_dependence
-        solution = sim.simulate_power_dependence(power_dens_list, average=args.average)
+        solution = sim.simulate_power_dependence(power_dens_list, average=args['--average'])
         print('')
 
-    elif args.conc_dependence:  # simulate concentration dependence
+    elif args['--concentration-dependence'] and not args['--optimize']:  # simulate concentration dependence
         logger.info('Simulating concentration dependence...')
         sim = simulations.Simulations(cte)
         conc_list = cte.concentration_dependence['concentrations']
-        dynamics = True if args.conc_dependence.strip() == 'd' else False
 
-        if args.N_samples is not None:
+        if args['--N-samples'] is not None:
             solution = sim.sample_simulation(sim.simulate_concentration_dependence,
-                                             N_samples=args.N_samples,
-                                             concentrations=conc_list, dynamics=dynamics,
-                                             average=args.average)
+                                             N_samples=args['--N-samples'],
+                                             concentrations=conc_list, dynamics=args['--dynamics'],
+                                             average=args['--average'])
         else:
-            solution = sim.simulate_concentration_dependence(conc_list, dynamics=dynamics,
-                                                             average=args.average)
+            solution = sim.simulate_concentration_dependence(conc_list, dynamics=args['--dynamics'],
+                                                             average=args['--average'])
         solution.log_errors()
 
-    elif args.optimize:  # optimize
+    elif args['--optimize']:  # optimize
         logger.info('Optimizing parameters...')
-        optim_conc = True if args.optimize.strip() == 'conc' else False
-        if optim_conc is False:
-            solution = optimize.optimize_dynamics(cte, average=args.average,
-                                                  N_samples=args.N_samples)
+        if args['--concentration'] or args['--concentration-dependence']:
+            solution = optimize.optimize_concentrations(cte, average=args['--average'],
+                                                        N_samples=args['--N-samples'])
         else:
-            solution = optimize.optimize_concentrations(cte, average=args.average,
-                                                        N_samples=args.N_samples)
+            solution = optimize.optimize_dynamics(cte, average=args['--average'],
+                                                  N_samples=args['--N-samples'])
 
     # save results to disk
-    if solution is not None and not args.no_save:
+    if solution is not None and not args['--no-save']:
         logger.info('Saving results to file.')
-        solution.save()  # always save
+        solution.save()
         solution.save_txt(cmd=' '.join(sys.argv))
 
     logger.info('Program finished!')
 
     # show all plots
     # the user needs to close the window to exit the program
-    if not cte['no_plot']:
+    if not args['--no-plot']:
         if solution is not None:
             solution.plot()
         logger.info('Close the plot window to exit.')
@@ -241,5 +217,5 @@ def main(ext_args: Optional[List[str]] = None) -> None:
 
 
 if __name__ == "__main__":
-    ext_args = ['config_file.cfg', '-c d']
+    ext_args = ['config_file.cfg', '-d']
     main()

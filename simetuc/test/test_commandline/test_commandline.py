@@ -47,7 +47,7 @@ def test_cli_verbose_quiet(mocker, no_logging):
     commandline.main(ext_args)
     assert mocked_generate.call_count == 2
 
-option_list = ['-l', '-d', '-s', '-p', '-c', '-c d', '-o', '-o conc']
+option_list = ['-l', '-d', '-s', '-p', '-c', '-cd', '-o', '-oc']
 @pytest.mark.parametrize('option', option_list, ids=option_list)
 def test_cli_main_options(option, mocker, no_logging):
     '''Test that the main options work'''
@@ -59,11 +59,11 @@ def test_cli_main_options(option, mocker, no_logging):
     ext_args = [config_file, '--no-plot', option]
     commandline.main(ext_args)
 
-    if option in ['-d', '-s', '-p', '-c', '-c d']:
+    if option in ['-d', '-s', '-p', '-c', '-cd']:
         assert mocked_sim.call_count == 1
     elif option == '-o':
         assert mocked_opt.call_count == 1
-    elif option == '-o conc':
+    elif option == '-oc':
         assert mocked_opt_conc.call_count == 1
     elif option == '-l':
         assert mocked_lattice.call_count == 1
@@ -75,7 +75,7 @@ def test_cli_conc_dep_dyn(mocker, no_logging):
         it can't be tested above because of the value d
     '''
     mocked_sim = mocker.patch('simetuc.simulations.Simulations')
-    ext_args = [config_file, '--no-plot', '-c', 'd']
+    ext_args = [config_file, '--no-plot', '-cd']
     commandline.main(ext_args)
     assert mocked_sim.call_count == 1
 
@@ -112,7 +112,7 @@ def test_cli_optim_options(mocker, no_logging, option):
         commandline.main(ext_args)
         assert mocked_opt.call_count == 1
 
-option_list = ['-d', '-c d', '-o', '-o conc']
+option_list = ['-d', '-cd', '-o', '-oc']
 @pytest.mark.parametrize('option', option_list, ids=option_list)
 @pytest.mark.parametrize('N_samples', [0, 1, 2])
 def test_N_samples(option, N_samples, mocker, no_logging):
@@ -124,11 +124,11 @@ def test_N_samples(option, N_samples, mocker, no_logging):
     ext_args = [config_file, '--no-plot', option, f'-N {N_samples}']
     commandline.main(ext_args)
 
-    if option in ['-d', '-c d']:
+    if option in ['-d', '-cd']:
         assert mocked_sim.call_count == 1
     elif option == '-o':
         assert mocked_opt.call_count == 1
-    elif option == '-o conc':
+    elif option == '-oc':
         assert mocked_opt_conc.call_count == 1
     else:
         assert False
