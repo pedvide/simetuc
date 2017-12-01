@@ -9,6 +9,7 @@ h5py >=2.6 # anaconda
 numba
 lmfit
 settings_parser
+docopt
 
 # only for tests
 pytest >=3.0.3 # anaconda

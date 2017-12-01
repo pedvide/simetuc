@@ -109,7 +109,8 @@ setup(
                       'h5py >=2.6',
                       'numba',
                       'lmfit',
-                      'settings_parser'],
+                      'settings_parser',
+                      'docopt'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,

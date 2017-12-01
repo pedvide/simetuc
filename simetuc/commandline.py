@@ -35,6 +35,7 @@ usage = f'''{DESCRIPTION}, version {VERSION}
 Usage:
     simetuc (-h | --help)
     simetuc --version
+    simetuc plot <saved_simulation_result>
     simetuc <config_filename> [options]
     simetuc <config_filename> -l [options]
     simetuc <config_filename> -d [options]
@@ -42,6 +43,7 @@ Usage:
     simetuc <config_filename> -p [options]
     simetuc <config_filename> -c [-d | --dynamics] [options]
     simetuc <config_filename> -o [-c | --concentration] [options]
+
 
 Arguments:
     config_filename                   configuration filename
@@ -65,7 +67,7 @@ Options:
 
 def parse_args(args: Any) -> Dict:
     d = docopt(usage, argv=args, help=True, version=VERSION, options_first=False)
-    #print(d)
+    print(d)
     return d
 
 def _setup_logging(console_level: int) -> None:
