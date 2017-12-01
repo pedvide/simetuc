@@ -1287,6 +1287,7 @@ class Simulations():
                                   'simetuc.precalculate', 'simetuc.lattice']):
                 steady_sol = self.simulate_steady_state(average=average)
             solutions.append(steady_sol)
+        tqdm.write('')
 
         total_time = time.time()-start_time
         formatted_time = time.strftime("%Mm %Ss", time.localtime(total_time))
@@ -1344,6 +1345,7 @@ class Simulations():
                 else:
                     sol = self.simulate_steady_state(average=average)
             solutions.append(sol)
+        tqdm.write('')
 
         total_time = time.time()-start_time
         formatted_time = time.strftime("%Mm %Ss", time.localtime(total_time))

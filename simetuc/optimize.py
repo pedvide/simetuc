@@ -244,7 +244,7 @@ def optimize(function: Callable, cte: settings.Settings, average: bool = False,
     total_time = datetime.datetime.now() - start_time
     hours, remainder = divmod(total_time.total_seconds(), 3600)
     minutes, seconds = divmod(remainder, 60)
-    print('')
+    tqdm.tqdm.write('')
     formatted_time = '{:.0f}h {:02.0f}m {:02.0f}s'.format(hours, minutes, seconds)
     logger.info('Minimum reached! Total time: %s.', formatted_time)
     logger.info('Optimized RMS error: %.3e.', min_f)
