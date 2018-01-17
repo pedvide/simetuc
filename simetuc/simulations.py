@@ -749,7 +749,7 @@ class SolutionList(Sequence[Solution]):
                 average = file.attrs['average']
                 dynamics = file.attrs['dynamics']
                 if dynamics:
-                    sol_list = cls(dynamics)
+                    sol_list = cls(dynamics)  # type: ignore
                 else:
                     sol_list = cls()
                 sol_list.dynamics = dynamics
