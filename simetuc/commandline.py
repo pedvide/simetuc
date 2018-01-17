@@ -44,7 +44,7 @@ Usage:
     simetuc <config_filename> -o [-c | --concentration] [options]
     simetuc plot <saved_simulation.hdf5>
     
-Plotting:
+Commands:
     plot                              plots the results stored in saved_simulation.hdf5
 
 Arguments:
@@ -104,7 +104,7 @@ def _setup_logging(console_level: int) -> None:
     logger = logging.getLogger('simetuc')
     for handler in logging.getLogger().handlers:  # pragma: no cover
         if isinstance(handler, logging.handlers.RotatingFileHandler):  # type: ignore
-            handler.doRollover()  # type: ignore
+            handler.doRollover()
 
     logger.debug('Log settings dump:')
     logger.debug(pprint.pformat(log_settings))
