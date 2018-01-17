@@ -748,7 +748,10 @@ class SolutionList(Sequence[Solution]):
             with h5py.File(full_path, 'r') as file:
                 average = file.attrs['average']
                 dynamics = file.attrs['dynamics']
-                sol_list = cls()
+                if dynamics:
+                    sol_list = cls(dynamics)
+                else:
+                    sol_list = cls()
                 sol_list.dynamics = dynamics
                 for group_num in file:
                     group = file[group_num]
@@ -1020,7 +1023,7 @@ class ConcentrationDependenceSolution(SolutionList):
             warnings.warn(msg, plotter.PlotWarning)
             return
 
-        if self.dynamics is True:
+        if self.dynamics:
             self._plot_dynamics()
         else:
             self._plot_steady()
@@ -1364,7 +1367,7 @@ class Simulations():
         *args, **kwargs are passed to simulation_fun.'''
         logger = logging.getLogger(__name__ + '.sample_simulation')
 
-        if N_samples <= 1:
+        if not N_samples or N_samples <= 1:
             return simulation_fun(*args, **kwargs)
 
         start_time = time.time()
@@ -1438,25 +1441,25 @@ class Simulations():
 #        ax.plot(x, pdf_fitted*np.max(n)/np.max(pdf_fitted),'r-')
 #        plt.pause(0.1)
 
-if __name__ == "__main__":
-    from simetuc.util import disable_console_handler
-
-    logger = logging.getLogger()
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-    logger.info('Called from cmd.')
-
-    cte = settings.load('config_file.cfg')
-
-    cte['no_console'] = False
-    cte['no_plot'] = False
-
-    sim = Simulations(cte)
-
-
-    with disable_console_handler('simetuc.precalculate'):
-        pass
-
+#if __name__ == "__main__":
+#    from simetuc.util import disable_console_handler
+#
+#    logger = logging.getLogger()
+#    logging.basicConfig(level=logging.INFO,
+#                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#    logger.info('Called from cmd.')
+#
+#    cte = settings.load('config_file.cfg')
+#
+#    cte['no_console'] = False
+#    cte['no_plot'] = False
+#
+#    sim = Simulations(cte)
+#
+#
+#    with disable_console_handler('simetuc.precalculate'):
+#        pass
+#
 #        solution = sim.simulate_dynamics()
 #        solution.log_errors()
 #        solution.plot()
@@ -1496,10 +1499,10 @@ if __name__ == "__main__":
 #        N_uc_list = [75, 45, 45, 30]#, 25, 25, 20, 18]
 #        solution = sim.simulate_concentration_dependence(conc_list, N_uc_list, dynamics=True)
 #        solution = sim.simulate_concentration_dependence(**cte.concentration_dependence, dynamics=True)
-        solution = sim.sample_simulation(sim.simulate_concentration_dependence, N_samples=20,
-                                         **cte.concentration_dependence, dynamics=True)
-        solution.log_errors()
-        solution.plot()
+#        solution = sim.sample_simulation(sim.simulate_concentration_dependence, N_samples=None,
+#                                         **cte.concentration_dependence, dynamics=True)
+#        solution.log_errors()
+#        solution.plot()
 #
 #        steady_solution = ConcentrationDependenceSolution(dynamics=False)
 #        steady_solution.add_solutions([sol.calculate_steady_state() for sol in solution])
