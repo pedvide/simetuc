@@ -35,7 +35,6 @@ usage = f'''{DESCRIPTION}, version {VERSION}
 Usage:
     simetuc (-h | --help)
     simetuc --version
-    simetuc plot <saved_simulation_result>
     simetuc <config_filename> [options]
     simetuc <config_filename> -l [options]
     simetuc <config_filename> -d [options]
@@ -43,10 +42,14 @@ Usage:
     simetuc <config_filename> -p [options]
     simetuc <config_filename> -c [-d | --dynamics] [options]
     simetuc <config_filename> -o [-c | --concentration] [options]
-
+    simetuc plot <saved_simulation.hdf5>
+    
+Plotting:
+    plot                              plots the results stored in saved_simulation.hdf5
 
 Arguments:
-    config_filename                   configuration filename
+    config_filename                   configuration filename for the simulation
+    saved_simulation.hdf5             saved file to plot
 
 Simulation types:
     -l, --lattice                     generate the lattice
@@ -67,7 +70,7 @@ Options:
 
 def parse_args(args: Any) -> Dict:
     d = docopt(usage, argv=args, help=True, version=VERSION, options_first=False)
-    print(d)
+    #print(d)
     return d
 
 def _setup_logging(console_level: int) -> None:
@@ -106,43 +109,47 @@ def _setup_logging(console_level: int) -> None:
     logger.debug('Log settings dump:')
     logger.debug(pprint.pformat(log_settings))
 
+def command_plot(args: Dict) -> None:
+    '''User invoked the command plot'''
+    logger = logging.getLogger('simetuc')
 
-def main(ext_args: Optional[List[str]] = None) -> None:
-    '''Main entry point for the command line interface'''
-    if ext_args is None:  # pragma: no cover
-        args = parse_args(sys.argv[1:])  # skip the program name
-    else:
-        args = parse_args(ext_args)
+    filename = args['<saved_simulation.hdf5>']
+    if 'dynamics' in filename:
+        sol = simulations.DynamicsSolution.load(filename)
+    elif 'conc_dep' in filename:
+        sol = simulations.ConcentrationDependenceSolution.load(filename)
+    elif 'pow_dep' in filename:
+        sol = simulations.PowerDependenceSolution.load(filename)
+    sol.plot()
+    logger.info('Close the plot window to exit.')
+    plt.show()
 
-    # choose console logger level
-    no_console = True
+
+def command_simulation(args: Dict) -> None:
+    '''User invoked one of the simulation commands'''
+
     if args['--verbose']:
-        console_level = logging.INFO
         no_console = False
     elif args['--quiet']:
-        console_level = logging.ERROR
         no_console = True
     else:
-        console_level = logging.WARNING
         no_console = False
 
     # show plots or not
-    no_plot = False
     if args['--no-plot']:
         no_plot = True
-
-    _setup_logging(console_level)
-    logger = logging.getLogger('simetuc')
-
-    logger.info('Starting program...')
-    logger.debug('Called from cmd with arguments: %s.', args)
+    else:
+        no_plot = False
 
     # load config file
+    logger = logging.getLogger('simetuc')
     logger.info('Loading configuration...')
     cte = settings.load(args['<config_filename>'])
     cte['no_console'] = no_console
     cte['no_plot'] = no_plot
-    cte['N_samples'] = args['--N-samples']
+    N_samples = args.get('--N-samples', None)
+    N_samples = int(N_samples) if N_samples else None
+    cte['N_samples'] = N_samples
 
     # solution of the simulation
     solution: Union[simulations.Solution, simulations.SolutionList, optimize.OptimSolution, None] = None
@@ -156,7 +163,7 @@ def main(ext_args: Optional[List[str]] = None) -> None:
         logger.info('Simulating dynamics...')
         sim = simulations.Simulations(cte)
         if args['--N-samples'] is not None:
-            solution = sim.sample_simulation(sim.simulate_dynamics, N_samples=args['--N-samples'],
+            solution = sim.sample_simulation(sim.simulate_dynamics, N_samples=N_samples,
                                              average=args['--average'])
         else:
             solution = sim.simulate_dynamics(average=args['--average'])
@@ -182,7 +189,7 @@ def main(ext_args: Optional[List[str]] = None) -> None:
 
         if args['--N-samples'] is not None:
             solution = sim.sample_simulation(sim.simulate_concentration_dependence,
-                                             N_samples=args['--N-samples'],
+                                             N_samples=N_samples,
                                              concentrations=conc_list, dynamics=args['--dynamics'],
                                              average=args['--average'])
         else:
@@ -194,10 +201,10 @@ def main(ext_args: Optional[List[str]] = None) -> None:
         logger.info('Optimizing parameters...')
         if args['--concentration'] or args['--concentration-dependence']:
             solution = optimize.optimize_concentrations(cte, average=args['--average'],
-                                                        N_samples=args['--N-samples'])
+                                                        N_samples=N_samples)
         else:
             solution = optimize.optimize_dynamics(cte, average=args['--average'],
-                                                  N_samples=args['--N-samples'])
+                                                  N_samples=N_samples)
 
     # save results to disk
     if solution is not None and not args['--no-save']:
@@ -214,6 +221,33 @@ def main(ext_args: Optional[List[str]] = None) -> None:
             solution.plot()
         logger.info('Close the plot window to exit.')
         plt.show()
+
+
+def main(ext_args: Optional[List[str]] = None) -> None:
+    '''Main entry point for the command line interface'''
+    if ext_args is None:  # pragma: no cover
+        args = parse_args(sys.argv[1:])  # skip the program name
+    else:
+        args = parse_args(ext_args)
+
+    # choose console logger level
+    if args['--verbose']:
+        console_level = logging.INFO
+    elif args['--quiet']:
+        console_level = logging.ERROR
+    else:
+        console_level = logging.WARNING
+
+    _setup_logging(console_level)
+    logger = logging.getLogger('simetuc')
+
+    logger.info('Starting program...')
+    logger.debug('Called from cmd with arguments: %s.', args)
+
+    if args['plot']:
+        command_plot(args)
+    else:
+        command_simulation(args)
 
     logging.shutdown()
 
