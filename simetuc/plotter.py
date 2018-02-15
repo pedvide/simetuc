@@ -246,7 +246,8 @@ def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray
             plt.ylim(*np.array(plt.ylim())*margin_factor)  # add some white space on top
             plt.xlim(*np.array(plt.xlim())*margin_factor)
 
-            plt.legend(loc="best")
+            if num == 0:  # just one legend so it's not too crowded
+                plt.legend(loc="best")
             plt.xlabel('Concentration (%)')
             # change axis format to scientifc notation
 #            xfmt = plt.ScalarFormatter(useMathText=True)
