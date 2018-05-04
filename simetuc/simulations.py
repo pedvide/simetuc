@@ -343,7 +343,6 @@ class DynamicsSolution(Solution):
         self._list_binned_data = []  # type: List[np.array]
         self._list_interp_data = []  # type: List[np.array]
 
-        self._total_error = None  # type: float
         self._errors = np.array([])
 
         # prefix for the name of the saved files
@@ -466,8 +465,6 @@ class DynamicsSolution(Solution):
 
         if not np.any(exp_data):  # if there's no experimental data, don't do anything
             return sim_data
-        if not np.any(sim_data):  # pragma: no cover
-            return None
 
         if t_interp is None:
             t_interp = exp_data[:, 0]
@@ -489,8 +486,6 @@ class DynamicsSolution(Solution):
 
         if not np.any(exp_data):  # if there's no experimental data, don't do anything
             return sim_data
-        if not np.any(sim_data):  # pragma: no cover
-            return None
 
         exp_time = exp_data[:, 0]
         bin_time = np.linspace(exp_time[0], exp_time[-1], len(exp_time))
@@ -566,13 +561,13 @@ class DynamicsSolution(Solution):
 
         list_t_sim = [data[:, 0] if data is not None else self.t_sol for data in self.list_exp_data]
         list_t_sim = [elem for num, elem in enumerate(list_t_sim)
-                       if num not in {index_GS_S, index_GS_A}]
+                      if num not in {index_GS_S, index_GS_A}]
 
         # exclude the ground states from the plot
         list_sim_data = [elem for num, elem in enumerate(self.list_binned_data)
-                     if num not in {index_GS_S, index_GS_A}]
+                         if num not in {index_GS_S, index_GS_A}]
         list_exp_data = [elem for num, elem in enumerate(self.list_exp_data)
-                       if num not in {index_GS_S, index_GS_A}]
+                         if num not in {index_GS_S, index_GS_A}]
         list_labels = [elem for num, elem in enumerate(self.state_labels)
                        if num not in {index_GS_S, index_GS_A}]
 
@@ -1488,12 +1483,12 @@ class Simulations():
 #
 #    with disable_console_handler('simetuc.precalculate'):
 #        pass
-#
+
 #        solution = sim.simulate_dynamics()
 #        solution.log_errors()
 #        solution.plot()
 
-#        solution.plot(state=7)
+#        solution.plot(state=8)
 
 #    solution.save()
 #    sol = DynamicsSolution.load('results/bNaYF4/dynamics_20uc_0.0S_0.3A.hdf5')
