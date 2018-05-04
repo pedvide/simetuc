@@ -165,3 +165,4 @@ $RECYCLE.BIN/
 pylint_res.txt
 *.lyx#
 simetuc/config_file_ESA.cfg
+.pytest_cache/v/cache/nodeids

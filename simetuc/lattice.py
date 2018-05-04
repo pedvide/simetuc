@@ -10,9 +10,12 @@ import os
 import time
 import logging
 from typing import Dict, List, Tuple, Union
+import warnings
 
 import numpy as np
-import h5py
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import h5py
 import ruamel.yaml as yaml
 from tqdm import tqdm
 

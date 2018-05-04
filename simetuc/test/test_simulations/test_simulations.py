@@ -7,7 +7,10 @@ Created on Tue Nov  8 13:22:54 2016
 import os
 
 import pytest
-import h5py
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import h5py
 import numpy as np
 
 import simetuc.simulations as simulations

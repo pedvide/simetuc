@@ -13,7 +13,9 @@ import os
 from typing import List, Tuple, Iterator, Sequence, cast, Callable, Any, Union
 import copy
 
-import h5py
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import h5py
 import ruamel.yaml as yaml
 
 import numpy as np

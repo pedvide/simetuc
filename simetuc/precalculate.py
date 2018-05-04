@@ -20,7 +20,10 @@ import logging
 import numba
 from typing import Dict, List, Tuple
 
-import h5py
+import warnings
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    import h5py
 import ruamel.yaml as yaml
 
 import numpy as np
