@@ -356,7 +356,7 @@ def _parse_simulation_params(settings: Settings) -> Dict:
     return new_settings
 
 @log_exceptions_warnings
-def _parse_power_dependence(user_list: List = None) -> List[float]:
+def _parse_power_dependence(user_list: Tuple[float, float, int]) -> List[float]:
     '''Parses the power dependence list with the minimum, maximum and number of points.'''
     min_power = user_list[0]
     max_power = user_list[1]
