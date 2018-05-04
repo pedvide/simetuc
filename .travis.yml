@@ -36,7 +36,9 @@ before_script:
   - sleep 3 # give xvfb some time to start
 
 script:
+  - cd simetuc
   - pytest -v -n0 --cov-config setup.cfg
+  - cd ..
   - flake8 --tee
   - mypy -p simetuc
 
