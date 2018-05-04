@@ -1270,7 +1270,7 @@ class Simulations():
             Returns a PowerDependenceSolution instance
             average=True solves an average rate equation problem instead of the microscopic one.
         '''
-        logger = logging.getLogger(__name__ + '.power_dependence')
+        logger = logging.getLogger(__name__ + '.pow_dep')
         logger.info('Simulating power dependence curves...')
         start_time = time.time()
 
@@ -1314,7 +1314,7 @@ class Simulations():
             Returns a ConcentrationDependenceSolution instance
             average=True solves an average rate equation problem instead of the microscopic one.
         '''
-        logger = logging.getLogger(__name__ + '.concentration_dependence')
+        logger = logging.getLogger(__name__ + '.conc_dep')
         logger.info('Simulating concentration dependence curves of ' +
                     '{}.'.format('dynamics' if dynamics is True else 'steady state'))
 
@@ -1322,6 +1322,13 @@ class Simulations():
 
         # make sure it's a list of tuple of two floats
         concentrations = [(float(a), float(b)) for a, b in list(concentrations)]
+        
+        materials = ['{}% {}, {}% {}.'.format(S_conc, self.cte.states['sensitizer_ion_label'],
+                                              A_conc, self.cte.states['activator_ion_label'])
+                     for S_conc, A_conc in concentrations]
+        logger.info(f"Concentrations to be simulated for lattice {self.cte.lattice['name']}:")
+        for mat in materials:
+            logger.info(mat)
 
         if N_uc_list is None:
             N_uc_list = [self.cte.lattice['N_uc']]*len(concentrations)
@@ -1343,7 +1350,8 @@ class Simulations():
             self.cte.lattice['A_conc'] = concs[1]
 
             with disable_loggers([__name__+'.dynamics', __name__+'.steady_state',
-                                  'simetuc.precalculate', 'simetuc.lattice']):
+                                  'simetuc.precalculate', 'simetuc.lattice',
+                                  'simetuc.simulations']):
                 # simulate
                 if dynamics:
                     sol = self.simulate_dynamics(average=average)  # type: Solution

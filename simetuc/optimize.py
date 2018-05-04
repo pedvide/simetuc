@@ -224,7 +224,8 @@ def optimize(function: Callable, cte: settings.Settings, average: bool = False,
     minimizer = Minimizer(function, parameters, fcn_args=(sim, average, N_samples),
                           iter_cb=callback_fun)
     # minimize logging only warnings or worse to console.
-    with disable_loggers(['simetuc.simulations', 'simetuc.precalculate', 'simetuc.lattice']):
+    with disable_loggers(['simetuc.simulations', 'simetuc.precalculate', 'simetuc.lattice',
+                          'simetuc.simulations.conc_dep']):
         with disable_console_handler(__name__):
             result = minimizer.minimize(method=method, **options_dict)
 
