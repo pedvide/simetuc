@@ -26,6 +26,7 @@ import simetuc.lattice as lattice
 import simetuc.simulations as simulations
 import simetuc.settings as settings
 import simetuc.optimize as optimize
+from simetuc.util import disable_loggers
 
 from simetuc import VERSION
 from simetuc import DESCRIPTION
@@ -73,7 +74,7 @@ def parse_args(args: Any) -> Dict:
     #print(d)
     return d
 
-def _setup_logging(console_level: int) -> None:
+def _setup_logging(console_level: int, only_console: bool = False) -> None:
     '''Load logging settings from file and apply them.'''
     # read logging settings from file
     # use the file located where the package is installed
@@ -97,6 +98,10 @@ def _setup_logging(console_level: int) -> None:
             log_settings = {'version': 1}  # minimum settings without errors
         else:
             os.makedirs('logs', exist_ok=True)
+            
+    if only_console:
+        log_settings['handlers'] = {'console': log_settings['handlers']['console']}
+        log_settings['root']['handlers'] = ['console']
 
     # load settings and rollover any rotating file handlers
     # so each execution of this program is logged to a fresh file
@@ -108,18 +113,31 @@ def _setup_logging(console_level: int) -> None:
 
     logger.debug('Log settings dump:')
     logger.debug(pprint.pformat(log_settings))
+    
+def _stop_logging() -> None:
+    for handler in logging.getLogger('simetuc').handlers:  # pragma: no cover
+        handler.flush()
+        handler.close()
+        
+    logging.shutdown()
 
 def command_plot(args: Dict) -> None:
     '''User invoked the command plot'''
     logger = logging.getLogger('simetuc')
 
     filename = args['<saved_simulation.hdf5>']
-    if 'dynamics' in filename:
-        sol = simulations.DynamicsSolution.load(filename)
-    elif 'conc_dep' in filename:
-        sol = simulations.ConcentrationDependenceSolution.load(filename)
-    elif 'pow_dep' in filename:
-        sol = simulations.PowerDependenceSolution.load(filename)
+    
+    logger.info('Plotting saved file: ' + filename + '.')
+    
+    with disable_loggers(['simetuc.settings', 'settings_parser.settings']):
+        if 'dynamics' in filename:
+            sol = simulations.DynamicsSolution.load(filename)
+        elif 'conc_dep' in filename:
+            sol = simulations.ConcentrationDependenceSolution.load(filename)
+        elif 'pow_dep' in filename:
+            sol = simulations.PowerDependenceSolution.load(filename)
+            
+    sol.log_errors()
     sol.plot()
     logger.info('Close the plot window to exit.')
     plt.show()
@@ -186,14 +204,16 @@ def command_simulation(args: Dict) -> None:
         logger.info('Simulating concentration dependence...')
         sim = simulations.Simulations(cte)
         conc_list = cte.concentration_dependence['concentrations']
+        N_uc_list = cte.concentration_dependence['N_uc_list']
 
         if args['--N-samples'] is not None:
             solution = sim.sample_simulation(sim.simulate_concentration_dependence,
                                              N_samples=N_samples,
-                                             concentrations=conc_list, dynamics=args['--dynamics'],
-                                             average=args['--average'])
+                                             concentrations=conc_list, N_uc_list=N_uc_list, 
+                                             dynamics=args['--dynamics'], average=args['--average'])
         else:
-            solution = sim.simulate_concentration_dependence(conc_list, dynamics=args['--dynamics'],
+            solution = sim.simulate_concentration_dependence(conc_list, N_uc_list,
+                                                             dynamics=args['--dynamics'],
                                                              average=args['--average'])
         solution.log_errors()
 
@@ -231,25 +251,25 @@ def main(ext_args: Optional[List[str]] = None) -> None:
         args = parse_args(ext_args)
 
     # choose console logger level
-    if args['--verbose']:
+    if args['--verbose'] or args['plot']:
         console_level = logging.INFO
     elif args['--quiet']:
         console_level = logging.ERROR
     else:
         console_level = logging.WARNING
-
-    _setup_logging(console_level)
+    
+    _setup_logging(console_level, only_console=args['plot'])
+    
     logger = logging.getLogger('simetuc')
-
     logger.info('Starting program...')
     logger.debug('Called from cmd with arguments: %s.', args)
 
     if args['plot']:
         command_plot(args)
-    else:
+    else:        
         command_simulation(args)
-
-    logging.shutdown()
+        
+    _stop_logging()
 
 
 if __name__ == "__main__":
