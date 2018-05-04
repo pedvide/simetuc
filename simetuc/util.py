@@ -391,7 +391,7 @@ class ConfigWarning(UserWarning):
     pass
 
 
-def save_file_full_name(lattice: dict, prefix: str = None) -> str:  # pragma: no cover
+def save_file_full_name(lattice: dict, prefix: str = '') -> str:  # pragma: no cover
     '''Return the full name to save a file (without extention or prefix).'''
     path = os.path.join('results', lattice['name'])
     os.makedirs(path, exist_ok=True)
