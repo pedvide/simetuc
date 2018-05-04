@@ -16,7 +16,6 @@ import matplotlib as mpl
 
 from simetuc.util import Conc
 
-
 A_TOL = 1e-20
 
 ColorMap = Type[mpl.colors.Colormap]
@@ -25,11 +24,6 @@ ColorMap = Type[mpl.colors.Colormap]
 class PlotWarning(UserWarning):
     '''Warning for empty plots'''
     pass
-
-
-def new_figure() -> mpl.figure.Figure:
-    '''Return a new figure'''
-    return plt.figure()
 
 
 def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
@@ -42,8 +36,7 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
                         fig: mpl.figure.Figure = None,
                         title: str = '') -> None:
     ''' Plot the list of simulated and experimental data (optional) against time in t_sol.
-        If concentration is given, the legend will show the concentrations
-        along with the state_labels (it can get long).
+        If concentration is given, the legend will show the concentrations.
         colors is a string with two chars. The first is the sim color,
         the second the exp data color.
     '''
@@ -57,9 +50,11 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
 
     list_t_sim = t_sol if len(t_sol) == num_plots else [t_sol]*num_plots  # type: List[np.array]
 
-    if concentration is not None:
+    if concentration:
         conc_str = '_' + str(concentration.S_conc) + 'S_' + str(concentration.A_conc) + 'A'
-        state_labels = [label+conc_str for label in state_labels]
+#        state_labels = [label+conc_str for label in state_labels]
+    else:
+        conc_str = ''
 
     sim_color = colors[0]
     exp_color = colors[1]
@@ -69,7 +64,7 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
     if fig is None:
         fig = plt.figure()
 
-    fig.suptitle(title)
+    fig.suptitle(title + '. Time in ms.')
 
     list_axes = fig.get_axes()  # type: List
     if not list_axes:
@@ -80,21 +75,21 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
     for sim_data, t_sim, exp_data, state_label, axes\
         in zip(list_sim_data, list_t_sim, list_exp_data, state_labels, list_axes):
 
-        # set the title to invisible, so when editing the matplotlib window the user
-        # can see which plot corresponds to which state
-        if state_label: axes.set_title(state_label.replace('_', ' '), visible=False)
+        if state_label: 
+            axes.set_title(state_label.replace('_', ' '),
+                           {'horizontalalignment': 'center',
+                            'verticalalignment': 'center',
+                            'fontweight': 'bold',
+                            'fontsize': 10})
 
         if sim_data is None or np.isnan(sim_data).any() or not np.any(sim_data > 0):
-            # plot label so user knows what state has no data
-            axes.plot(t_sim*1000, np.zeros_like(t_sim), color=sim_color, label=state_label)
-            axes.legend(loc="best", fontsize='small')
             continue
 
         # no exp data: either a GS or simply no exp data available
         if exp_data is 0 or exp_data is None:
             # nonposy='clip': clip non positive values to a very small positive number
-            axes.semilogy(t_sim*1000, sim_data, color=sim_color, label=state_label)
-            axes.set_yscale('log', nonposy='clip')
+            axes.semilogy(t_sim*1000, sim_data, color=sim_color, label=state_label+conc_str)
+            
             axes.axis('tight')
             axes.set_xlim(left=t_sim[0]*1000.0)
             # add some white space above and below
@@ -114,11 +109,9 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
             min_y = min(*axes.get_ylim())
             max_y = max(*axes.get_ylim())
             axes.set_ylim(bottom=min_y, top=max_y)
-            axes.legend(loc="best", fontsize='small')
         else:  # exp data available
-            curr_handles, curr_labels = axes.get_legend_handles_labels()
             sim_handle, = axes.semilogy(t_sim*1000, sim_data, color=sim_color,
-                                       label=state_label, zorder=10)
+                                       label=state_label+conc_str, zorder=10)
             # convert exp_data time to ms
             exp_handle, = axes.semilogy(exp_data[:, 0]*1000, exp_data[:, 1]*np.max(sim_data),
                                        color=exp_color, marker=exp_marker,
@@ -128,13 +121,15 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
             tmin = min(exp_data[-1, 0], t_sim[0])
             axes.set_xlim(left=tmin*1000.0, right=exp_data[-1, 0]*1000)  # don't show beyond expData
 
-            axes.legend(curr_handles+[(sim_handle, exp_handle)],
-                        curr_labels+[state_label], markerscale=5)#, loc="best", fontsize='small')
-
-#            curr_handles, curr_labels = axes.get_legend_handles_labels()
-#            print(num, curr_handles)
-        axes.set_xlabel('t (ms)')
-
+    if conc_str:
+        list_axes[0].legend(loc="best", fontsize='small')
+        curr_handles, curr_labels = list_axes[0].get_legend_handles_labels()
+        new_labels = [label.replace(state_labels[0]+'_', '').replace('_', ', ') for label in curr_labels]
+        list_axes[0].legend(curr_handles, new_labels, markerscale=5, loc="best", fontsize='small')
+        
+    fig.subplots_adjust(top=0.918, bottom=0.041,
+                        left=0.034, right=0.99,
+                        hspace=0.275, wspace=0.12)
 
 
 def plot_state_decay_data(t_sol: np.ndarray, sim_data_array: np.ndarray,
@@ -220,7 +215,8 @@ def plot_power_dependence(sim_data_arr: np.ndarray, power_dens_arr: np.ndarray,
 
 
 def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray,
-                                  state_labels: List[str]) -> None:
+                                  state_labels: List[str],
+                                  ion_label: Union[str, Tuple[str, str]] = None) -> None:
     '''Plots the concentration dependence of the steady state emission'''
     num_plots = len(state_labels)
     num_rows = 3
@@ -238,17 +234,22 @@ def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray
             continue
 
         ax = fig.add_subplot(num_rows, num_cols, num+1)
+        
+        if state_label: 
+            ax.set_title(state_label.replace('_', ' '),
+                         {'horizontalalignment': 'center',
+                          'verticalalignment': 'center',
+                          'fontweight': 'bold', 'fontsize': 10})
 
         if not heatmap:
             ax.semilogy(conc_arr, sim_data, '.-r', mfc='k', ms=10, label=state_label)
             plt.axis('tight')
             margin_factor = np.array([0.9, 1.1])
-            plt.ylim(*np.array(plt.ylim())*margin_factor)  # add some white space on top
-            plt.xlim(*np.array(plt.xlim())*margin_factor)
+            ax.set_ylim(*np.array(plt.ylim())*margin_factor)  # add some white space on top
+            ax.set_xlim(*np.array(plt.xlim())*margin_factor)
 
-            if num == 0:  # just one legend so it's not too crowded
-                plt.legend(loc="best")
-            plt.xlabel('Concentration (%)')
+            ion_label = ion_label if ion_label else ''
+            ax.set_xlabel(f'{ion_label} concentration (%)')
             # change axis format to scientifc notation
 #            xfmt = plt.ScalarFormatter(useMathText=True)
 #            xfmt.set_powerlimits((-1, 1))
@@ -263,7 +264,7 @@ def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray
 
             # Interpolate
             # random grid
-            interp_f = interpolate.Rbf(x, y, z, function='gaussian', epsilon=2)
+            interp_f = interpolate.Rbf(x, y, z, function='gaussian', epsilon=15)
             zi = interp_f(xi, yi)
 #                zi = interpolate.griddata((x, y), z, (xi, yi), method='cubic')
 #                interp_f = interpolate.interp2d(x, y, z, kind='linear')
@@ -271,13 +272,17 @@ def plot_concentration_dependence(sim_data_arr: np.ndarray, conc_arr: np.ndarray
 
             plt.imshow(zi, vmin=z.min(), vmax=z.max(), origin='lower',
                       extent=[x.min(), x.max(), y.min(), y.max()], aspect='auto')
-            ax.scatter(x, y, c=z)
-            plt.xlabel('S concentration (%)')
-            plt.ylabel('A concentration (%)')
+            ax.scatter(x, y, c=z, edgecolors='r', linewidth=0.25)
+            ion_label = ion_label if ion_label else 'SA'
+            ax.set_xlabel(f'{ion_label[0]} concentration (%)')
+            ax.set_ylabel(f'{ion_label[1]} concentration (%)')
             cb = plt.colorbar()
             cb.formatter.set_powerlimits((0, 0))
             cb.update_ticks()
-            cb.set_label(state_label)
+            cb.set_label('Emission intensity')
+            
+#        plt.tight_layout()
+    fig.subplots_adjust(hspace=0.35, wspace=0.26)
 
 
 def plot_lattice(doped_lattice: np.array, ion_type: np.array) -> None:
