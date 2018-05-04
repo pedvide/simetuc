@@ -950,10 +950,10 @@ class ConcentrationDependenceSolution(SolutionList):
 
         # plot all decay curves together
         import matplotlib.pyplot as plt
-        color_map = plt.get_cmap('Paired')
+        color_map = plt.get_cmap('tab20')
         color_list = [(color_map(num), color_map(num+1)) for num in range(0, 2*len(self), 2)]
         # plot all concentrations in the same figure
-        single_figure = plotter.new_figure()
+        single_figure = plt.figure()
         for color, sol in zip(color_list, self):
             sol = cast(DynamicsSolution, sol)  # no runtime effect, only for mypy
 
@@ -978,10 +978,11 @@ class ConcentrationDependenceSolution(SolutionList):
                                         concentration=sol.concentration,
                                         colors=color,
                                         fig=single_figure, title=title)
+        
 
     def _plot_steady(self) -> None:
         '''Plot the stady state (emission intensity) as function of the concentration'''
-        sim_data_arr = np.array([np.array(sol.steady_state_populations) for sol in self])
+        
 
 #        S_states = self[0].cte.states['sensitizer_states']
 #        A_states = self[0].cte.states['activator_states']
@@ -997,15 +998,30 @@ class ConcentrationDependenceSolution(SolutionList):
         A_conc_l = [float(sol.concentration.A_conc) for sol in self]
         if S_conc_l.count(S_conc_l[0]) == len(S_conc_l):
             conc_arr = np.array(A_conc_l)
+            ion_change_label = self[0].cte.states['activator_ion_label']
         elif A_conc_l.count(A_conc_l[0]) == len(A_conc_l):
             conc_arr = np.array(S_conc_l)
+            ion_change_label = self[0].cte.states['sensitizer_ion_label']
         else:
             # do a 2D heatmap otherwise
             conc_arr = np.array(list(zip(S_conc_l, A_conc_l)))
-
-        # plot
+            ion_change_label = (self[0].cte.states['sensitizer_ion_label'], self[0].cte.states['activator_ion_label'])
+            
         state_labels = self[0].state_labels
-        plotter.plot_concentration_dependence(sim_data_arr, conc_arr, state_labels)
+            
+        # skip ground states
+        index_GS_S = 0
+        index_GS_A = self[0].cte.states['sensitizer_states']
+        list_no_GS = list(range(0, len(state_labels)))
+        list_no_GS.remove(index_GS_S)
+        list_no_GS.remove(index_GS_A)
+        
+        sim_data_arr = np.array([np.array(sol.steady_state_populations) for sol in self])
+        sim_data_arr = sim_data_arr[:, list_no_GS]
+        state_labels = list(np.array(state_labels)[list_no_GS])
+
+        # plot        
+        plotter.plot_concentration_dependence(sim_data_arr, conc_arr, state_labels, ion_label=ion_change_label)
 
 
     @log_exceptions_warnings
@@ -1341,9 +1357,10 @@ class Simulations():
         num_conc_steps = len(concentrations)
         solutions = []  # type: List[Solution]
 
-        for concs, N_uc in zip(tqdm(concentrations, unit='points',
-                          total=num_conc_steps, disable=False,
-                          desc='Concentrations progress'), N_uc_list):
+        pbar = tqdm(concentrations, unit='points', total=num_conc_steps, disable=False,  desc='Concentrations progress')
+        for concs, N_uc, material in zip(concentrations, N_uc_list, materials):
+            pbar.set_description(f"{self.cte.lattice['name']}: {material}")
+            pbar.update(1)
             # update concentrations and N_uc
             self.cte.lattice['N_uc'] = N_uc
             self.cte.lattice['S_conc'] = concs[0]
@@ -1359,6 +1376,8 @@ class Simulations():
                     sol = self.simulate_steady_state(average=average)
             solutions.append(sol)
         tqdm.write('')
+        pbar.update(1)
+        pbar.close()
 
         total_time = time.time()-start_time
         formatted_time = time.strftime("%Mm %Ss", time.localtime(total_time))
