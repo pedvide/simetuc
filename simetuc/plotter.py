@@ -46,7 +46,7 @@ def plot_avg_decay_data(t_sol: Union[np.ndarray, List[np.array]],
 
     # optional lists default to list of None
     list_exp_data = list_exp_data or [None]*num_plots
-    state_labels = state_labels or [None]*num_plots
+    state_labels = state_labels or ['']*num_plots
 
     list_t_sim = t_sol if len(t_sol) == num_plots else [t_sol]*num_plots  # type: List[np.array]
 
