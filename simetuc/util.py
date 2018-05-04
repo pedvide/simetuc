@@ -308,7 +308,7 @@ def log_exceptions_warnings(ignore_warns: Union[Callable, Warning,
                 logger = logging.getLogger(function.__module__)
                 logger.error(str(exc))
                 raise
-            for warn in warn_list:
+            for warn in warn_list:  # type: ignore
                 if warn.category in ignore_warns: continue  # type: ignore
                 logger = logging.getLogger(function.__module__)
                 log_msg = (warn.category.__name__ + ': "' + str(warn.message) +
