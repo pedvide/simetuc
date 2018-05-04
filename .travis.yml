@@ -41,6 +41,8 @@ script:
   - mypy -p simetuc
 
 after_success:
+  - cat .coverage
+  - cat simetuc/.coverage
   - coverage report
   - coveralls
 
