@@ -11,6 +11,7 @@ import time
 import logging
 from typing import Dict, List, Tuple, Union
 import warnings
+from collections import Counter
 
 import numpy as np
 with warnings.catch_warnings():
@@ -20,6 +21,7 @@ import ruamel.yaml as yaml
 from tqdm import tqdm
 
 import ase
+import ase.io
 from ase.spacegroup import crystal
 
 from simetuc.util import ConfigError, log_exceptions_warnings
@@ -93,6 +95,19 @@ def _create_lattice(spacegroup: Union[int, str], cell_par: List[float], num_uc: 
 
     return atoms
 
+def _create_lattice_cif(cif_file: str, num_uc: int, ion_sites: dict) -> ase.Atoms:
+    '''Creates the lattice from a .cif file.
+        Returns an ase.Atoms object with all atomic positions
+    '''
+    atoms =  ase.io.read(cif_file)
+    atoms = crystal(atoms, onduplicates='replace')
+    
+    # delete sites with ions that are not S or A
+    del atoms[[at.index for at in atoms if at.symbol not in ion_sites.values()]]
+    
+    atoms = atoms.repeat(num_uc)
+
+    return atoms
 
 def _make_spherical(atoms: ase.Atoms, radius: float) -> ase.Atoms:
     '''Makes the lattice spherical with the given radius by deleting all atoms outside.
@@ -145,6 +160,55 @@ def _impurify_lattice(atoms: ase.Atoms, S_conc: float, A_conc: float) -> np.arra
             num_doped_atoms += 1
         else:
             del_list.append(atom.index)
+    # delete un-doped positions
+    del atoms[del_list]
+
+    # eliminate extra zeros from preallocation
+    ion_type = ion_type[:num_doped_atoms]
+
+    return ion_type
+
+def _impurify_lattice_cif(atoms: ase.Atoms, S_conc: float, A_conc: float, 
+                          ion_sites: dict) -> np.array:
+    '''Impurifies the lattice atoms with the specified concentration of
+       sensitizers and activators (in %).
+       Returns an array with the ion type
+    '''
+    # convert from percentage
+    S_conc = S_conc/100.0
+    A_conc = A_conc/100.0
+
+    num_atoms = len(atoms)
+    # populate the lattice with the requested concentrations of sensitizers and activators
+    ion_type = np.zeros((3*int(np.ceil(num_atoms*(S_conc+A_conc))),),
+                        dtype=np.uint32)  # preallocate 3x more
+    num_doped_atoms = 0  # number of doped ions
+
+    np.random.seed()
+
+    # for each atom in atoms
+    # if the atom corresponds to S and rand_num is less than S_conc, populate
+    # same for A
+    del_list = []
+    for atom in atoms:
+        rand_num_doped = np.random.uniform(0, 1)
+        rand_num_S_or_A = np.random.uniform(0, A_conc+S_conc)
+        if rand_num_doped < (A_conc+S_conc):
+            if atom.symbol == ion_sites['S']: # sensitizer site
+                if rand_num_S_or_A < S_conc: # populate with S
+                    ion_type[num_doped_atoms] = 0
+                    num_doped_atoms += 1
+                else:
+                    del_list.append(atom.index)
+            elif atom.symbol == ion_sites['A']: # activator site
+                if rand_num_S_or_A < A_conc: # populate with A
+                    ion_type[num_doped_atoms] = 1
+                    num_doped_atoms += 1
+                else:
+                    del_list.append(atom.index)
+        else:
+            del_list.append(atom.index)
+        
     # delete un-doped positions
     del atoms[del_list]
 
@@ -353,8 +417,13 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
     # it would be more efficient to directly create a doped lattice,
     # i.e.: without creating un-doped atoms first
     # however, this is very fast anyways
-    atoms = _create_lattice(cte.lattice['spacegroup'], cte.lattice['cell_par'],
-                            num_uc, cte.lattice['sites_pos'], cte.lattice['sites_occ'])
+    if 'cif_file' in cte.lattice and 'ion_sites' in cte.lattice:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            atoms = _create_lattice_cif(cte.lattice['cif_file'], num_uc, cte.lattice['ion_sites'])
+    else:
+        atoms = _create_lattice(cte.lattice['spacegroup'], cte.lattice['cell_par'],
+                                num_uc, cte.lattice['sites_pos'], cte.lattice['sites_occ'])
     num_atoms = len(atoms)
     logger.info('Total number of atoms: %d', num_atoms)
 
@@ -365,7 +434,14 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
 
     # modify a lattice to get the concentration of S and A ions
     # it deletes all non-doped ions from atoms and returns an array with ions types
-    ion_type = _impurify_lattice(atoms, S_conc, A_conc)
+    if 'cif_file' in cte.lattice and 'ion_sites' in cte.lattice:
+        # number of A and S sites before impurifying
+        count = Counter(atoms.get_chemical_symbols())
+        count_S = count[cte.lattice['ion_sites']['S']]
+        count_A = count[cte.lattice['ion_sites']['A']]
+        ion_type = _impurify_lattice_cif(atoms, S_conc, A_conc, cte.lattice['ion_sites'])
+    else:
+        ion_type = _impurify_lattice(atoms, S_conc, A_conc)
     doped_lattice = atoms.positions
     # number of sensitizers and activators
     num_doped_atoms = len(atoms)
@@ -379,13 +455,19 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
         msg = ('No doped ions generated: the lattice or' +
                ' the concentrations are too small, or the number of energy states is zero!')
         raise LatticeError(msg)
-
-    logger.info('Total number of S+A: %d, (%.2f%%).',
-                num_doped_atoms, num_doped_atoms/num_atoms*100)
-    logger.info('Number of sensitizers (percentage): %d (%.2f%%).',
-                num_S, num_S/num_atoms*100)
-    logger.info('Number of activators (percentage): %d (%.2f%%).',
-                num_A, num_A/num_atoms*100)
+        
+    if 'cif_file' in cte.lattice and 'ion_sites' in cte.lattice:
+        logger.info('Number of sensitizers (percentage): %d (%.2f%%).',
+                    num_S, num_S/count_S*100)
+        logger.info('Number of activators (percentage): %d (%.2f%%).',
+                    num_A, num_A/count_A*100)
+    else:
+        #logger.info('Total number of S+A: %d, (%.2f%%).',
+        #            num_doped_atoms, num_doped_atoms/num_atoms*100)
+        logger.info('Number of sensitizers (percentage): %d (%.2f%%).',
+                    num_S, num_S/num_atoms*100)
+        logger.info('Number of activators (percentage): %d (%.2f%%).',
+                    num_A, num_A/num_atoms*100)
 
     elapsed_time = time.time()-start_time
     formatted_time = time.strftime("%Mm %Ss", time.localtime(elapsed_time))
