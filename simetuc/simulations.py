@@ -698,7 +698,7 @@ class SolutionList(Sequence[Solution]):
 
     def __getitem__(self, index: Union[int, slice]) -> Solution:  # type: ignore
         '''Implements solution[number].'''
-        return self.solution_list[index]
+        return self.solution_list[index]  # type: ignore
 
     def __repr__(self) -> str:
         '''Representation of a solution list.'''

@@ -33,7 +33,7 @@ settings = {'version': Value(int, val_max=1, val_min=1),
                                   'alpha' : Value(float, val_min=0, val_max=360),
                                   'beta' : Value(float, val_min=0, val_max=360),
                                   'gamma' : Value(float, val_min=0, val_max=360),
-                                  'sites_pos' : Value(Union[Vector, List[Vector]],
+                                  'sites_pos' : Value(Union[Vector, List[Vector]],  # type: ignore
                                                       val_min=0, val_max=1,
                                                       len_min=[1, 3], len_max=[None, 3]),
                                   'sites_occ' : Value(Union[f_float, List[f_float]],
