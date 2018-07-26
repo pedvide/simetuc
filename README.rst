@@ -157,7 +157,7 @@ and then at the Utrecht University under Prof. Andries Meijerink.
 License
 -------
 
-Copyright Pedro Villanueva Delgado, 2016-2017.
+Copyright Pedro Villanueva Delgado, 2016-2018.
 
 Distributed under the terms of the `MIT <https://github.com/pedvide/simetuc/blob/master/LICENSE.txt>`__ license,
 simetuc is free and open source software.

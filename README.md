@@ -108,7 +108,7 @@ This work was started at the University of Cantabria under Prof. Rafael Valiente
 
 ## License
 
-Copyright Pedro Villanueva Delgado, 2016-2017.
+Copyright Pedro Villanueva Delgado, 2016-2018.
 
 Distributed under the terms of the [MIT](LICENSE.txt) license, simetuc is free and open source software.
 
