@@ -143,7 +143,7 @@ def setup_optim(cte: settings.Settings) -> Tuple[str, Parameters, dict]:
     method = cte.get('optimization', {}).get('method', 'leastsq').lower().replace('-', '')
     if method not in (list(minimizer.SCALAR_METHODS.keys()) +
                       list(minimizer.SCALAR_METHODS.values()) +
-                      ['leastsq', 'least_squares', 'brute_force']):
+                      ['leastsq', 'least_squares', 'brute']):
         raise ValueError('Wrong optimization method ({})!'.format(method))
     logger.info('Optimization method: %s.', method)
 

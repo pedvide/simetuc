@@ -281,7 +281,10 @@ def _parse_optimization(settings: Settings) -> Dict[str, Any]:
         optim_dict['processes'] = list(settings.energy_transfer.values())
 
     if 'method' in optim_settings:
-        optim_dict['method'] = optim_settings['method']
+        if 'brute' in optim_settings['method']:
+            optim_dict['method'] = 'brute'
+        else:
+            optim_dict['method'] = optim_settings['method']
 
     if 'excitations' in optim_settings:
         optim_dict['excitations'] = optim_settings['excitations']

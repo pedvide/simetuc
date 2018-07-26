@@ -29,7 +29,7 @@ def idfn_proc(param):
     '''Returns the name of the test according to the parameters'''
     return 'num={}'.format(len(param))
 @pytest.mark.parametrize('method', ['COBYLA', 'L-BFGS-B', 'TNC',
-                                    'SLSQP', 'brute_force', 'leastsq'],
+                                    'SLSQP', 'brute', 'leastsq'],
                                     ids=idfn_param)
 @pytest.mark.parametrize('function', ['optimize_dynamics', 'optimize_concentrations'])
 @pytest.mark.parametrize('average', [True, False], ids=idfn_avg)
@@ -59,7 +59,7 @@ def test_optim(setup_cte, mocker, method, function, average, processes, excitati
         res = optim_solution.result
 
     assert len(best_x) == len(processes)
-    if method in 'brute_force':
+    if method in 'brute':
         assert min_f == np.sqrt(res.candidates[0].score)
     else:
         assert min_f == np.sqrt((res.residual**2).sum())
