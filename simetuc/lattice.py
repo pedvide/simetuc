@@ -99,7 +99,7 @@ def _create_lattice_cif(cif_file: str, num_uc: int, ion_sites: dict) -> ase.Atom
     '''Creates the lattice from a .cif file.
         Returns an ase.Atoms object with all atomic positions
     '''
-    atoms =  ase.io.read(cif_file)
+    atoms = ase.io.read(cif_file)
     atoms = crystal(atoms, onduplicates='replace')
     
     # delete sites with ions that are not S or A
@@ -190,24 +190,34 @@ def _impurify_lattice_cif(atoms: ase.Atoms, S_conc: float, A_conc: float,
     # if the atom corresponds to S and rand_num is less than S_conc, populate
     # same for A
     del_list = []
-    for atom in atoms:
-        rand_num_doped = np.random.uniform(0, 1)
-        rand_num_S_or_A = np.random.uniform(0, A_conc+S_conc)
-        if rand_num_doped < (A_conc+S_conc):
-            if atom.symbol == ion_sites['S']: # sensitizer site
-                if rand_num_S_or_A < S_conc: # populate with S
+    if ion_sites['S'] == ion_sites['A']: # same site
+        for atom in atoms:
+            rand_num_doped = np.random.uniform(0, 1)
+            rand_num_S_or_A = np.random.uniform(0, A_conc+S_conc)
+            if rand_num_doped < (A_conc+S_conc):
+                if rand_num_S_or_A < S_conc: # sensitizer site
+                    ion_type[num_doped_atoms] = 0
+                    num_doped_atoms += 1
+                elif rand_num_S_or_A > S_conc: # activator site
+                    ion_type[num_doped_atoms] = 1
+                    num_doped_atoms += 1
+            else:
+                del_list.append(atom.index)
+    else: # different sites, populate independently
+        for atom in atoms:
+            rand_num_doped = np.random.uniform(0, 1)
+            if atom.symbol == ion_sites['S']:
+                if rand_num_doped < S_conc:
                     ion_type[num_doped_atoms] = 0
                     num_doped_atoms += 1
                 else:
                     del_list.append(atom.index)
-            elif atom.symbol == ion_sites['A']: # activator site
-                if rand_num_S_or_A < A_conc: # populate with A
+            elif atom.symbol == ion_sites['A']:
+                if rand_num_doped < A_conc:
                     ion_type[num_doped_atoms] = 1
                     num_doped_atoms += 1
                 else:
                     del_list.append(atom.index)
-        else:
-            del_list.append(atom.index)
         
     # delete un-doped positions
     del atoms[del_list]
@@ -560,13 +570,13 @@ def generate(cte: settings.Settings, min_im_conv: bool = True,
 #
 #    logger.debug('Called from main.')
 #
-#    cte = settings.load('config_file.cfg')
+#    cte = settings.load('config_file_cif.cfg')
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
 #
-##    cte.lattice['S_conc'] = 100
+##    cte.lattice['S_conc'] = 50
 ##    cte.lattice['A_conc'] = 0
-##    cte.lattice['N_uc'] = 1
+##    cte.lattice['N_uc'] = 5
 ##    cte.lattice['radius'] = 20
 ##    cte.states['sensitizer_states'] = 0
 ##    cte.states['activator_states'] = 0
