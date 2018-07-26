@@ -121,11 +121,11 @@ def _parse_excitations(dict_states: Dict, dict_excitations: Dict) -> Dict:
                                    label_i=init_state, label_f=final_state)
             parsed_dict[exc_label].append(exc_trans)
 
-        # all ions must be the same in the list!
-        ion_list = exc_dict['ion_exc']
-        if not all(ion == ion_list[0] for ion in ion_list):
-            msg = 'All processes must involve the same ion in {}.'.format(exc_label)
-            raise SettingsValueError(msg)
+        # all ions must be the same in the list! ## NOT TRUE
+#        ion_list = exc_dict['ion_exc']
+#        if not all(ion == ion_list[0] for ion in ion_list):
+#            msg = 'All processes must involve the same ion in {}.'.format(exc_label)
+#            raise SettingsValueError(msg)
 
         dict_excitations[exc_label] = exc_dict
 
@@ -554,4 +554,4 @@ def load_from_text(text_data: str) -> Settings:
 
 #if __name__ == "__main__":
 ##    cte_std = settings.load('test/test_settings/test_standard_config.txt')
-#    cte = load('config_file.cfg')
+#    cte = load('config_file_Yb_Tm.cfg')

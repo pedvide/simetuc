@@ -675,7 +675,7 @@ def test_abs_config7():
     assert excinfo.match("cannot be smaller than 0.")
     assert excinfo.type == SettingsValueError
 
-def test_abs_config8():
+def test_abs_config8(): # ok, ESA on different ions
     data = data_states_ok + '''excitations:
     NIR_800:
         active: True
@@ -685,11 +685,8 @@ def test_abs_config8():
         degeneracy: [13/9, 11/9]
         pump_rate: [4.4e-3, 2e-3] # cm2/J
 '''
-    with pytest.raises(SettingsValueError) as excinfo:  # all ions must be the same
-        with temp_config_filename(data) as filename:
-            settings.load(filename)
-    assert excinfo.match("All processes must involve the same ion in")
-    assert excinfo.type == SettingsValueError
+    with temp_config_filename(data) as filename:
+        settings.load(filename)
 
 
 data_abs_ok = '''version: 1
