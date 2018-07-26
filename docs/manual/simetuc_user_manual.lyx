@@ -100,6 +100,11 @@ Pedro Villanueva-Delgado
 \end_layout
 
 \begin_layout Standard
+\align center
+Version 1.8.0
+\end_layout
+
+\begin_layout Standard
 \begin_inset CommandInset toc
 LatexCommand tableofcontents
 
@@ -167,7 +172,7 @@ The simulation is controlled by a configuration text file that the user
 
 \begin_deeper
 \begin_layout Itemize
-Information about the host lattice.
+Information about the host lattice (you can use a .cif file).
 \end_layout
 
 \begin_layout Itemize
@@ -360,7 +365,7 @@ target "https://www.continuum.io/downloads"
 
 , execute the following commands at the command prompt (
 \emph on
-cmd.exe
+Anaconda Prompt
 \emph default
  for Windows, 
 \emph on
@@ -610,7 +615,7 @@ reference "subsec:Branching-ratios"
 -
 \begin_inset CommandInset ref
 LatexCommand ref
-reference "subsec:Optimization-Method"
+reference "subsec:Optimization-Processes"
 
 \end_inset
 
@@ -1186,6 +1191,133 @@ lattice:
 \end_inset
 
 
+\end_layout
+
+\begin_layout Subsection
+.cif files
+\end_layout
+
+\begin_layout Standard
+You can include the lattice information directly from a .cif file, such as
+ the ones available at the 
+\begin_inset CommandInset href
+LatexCommand href
+name "Crystallography Open Database"
+target "https://www.crystallography.net/cod/"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset listings
+inline false
+status open
+
+\begin_layout Plain Layout
+
+lattice:
+\end_layout
+
+\begin_layout Plain Layout
+
+    ...
+ all other fields ...
+ 
+\end_layout
+
+\begin_layout Plain Layout
+
+    cif_file: 4312142.cif
+\end_layout
+
+\begin_layout Plain Layout
+
+    ion_sites:
+\end_layout
+
+\begin_layout Plain Layout
+
+        S: Al
+\end_layout
+
+\begin_layout Plain Layout
+
+        A: Y
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+In the example above, the file 
+\begin_inset Quotes eld
+\end_inset
+
+4312142.cif
+\begin_inset Quotes erd
+\end_inset
+
+ contains information about the YAG cristal structure, including the unit
+ cell and sites.
+\end_layout
+
+\begin_layout Standard
+
+\family typewriter
+ion_sites
+\family default
+ links the sensitizer and activator ions to a especific site in the lattice.
+ In this case the Sensitizer occupies the Aluminum sites, while the Activator
+ occupies the Yttrium sites.
+\end_layout
+
+\begin_layout Standard
+You must include all other mandatory fields in the 
+\family typewriter
+lattice
+\family default
+ section, even though 
+\family typewriter
+a
+\family default
+, 
+\family typewriter
+b
+\family default
+, 
+\family typewriter
+c
+\family default
+, 
+\family typewriter
+alpha
+\family default
+, 
+\family typewriter
+beta
+\family default
+, 
+\family typewriter
+gamma
+\family default
+, 
+\family typewriter
+spacegroup
+\family default
+, 
+\family typewriter
+sites_pos
+\family default
+, and 
+\family typewriter
+sites_occ
+\family default
+ will be ignored.
+ Just give them any value (this is a known bug).
 \end_layout
 
 \begin_layout Section
@@ -4882,7 +5014,7 @@ License
 \end_layout
 
 \begin_layout Standard
-Copyright Pedro Villanueva Delgado, 2016-2017.
+Copyright Pedro Villanueva Delgado, 2016-2018.
 \end_layout
 
 \begin_layout Standard
@@ -4918,7 +5050,7 @@ height "0.5pt"
 
 \begin_layout Standard
 \noindent
-Copyright (c) 2016-2017 Pedro Villanueva Delgado
+Copyright (c) 2016-2018 Pedro Villanueva Delgado
 \end_layout
 
 \begin_layout Standard
@@ -4972,7 +5104,7 @@ Appendix: Example configuration file
 \begin_layout Standard
 \begin_inset CommandInset include
 LatexCommand lstinputlisting
-filename "../../simetuc/config_file.cfg"
+filename "C:/Users/villanueva/Simulaciones/python/simetuc/simetuc/config_file_example.cfg"
 lstparams "numbers=left,numberstyle={\\footnotesize},stepnumber=5,firstnumber=1,numberfirstline=true,breaklines=true,xrightmargin={0cm},xleftmargin={0cm},linewidth=400pt,caption={Exampe configuration file},label={lst:full_conf_file}"
 
 \end_inset

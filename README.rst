@@ -16,7 +16,7 @@ Python 3.6 is required. Installing
 works with Windows (64/32 bits), Linux (64/32 bits) and Mac (64 bits).
 
 After installing Anaconda execute the following commands at the command
-prompt (cmd.exe for Windows, shell for Linux and Mac):
+prompt (Use "Anaconda Prompt" for Windows, shell for Linux and Mac):
 
 ::
 
