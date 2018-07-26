@@ -958,13 +958,13 @@ class ConcentrationDependenceSolution(SolutionList):
 
             list_t_sim = [data[:, 0] if data is not None else sol.t_sol
                           for data in sol.list_exp_data]
-            list_t_sim = list_t_sim[index_GS_S+1:index_GS_A-1] + list_t_sim[index_GS_A+1:]
+            list_t_sim = list_t_sim[index_GS_S+1:index_GS_A] + list_t_sim[index_GS_A+1:]
 
-            list_data = (sol.list_binned_data[index_GS_S+1:index_GS_A-1] +
+            list_data = (sol.list_binned_data[index_GS_S+1:index_GS_A] +
                         sol.list_binned_data[index_GS_A+1:])
-            list_exp_data = (sol.list_exp_data[index_GS_S+1:index_GS_A-1] +
+            list_exp_data = (sol.list_exp_data[index_GS_S+1:index_GS_A] +
                              sol.list_exp_data[index_GS_A+1:])
-            list_labels = (sol.state_labels[index_GS_S+1:index_GS_A-1] +
+            list_labels = (sol.state_labels[index_GS_S+1:index_GS_A] +
                            sol.state_labels[index_GS_A+1:])
 
             plotter.plot_avg_decay_data(list_t_sim, list_data,
@@ -1473,7 +1473,7 @@ class Simulations():
 #                        format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
 #    logger.info('Called from cmd.')
 #
-#    cte = settings.load('config_file.cfg')
+#    cte = settings.load('config_file_cif.cfg')
 #
 #    cte['no_console'] = False
 #    cte['no_plot'] = False
@@ -1483,7 +1483,7 @@ class Simulations():
 #
 #    with disable_console_handler('simetuc.precalculate'):
 #        pass
-
+#
 #        solution = sim.simulate_dynamics()
 #        solution.log_errors()
 #        solution.plot()
