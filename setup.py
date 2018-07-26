@@ -17,9 +17,12 @@ Created on Tue Nov  1 16:17:59 2016
 # CONDA:
 # build and upload to pypi as before.
 # then on directory python/conda delete folder simetuc
-# then conda skeleton pypi --setup-options="--single-version-externally-managed --record=record.txt" simetuc
+# then conda skeleton pypi simetuc
+# add to meta.yaml:
+# in section build:
+# script: pip install settings_parser && python setup.py install --single-version-externally-managed --record=record.txt
 # conda build --py 3.6 simetuc
-# conda convert -f --platform all PATH-TO-PACKAGE -o .
+# conda convert -f --platform all PATH-TO-PACKAGE -o . ## doesn't seem to work anymore
 # anaconda login
 # anaconda upload */simetuc-*
 
